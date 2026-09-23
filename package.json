@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Truyện Vai — bộ kiểm thử hai tầng (Node + trình duyệt) của generator perchance.org/phufantasyroleplay",
   "scripts": {
-    "test": "node --test tests/node/",
+    "test": "node --test tests/node/*.test.mjs",
     "test:gioi-han": "node --test tests/node/ai-parse.test.mjs tests/node/store.test.mjs"
   },
   "engines": {

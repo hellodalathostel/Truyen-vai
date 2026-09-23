@@ -101,7 +101,7 @@ const TEP_NODE = [
 ];
 const TEP_FIXTURE = ["ke-hoach.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
 const SRC_CHO_PHEP = MODULE_SRC.concat(["styles.css", "README.md", "CONTEXT.md"]);
-const GOC_CHO_PHEP = ["main.pjs", "index.html", "package.json", "README.md", "LICENSE", ".gitignore", ".github", "src", "tests"];
+const GOC_CHO_PHEP = ["main.pjs", "index.html", "package.json", "README.md", "LICENSE", ".git", ".gitignore", ".github", "src", "tests"];
 
 // Chạy một ca có cần đọc tệp; tự bỏ qua khi môi trường không đọc được tệp.
 function ca(ten, fn) {
