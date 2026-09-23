@@ -96,7 +96,7 @@ function giaTriTruong(text, truong) {
 
 const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "store.js", "thoiGian.js", "trangThai.js"];
 const TEP_NODE = [
-  "ai-parse.test.mjs", "dom.test.mjs", "goi-chung.test.mjs", "khong-ro-ri.test.mjs",
+  "ai-parse.test.mjs", "dom.test.mjs", "gd4.test.mjs", "goi-chung.test.mjs", "khong-ro-ri.test.mjs",
   "lore.test.mjs", "ngoaiHinh.test.mjs", "store.test.mjs", "thoiGian.test.mjs", "trangThai.test.mjs",
 ];
 const TEP_FIXTURE = ["ke-hoach.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
@@ -180,6 +180,18 @@ ca("DANH_MUC chỉ dùng bốn loại đã định", async (bd) => {
   const dsLoai = giaTriTruong(run, "loai:");
   ok(dsLoai.length > 0, "đọc được loại của các bộ (" + dsLoai.length + ")");
   for (const l of dsLoai) ok(["nen", "dung", "bo", "phu"].indexOf(l) >= 0, "loại hợp lệ: " + l);
+});
+
+ca("bộ chạy còn lưới an toàn cho CÀI ĐẶT (localStorage)", async (bd) => {
+  // Cài đặt cũng là dữ liệu thật. Bộ kiểm thử ghi mốc sao lưu (và `danhDauDaDoi` ghi mốc mỗi
+  // lần dữ liệu đổi), nên bộ chạy phải chụp cài đặt TRƯỚC và trả nguyên SAU khi dọn dữ liệu
+  // test — nếu không, người dùng bị hoãn lời nhắc sao lưu bằng một mốc "đã xuất" giả.
+  const run = await bd.doc("tests/browser/runner.js");
+  ok(run.indexOf("truyenVai.caiDat") >= 0, "có nhắc tới khoá cài đặt");
+  ok(run.indexOf("function ghiCaiDat") >= 0, "có hàm trả cài đặt về nguyên trạng");
+  ok(run.indexOf("function soCaiDat") >= 0, "có hàm so cài đặt (bỏ qua khối mốc sao lưu)");
+  ok(run.indexOf("CÀI ĐẶT THẬT ĐÃ ĐỔI") >= 0, "có cảnh báo khi cài đặt bị đụng");
+  ok(run.indexOf("kq.daDon.caiDat") >= 0, "có báo cáo việc trả cài đặt về nguyên trạng");
 });
 
 ca("cổng an toàn tuổi của Giai đoạn 1 còn nguyên trong mã", async (bd) => {

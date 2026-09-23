@@ -37,6 +37,7 @@ CauHinh() =>
     soKyTuMoiMucLore: 1500,      // sổ tri thức: mục dài hơn thì cắt bớt khi gửi cho AI
     soKyTuMoiDoanTomTat: 14000,  // đoạn dài hơn sẽ được tóm tắt thành nhiều lượt rồi gộp dần (không bỏ sót đoạn giữa)
     soTinNhanGiuLaiKhiKetChuong: 8, // kết chương: số tin cuối giữ nguyên văn, phần trước gộp thành tóm tắt liên tục
+    soNgayNhacSaoLuu: 7,         // nhắc sao lưu: quá bao nhiêu ngày (kể từ lần xuất gần nhất) thì nhắc lại, khi dữ liệu đã đổi
   };
 
 // --------------------------------------------------------------------------

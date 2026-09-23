@@ -24,6 +24,7 @@ const CAU_HINH = {
   soKyTuMoiMucLore: 1500,
   soKyTuMoiDoanTomTat: 14000,
   soTinNhanGiuLaiKhiKetChuong: 8,
+  soNgayNhacSaoLuu: 7,
 };
 
 const SO_THICH = [
@@ -41,6 +42,23 @@ const NGON_NGU = [{ id: "tu-nhien", ten: "tự nhiên, đời thường" }];
 const KIEU = [{ id: "the-gioi-mo", ten: "Thế giới mở", moTa: "không khung", goiY: "" }];
 
 export const CAU_HINH_GIA = CAU_HINH;
+
+// `localStorage` giả trong bộ nhớ. Ở Node không có localStorage, nên mọi lời gọi
+// `saveSettings()` rơi vào nhánh lỗi (được bọc try/catch nên không vỡ, nhưng in ra
+// console.error và KHÔNG kiểm thử được đường lưu thật). Có bản giả này thì mốc sao lưu
+// (`mocSaoLuu`/`danhDauSaoLuu`/`danhDauDaDoi`) ghi rồi đọc lại được như trên trình duyệt.
+// Chỉ cài khi môi trường CHƯA có, nên không đụng gì tới tầng trình duyệt.
+if (typeof globalThis.localStorage === "undefined") {
+  const KHO = {};
+  globalThis.localStorage = {
+    getItem: (k) => (Object.prototype.hasOwnProperty.call(KHO, String(k)) ? KHO[String(k)] : null),
+    setItem: (k, v) => { KHO[String(k)] = String(v); },
+    removeItem: (k) => { delete KHO[String(k)]; },
+    clear: () => { for (const k of Object.keys(KHO)) delete KHO[k]; },
+    key: (i) => Object.keys(KHO)[Number(i)] || null,
+    get length() { return Object.keys(KHO).length; },
+  };
+}
 
 if (typeof globalThis.window === "undefined") {
   globalThis.window = {

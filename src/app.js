@@ -6,6 +6,8 @@ import {
   replaceMessages, makeMessage, pushMessage, charById, convsOfChapter, looseConversations, storyStats,
   giaoKeoOf, giaoKeoMacDinh, newAnh, luuAnh, getAnh, getAnhMem, xoaAnh, anhMeta, anhCua,
   LoiLuu, thongDiepLuu, dungLuongUocTinh, chuanHoaTruyen, chuanHoaTinNhan, PHIEN_BAN_TRUYEN,
+  mocSaoLuu, danhDauSaoLuu, nenNhacSaoLuu, docNhatKyLlm, ghiNhatKyLlm, xoaNhatKyLlm,
+  kiemTraBatBien, TOI_DA_MUC_NHAT_KY, TOI_DA_BYTE_NHAT_KY, catTho, danhDauDaDoi, themVaoVong, dungLuongTho,
   hienDienCua, hienDienNhom, canhRiengCua, daoDienOf, daoDienMacDinh, luuMoC,
   chupNhieuKhoa, traNhieuKhoa, laNguoiLon, tuoiSo, chanGiaoKeo, chanNoiDungNguoiLon,
   laCheDoNguoiLon, xacNhanMoiNguoiLon, laDataUrlAnh,
@@ -439,7 +441,7 @@ function renderLibrary() {
     const st = storyStats(s);
     const ten = esc(s.ten);
     return (
-      '<button class="story-card" data-act="open-story" data-id="' + s.id + '">' +
+      '<button class="story-card" data-act="open-story" data-id="' + esc(s.id) + '">' +
         '<div class="story-card-glow" style="background:' + hexToRgba(s.mau || "#8b5cf6", 0.5) + '"></div>' +
         '<div class="story-card-top"><span class="story-emoji">' + esc(s.emoji || "✦") + "</span>" +
         '<span class="badge">' + (s.mode === "chuong" ? "📖 nhiều chương" : "🧵 nhiều hội thoại") + "</span></div>" +
@@ -476,6 +478,7 @@ function renderLibrary() {
             '<button class="btn btn-primary btn-lg" data-act="new-story">' + icon("plus", 18) + " Bắt đầu</button>" +
           "</div>") +
       '<footer class="lib-foot">' +
+        khoiCanhBaoDoiTen() +
         '<div class="lib-privacy">' + icon("lock", 13) +
           " Truyện và ảnh của bạn được lưu <b>cục bộ trên trình duyệt này</b> (IndexedDB) — không có tài khoản, không có máy chủ lưu truyện. " +
           "Riêng khi bạn gọi các tính năng AI (viết phản hồi, tạo nhân vật, dựng ảnh, tổng kết chương, gợi ý), phần ngữ cảnh liên quan của truyện sẽ được gửi tới dịch vụ AI của Perchance để xử lý." +
@@ -488,18 +491,7 @@ function renderLibrary() {
 
 // Hiện dung lượng trình duyệt đang dùng cho app (IndexedDB), cảnh báo khi gần đầy.
 async function hienDungLuong() {
-  const el2 = $("[data-dung-luong]");
-  if (!el2) return;
-  const dl = await dungLuongUocTinh();
-  if (!dl || !dl.tong) {
-    el2.textContent = "";
-    return;
-  }
-  const mb = (n) => (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + " MB";
-  const pt = Math.round((dl.dung / dl.tong) * 100);
-  el2.innerHTML =
-    "Bộ nhớ trình duyệt đã dùng: <b>" + mb(dl.dung) + "</b> / " + mb(dl.tong) + " (" + pt + "%)" +
-    (pt >= 80 ? ' · <span class="lib-canhbao">gần đầy — hãy xuất bản sao lưu rồi xoá bớt ảnh cũ</span>' : "");
+  await thanhDungLuong($("[data-dung-luong]"));
 }
 
 // Đọc lại thư viện ngoại hình ngay trước khi xuất bản sao lưu, rồi HỎI nếu vẫn còn lỗi
@@ -553,6 +545,9 @@ async function xuatTatCa() {
     if (!ok) return;
   }
   download("truyen-vai-toan-bo.json", JSON.stringify(all));
+  // Mốc "đã xuất" — dùng cho lời nhắc sao lưu (chỉ tính file sao lưu TOÀN BỘ, vì đó là
+  // thứ khôi phục được cả thư viện lẫn hồ sơ ngoại hình).
+  danhDauSaoLuu("xuatLuc");
   toast(
     "Đã xuất toàn bộ thư viện (" + all.stories.length + " truyện, " + Object.keys(all.anh).length + " ảnh, " +
       Object.keys(all.ngoaiHinh).length + " hồ sơ ngoại hình)" +
@@ -584,7 +579,7 @@ function renderSidebar(story) {
     const on = c.id === app.convId;
     const nv = story.nhanVats.filter((x) => (c.nhanVatIds || []).includes(x.id));
     return (
-      '<button class="conv-item' + (on ? " on" : "") + '" data-act="open-conv" data-id="' + c.id + '">' +
+      '<button class="conv-item' + (on ? " on" : "") + '" data-act="open-conv" data-id="' + esc(c.id) + '">' +
         avatarStack(story, c.nhanVatIds, 22) +
         '<span class="conv-title">' + esc(c.tieuDe) + "</span>" +
         (nv.length > 1 ? '<span class="conv-tag">nhóm</span>' : "") +
@@ -601,12 +596,12 @@ function renderSidebar(story) {
         const convs = convsOfChapter(story, ch.id);
         return (
           '<div class="side-chapter">' +
-            '<button class="chapter-head' + (ch.daKetThuc ? " done" : "") + '" data-act="open-chapter" data-id="' + ch.id + '">' +
+            '<button class="chapter-head' + (ch.daKetThuc ? " done" : "") + '" data-act="open-chapter" data-id="' + esc(ch.id) + '">' +
               '<span class="chapter-no">' + (ch.daKetThuc ? icon("check", 13) : ch.so) + "</span>" +
               '<span class="chapter-name">' + esc(ch.tieuDe) + "</span>" +
             "</button>" +
             (convs.length ? '<div class="chapter-convs">' + convs.map(convItem).join("") + "</div>" : "") +
-            '<button class="side-add" data-act="new-conv" data-chuong="' + ch.id + '">' + icon("plus", 13) + " hội thoại</button>" +
+            '<button class="side-add" data-act="new-conv" data-chuong="' + esc(ch.id) + '">' + icon("plus", 13) + " hội thoại</button>" +
           "</div>"
         );
       })
@@ -650,7 +645,7 @@ function renderMain(story) {
 // -------------------------------------------------------------- bảng điều khiển
 function threadCard(story, c) {
   const soNv = (c.nhanVatIds || []).length;
-  return '<button class="thread-card" data-act="open-conv" data-id="' + c.id + '">' +
+  return '<button class="thread-card" data-act="open-conv" data-id="' + esc(c.id) + '">' +
     avatarStack(story, c.nhanVatIds, 28) +
     '<div class="thread-info"><div class="thread-name">' + esc(c.tieuDe) +
       (soNv > 1 ? ' <span class="thread-tag">nhóm ' + soNv + '</span>' : "") + "</div>" +
@@ -693,7 +688,7 @@ function renderDashboard(story) {
       '<button class="btn btn-sm" data-act="new-char">' + icon("plus", 14) + " Thêm</button></div>" +
       (story.nhanVats.length
         ? '<div class="char-grid">' + story.nhanVats.map((c) =>
-            '<button class="char-card" data-act="edit-char" data-id="' + c.id + '">' +
+            '<button class="char-card" data-act="edit-char" data-id="' + esc(c.id) + '">' +
               avatarHtml(story, c, 44) +
               '<div class="char-info"><div class="char-name">' + esc(c.ten) + "</div>" +
               '<div class="char-role">' + esc(c.vaiTro || "nhân vật") + "</div></div>" +
@@ -722,16 +717,16 @@ function renderDashboard(story) {
                 (ch.tomTat ? '<div class="tl-sum">' + esc(ch.tomTat) + "</div>" : "") +
                 '<div class="tl-convs">' +
                   convs.map((c) =>
-                    '<button class="mini-conv" data-act="open-conv" data-id="' + c.id + '">' +
+                    '<button class="mini-conv" data-act="open-conv" data-id="' + esc(c.id) + '">' +
                     avatarStack(story, c.nhanVatIds, 20) + "<span>" + esc(c.tieuDe) + "</span></button>"
                   ).join("") +
-                  '<button class="mini-conv add" data-act="new-conv" data-chuong="' + ch.id + '">' + icon("plus", 13) + " hội thoại</button>" +
+                  '<button class="mini-conv add" data-act="new-conv" data-chuong="' + esc(ch.id) + '">' + icon("plus", 13) + " hội thoại</button>" +
                 "</div>" +
                 '<div class="tl-actions">' +
                   (ch.daKetThuc
                     ? ""
-                    : '<button class="btn btn-sm btn-primary" data-act="end-chapter" data-id="' + ch.id + '">' + icon("flag", 14) + " Kết thúc chương</button>") +
-                  '<button class="btn btn-sm" data-act="edit-chapter" data-id="' + ch.id + '">' + icon("edit", 13) + " Sửa</button>" +
+                    : '<button class="btn btn-sm btn-primary" data-act="end-chapter" data-id="' + esc(ch.id) + '">' + icon("flag", 14) + " Kết thúc chương</button>") +
+                  '<button class="btn btn-sm" data-act="edit-chapter" data-id="' + esc(ch.id) + '">' + icon("edit", 13) + " Sửa</button>" +
                 "</div>" +
               "</div>" +
             "</div>"
@@ -1846,14 +1841,14 @@ function ddFormDinhChinhHtml(story, conv, muc) {
       '<div class="dd-loai-nv"' + (loai === "nhanvat" ? "" : " hidden") + ">" +
         '<label class="field-label">Nhân vật</label><select class="input" data-f="nvId">' + nvOpts(muc.nvId) + "</select>" +
         '<label class="field-label">Trường trạng thái</label><select class="input" data-f="truong">' +
-          TS.TRUONG.map((x) => '<option value="' + x.id + '"' + (muc.truong === x.id ? " selected" : "") + ">" + esc(x.ten) + "</option>").join("") +
+          TS.TRUONG.map((x) => '<option value="' + esc(x.id) + '"' + (muc.truong === x.id ? " selected" : "") + ">" + esc(x.ten) + "</option>").join("") +
         "</select>" +
       "</div>" +
       '<div class="dd-loai-qh"' + (loai === "quanhe" ? "" : " hidden") + ">" +
         '<label class="field-label">Cặp quan hệ (người cảm nhận → người được cảm nhận)</label>' +
         '<div class="dd-pair"><select class="input" data-f="tu">' + nvOpts(muc.tu) + '</select><span class="dd-pair-x">→</span><select class="input" data-f="den">' + nvOpts(muc.den, true) + "</select></div>" +
         '<label class="field-label">Chiều quan hệ</label><select class="input" data-f="chieu">' +
-          TS.CHIEU.map((x) => '<option value="' + x.id + '"' + (muc.chieu === x.id ? " selected" : "") + ">" + esc(x.ten) + "</option>").join("") +
+          TS.CHIEU.map((x) => '<option value="' + esc(x.id) + '"' + (muc.chieu === x.id ? " selected" : "") + ">" + esc(x.ten) + "</option>").join("") +
           '<option value="chuaNoi"' + (laChu ? " selected" : "") + ">Điều chưa nói</option>" +
         "</select>" +
         '<div class="dd-muc"' + (laChu ? " hidden" : "") + ">" +
@@ -1987,7 +1982,7 @@ function ddFormHuongHtml(story, d) {
     '<div class="dd-form">' +
       '<label class="field-label">Phạm vi</label>' +
       '<div class="dd-chips">' +
-        TS.PHAM_VI.map((x) => '<button type="button" class="chip dd-chip-pv' + (phamVi === x.id ? " on" : "") + '" data-v="' + x.id + '">' + esc(x.ten) + "</button>").join("") +
+        TS.PHAM_VI.map((x) => '<button type="button" class="chip dd-chip-pv' + (phamVi === x.id ? " on" : "") + '" data-v="' + esc(x.id) + '">' + esc(x.ten) + "</button>").join("") +
       "</div>" +
       '<div class="dd-pv-nv"' + (phamVi === "nhanvat" ? "" : " hidden") + ">" +
         '<label class="field-label">Nhân vật</label><select class="input" data-f="nvId">' + nvOpts(dd.nvId) + "</select>" +
@@ -2000,7 +1995,7 @@ function ddFormHuongHtml(story, d) {
       '<textarea class="input" data-f="mongMuon" rows="3" placeholder="Ví dụ: A dần bớt kiểm soát và học cách tin B">' + esc(dd.mongMuon || "") + "</textarea>" +
       '<div class="dd-2col">' +
         '<div><label class="field-label">Nhịp chuyển</label><select class="input" data-f="nhip">' +
-          TS.NHIP_HUONG.map((x) => '<option value="' + x.id + '"' + ((dd.nhip || "vua") === x.id ? " selected" : "") + ">" + esc(x.ten) + " — " + esc(x.dan) + "</option>").join("") +
+          TS.NHIP_HUONG.map((x) => '<option value="' + esc(x.id) + '"' + ((dd.nhip || "vua") === x.id ? " selected" : "") + ">" + esc(x.ten) + " — " + esc(x.dan) + "</option>").join("") +
         "</select></div>" +
         '<div><label class="field-label">Số cảnh dự kiến</label><input class="input" type="number" min="1" max="20" data-f="soCanh" value="' +
           (Math.round(Number(dd.soCanh)) || ddSoCanhMacDinh(story)) + '"></div>' +
@@ -2295,7 +2290,7 @@ function mucTienDoHtml(story, conv, h, td) {
           '<span class="chip dd-tt dd-tt-' + esc(h.trangThai) + '">' + esc(TS.nhanTrangThaiHuong(h.trangThai)) + "</span>" +
           '<span class="chip dd-qh-chip">' + esc(TS.doiTuongHuong(story, h)) + "</span></div>" +
         '<select class="input" data-k="trangthai">' +
-          TS.TT_TIEN_DO.map((x) => '<option value="' + x.id + '"' + (x.id === cur ? " selected" : "") + ">" + esc(x.ten) + "</option>").join("") +
+          TS.TT_TIEN_DO.map((x) => '<option value="' + esc(x.id) + '"' + (x.id === cur ? " selected" : "") + ">" + esc(x.ten) + "</option>").join("") +
         "</select>" +
         '<input class="input" data-k="bangchung" value="' + esc(bc) + '" placeholder="Bằng chứng cụ thể trong cảnh này…">' +
         '<input class="input" data-k="buoctiep" value="' + esc(bt) + '" placeholder="Bước tiếp theo (chỉ là gợi ý)">' +
@@ -2430,7 +2425,7 @@ function goiYkhoiHtml() {
 function messageHtml(story, conv, m) {
   if (m.vai === "anh") return anhMessageHtml(story, conv, m);
   if (m.vai === "he") {
-    return '<div class="msg msg-he" data-mid="' + m.id + '"><div class="he-text">' + fmt(m.noiDung) + "</div></div>";
+    return '<div class="msg msg-he" data-mid="' + esc(m.id) + '"><div class="he-text">' + fmt(m.noiDung) + "</div></div>";
   }
   const isUser = m.vai === "nguoi";
   const chars = nvtsCuaTin(story, m);
@@ -2442,7 +2437,7 @@ function messageHtml(story, conv, m) {
   const khoaRieng = m.rieng ? '<span class="msg-rieng" title="Chỉ bạn và nhân vật này biết chuyện trong cảnh riêng">' + icon("lock", 10) + " cảnh riêng</span>" : "";
   const vaiTro = laNhom ? "cảnh nhóm" : (char && char.vaiTro ? char.vaiTro : "");
   return (
-    '<div class="msg ' + (isUser ? "msg-user" : "msg-ai") + '" data-mid="' + m.id + '">' +
+    '<div class="msg ' + (isUser ? "msg-user" : "msg-ai") + '" data-mid="' + esc(m.id) + '">' +
       '<div class="msg-avatar">' + (laNhom ? avatarStack(story, m.nvIds, 34) : avatarHtml(story, isUser ? null : char, 34)) + "</div>" +
       '<div class="msg-body">' +
         '<div class="msg-head"><span class="msg-name"' + (char ? ' style="color:' + esc(char.mau || "#8b5cf6") + '"' : "") + ">" + esc(name) + "</span>" +
@@ -2451,8 +2446,8 @@ function messageHtml(story, conv, m) {
         '<span class="msg-time">' + timeAgo(m.luc) + "</span></div>" +
         (editing
           ? '<div class="msg-edit"><textarea class="input" data-edit-input rows="5">' + esc(m.noiDung) + "</textarea>" +
-            '<div class="msg-edit-actions"><button class="btn btn-sm" data-act="cancel-edit" data-mid="' + m.id + '">Huỷ</button>' +
-            '<button class="btn btn-sm btn-primary" data-act="save-edit" data-mid="' + m.id + '">Lưu</button></div></div>'
+            '<div class="msg-edit-actions"><button class="btn btn-sm" data-act="cancel-edit" data-mid="' + esc(m.id) + '">Huỷ</button>' +
+            '<button class="btn btn-sm btn-primary" data-act="save-edit" data-mid="' + esc(m.id) + '">Lưu</button></div></div>'
           : '<div class="msg-text' + (streaming ? " streaming" : "") + '">' + fmtBongBong(m.noiDung, batPhanBiet()) +
             (streaming ? '<span class="caret"></span>' : "") + "</div>") +
         (streaming
@@ -2461,12 +2456,12 @@ function messageHtml(story, conv, m) {
               (m.daDung ? '<span class="msg-dung" title="Người chơi đã dừng giữa lúc sinh">' + icon("stop", 11) + " đã dừng</span>" : "") +
               // Trên màn hình hẹp, các công cụ dưới đây bị ẩn sau nút ⋯ này cho gọn.
               '<button class="tool msg-more" data-act="toggle-msg-tools" aria-label="Thao tác với tin nhắn" aria-expanded="false" title="Thao tác khác">' + icon("menu", 16) + "</button>" +
-              '<button class="tool" data-act="copy-msg" data-mid="' + m.id + '" aria-label="Sao chép tin nhắn" title="Sao chép">' + icon("copy", 14) + "</button>" +
-              (isUser ? "" : '<button class="tool" data-act="regen-msg" data-mid="' + m.id + '" aria-label="Viết lại tin nhắn" title="Viết lại">' + icon("refresh", 14) + "</button>") +
-              '<button class="tool" data-act="edit-msg" data-mid="' + m.id + '" aria-label="Sửa tin nhắn" title="Sửa">' + icon("edit", 14) + "</button>" +
-              (isUser ? "" : '<button class="tool" data-act="tao-anh-msg" data-mid="' + m.id + '" aria-label="Dựng ảnh cho đoạn này" title="Dựng ảnh cho đoạn này">' + icon("image", 14) + "</button>") +
-              (isUser ? "" : '<button class="tool" data-act="facts-msg" data-mid="' + m.id + '" aria-label="Ghi vào biên niên sử" title="Ghi vào biên niên sử">' + icon("pin", 14) + "</button>") +
-              '<button class="tool danger" data-act="del-msg" data-mid="' + m.id + '" aria-label="Xoá tin nhắn" title="Xoá">' + icon("trash", 14) + "</button>" +
+              '<button class="tool" data-act="copy-msg" data-mid="' + esc(m.id) + '" aria-label="Sao chép tin nhắn" title="Sao chép">' + icon("copy", 14) + "</button>" +
+              (isUser ? "" : '<button class="tool" data-act="regen-msg" data-mid="' + esc(m.id) + '" aria-label="Viết lại tin nhắn" title="Viết lại">' + icon("refresh", 14) + "</button>") +
+              '<button class="tool" data-act="edit-msg" data-mid="' + esc(m.id) + '" aria-label="Sửa tin nhắn" title="Sửa">' + icon("edit", 14) + "</button>" +
+              (isUser ? "" : '<button class="tool" data-act="tao-anh-msg" data-mid="' + esc(m.id) + '" aria-label="Dựng ảnh cho đoạn này" title="Dựng ảnh cho đoạn này">' + icon("image", 14) + "</button>") +
+              (isUser ? "" : '<button class="tool" data-act="facts-msg" data-mid="' + esc(m.id) + '" aria-label="Ghi vào biên niên sử" title="Ghi vào biên niên sử">' + icon("pin", 14) + "</button>") +
+              '<button class="tool danger" data-act="del-msg" data-mid="' + esc(m.id) + '" aria-label="Xoá tin nhắn" title="Xoá">' + icon("trash", 14) + "</button>" +
             "</div>") +
       "</div>" +
     "</div>"
@@ -2594,9 +2589,9 @@ function anhMessageHtml(story, conv, m) {
   const meta = anhMeta(story, m.anhId) || {};
   const chu = m.chuThich || meta.chuThich || "Ảnh cảnh";
   return (
-    '<div class="msg msg-anh" data-mid="' + m.id + '">' +
+    '<div class="msg msg-anh" data-mid="' + esc(m.id) + '">' +
       '<div class="anh-body">' +
-        '<button class="anh-frame" data-act="anh-xem" data-mid="' + m.id + '" title="Xem lớn">' +
+        '<button class="anh-frame" data-act="anh-xem" data-mid="' + esc(m.id) + '" title="Xem lớn">' +
           anhHolder(meta) +
         "</button>" +
         '<div class="anh-meta">' +
@@ -2604,10 +2599,10 @@ function anhMessageHtml(story, conv, m) {
           (meta.phongCach ? '<span class="anh-badge">' + esc(tenPhongCach(meta.phongCach) || meta.phongCach) + "</span>" : "") +
           '<span class="anh-time">' + timeAgo(m.luc) + "</span>" +
           '<div class="msg-tools anh-tools">' +
-            '<button class="tool" data-act="anh-xem" data-mid="' + m.id + '" title="Xem lớn">' + icon("search", 14) + "</button>" +
-            '<button class="tool" data-act="anh-tai" data-mid="' + m.id + '" title="Tải ảnh">' + icon("download", 14) + "</button>" +
-            '<button class="tool" data-act="anh-lai" data-mid="' + m.id + '" title="Dựng lại từ mô tả này">' + icon("refresh", 14) + "</button>" +
-            '<button class="tool danger" data-act="del-msg" data-mid="' + m.id + '" title="Xoá khung hình">' + icon("trash", 14) + "</button>" +
+            '<button class="tool" data-act="anh-xem" data-mid="' + esc(m.id) + '" title="Xem lớn">' + icon("search", 14) + "</button>" +
+            '<button class="tool" data-act="anh-tai" data-mid="' + esc(m.id) + '" title="Tải ảnh">' + icon("download", 14) + "</button>" +
+            '<button class="tool" data-act="anh-lai" data-mid="' + esc(m.id) + '" title="Dựng lại từ mô tả này">' + icon("refresh", 14) + "</button>" +
+            '<button class="tool danger" data-act="del-msg" data-mid="' + esc(m.id) + '" title="Xoá khung hình">' + icon("trash", 14) + "</button>" +
           "</div>" +
         "</div>" +
       "</div>" +
@@ -3364,7 +3359,7 @@ function gkBar(story, conv) {
         '<div class="gk-mucdo-set">' +
           "<span class=\"gk-mucdo-label\">Mức " + so + " · " + esc(m.ten || "") + "</span>" +
           '<div class="gk-mucdo-chips">' +
-            ds.map((x) => '<button class="gk-chip gk-num' + (Number(x.so) === so ? " on" : "") + '" data-act="set-mucdo" data-so="' + x.so + '" aria-label="Đặt mức ' + x.so + '" title="' + esc(x.moTa) + '">' + x.so + "</button>").join("") +
+            ds.map((x) => '<button class="gk-chip gk-num' + (Number(x.so) === so ? " on" : "") + '" data-act="set-mucdo" data-so="' + esc(x.so) + '" aria-label="Đặt mức ' + esc(x.so) + '" title="' + esc(x.moTa) + '">' + esc(x.so) + "</button>").join("") +
           "</div>" +
         "</div>" +
         '<span class="gk-chip gk-chip-tk" title="Nói từ này là cảnh dừng ngay">' + icon("shield", 13) + " " + esc(g.tuKhoaDung || "đỏ") + "</span>" +
@@ -3453,7 +3448,7 @@ function responderRow(story, nvts) {
       '<span class="responder-label">Ai trả lời</span>' +
       '<button class="chip' + (app.responder === "auto" ? " on" : "") + '" data-act="set-responder" data-id="auto">' + icon("sparkle", 13) + " Tự động</button>" +
       nvts.map((c) =>
-        '<button class="chip' + (app.responder === c.id ? " on" : "") + '" data-act="set-responder" data-id="' + c.id + '">' +
+        '<button class="chip' + (app.responder === c.id ? " on" : "") + '" data-act="set-responder" data-id="' + esc(c.id) + '">' +
         avatarHtml(story, c, 18) + " " + esc(c.ten) + "</button>").join("") +
       '<button class="chip' + (app.responder === "all" ? " on" : "") + '" data-act="set-responder" data-id="all">' + icon("users", 13) + " Tất cả</button>" +
     "</div>"
@@ -3670,7 +3665,7 @@ function openChonCanhRieng() {
     "những nhân vật khác sẽ không biết, trừ khi sau này được kể lại hoặc tự phát hiện.</div>" +
     '<div class="pick-list">' +
       coMat.map((c) =>
-        '<button class="pick' + (canhRiengCua(conv) === c.id ? " on" : "") + '" data-nv="' + c.id + '">' + avatarHtml(story, c, 24) + "<span>" + esc(c.ten) + "</span>" +
+        '<button class="pick' + (canhRiengCua(conv) === c.id ? " on" : "") + '" data-nv="' + esc(c.id) + '">' + avatarHtml(story, c, 24) + "<span>" + esc(c.ten) + "</span>" +
         "<span class='pick-role'>" + esc(c.vaiTro || "") + "</span></button>").join("") +
     "</div>";
   const m = modal({
@@ -3707,7 +3702,7 @@ function openHienDien() {
   const htmlPick = () =>
     '<div class="pick-list">' +
       tat.map((c) =>
-        '<button class="pick' + (chon.has(c.id) ? " on" : "") + '" data-nv-hd="' + c.id + '">' + avatarHtml(story, c, 24) +
+        '<button class="pick' + (chon.has(c.id) ? " on" : "") + '" data-nv-hd="' + esc(c.id) + '">' + avatarHtml(story, c, 24) +
         "<span>" + esc(c.ten) + "</span><span class='pick-role'>" + (chon.has(c.id) ? "đang có mặt" : "vắng mặt") + "</span></button>").join("") +
     "</div>";
   body.innerHTML =
@@ -4292,8 +4287,8 @@ function htmlGiaoKeo(g, p) {
       '<label class="field-label">Mức độ</label>' +
       '<div class="mucdo-row">' +
         mucDos.map((m) =>
-          '<button type="button" class="mucdo' + (Number(m.so) === Number(g.mucDo) ? " on" : "") + '" data-mucdo="' + m.so + '" title="' + esc(m.moTa) + '">' +
-          "<b>" + m.so + "</b><span>" + esc(m.ten) + "</span></button>").join("") +
+          '<button type="button" class="mucdo' + (Number(m.so) === Number(g.mucDo) ? " on" : "") + '" data-mucdo="' + esc(m.so) + '" title="' + esc(m.moTa) + '">' +
+          "<b>" + esc(m.so) + "</b><span>" + esc(m.ten) + "</span></button>").join("") +
       "</div>" +
       '<input type="hidden" data-f="' + p + 'mucDo" value="' + esc(g.mucDo || 3) + '">' +
       '<div class="hint" data-mucdo-mota>' + esc(dangChon.moTa || "") + "</div>" +
@@ -5186,10 +5181,10 @@ function openCharacterEditor(charId, opts = {}) {
     if (!extra) return;
     if (nhap.avatarStyle === "chu") {
       extra.innerHTML = '<div class="mau-row">' + mauList.map((mx) =>
-        '<button class="mau-dot' + (nhap.mau === mx ? " on" : "") + '" data-mau="' + mx + '" style="background:' + mx + '"></button>').join("") + "</div>";
+        '<button class="mau-dot' + (nhap.mau === mx ? " on" : "") + '" data-mau="' + esc(mx) + '" style="background:' + esc(mx) + '"></button>').join("") + "</div>";
     } else if (nhap.avatarStyle === "emoji") {
       extra.innerHTML = '<div class="emoji-row">' + EMOJI_CHOICES.map((e2) =>
-        '<button class="emoji-btn' + (nhap.emoji === e2 ? " on" : "") + '" data-emoji="' + e2 + '">' + e2 + "</button>").join("") + "</div>";
+        '<button class="emoji-btn' + (nhap.emoji === e2 ? " on" : "") + '" data-emoji="' + esc(e2) + '">' + esc(e2) + "</button>").join("") + "</div>";
     } else {
       extra.innerHTML = (laDataUrlAnh(nhap.anh) ? '<img class="anh-avatar" src="' + esc(laDataUrlAnh(nhap.anh)) + '" alt="">' : "") +
         '<button class="btn btn-sm" data-act="char-upload">' + icon("upload", 14) + " Tải ảnh lên</button>";
@@ -5595,8 +5590,8 @@ function openCharacterList() {
           '<div class="char-role">' + esc(c.vaiTro || "nhân vật") + "</div>" +
           '<div class="char-snip">' + esc((c.moTa || c.tinhCach || "").slice(0, 120)) + "</div></div></div>" +
           '<div class="char-row-actions">' +
-            '<button class="btn btn-sm" data-act="edit-char" data-id="' + c.id + '">' + icon("edit", 13) + "</button>" +
-            '<button class="btn btn-sm btn-danger" data-act="del-char" data-id="' + c.id + '">' + icon("trash", 13) + "</button>" +
+            '<button class="btn btn-sm" data-act="edit-char" data-id="' + esc(c.id) + '">' + icon("edit", 13) + "</button>" +
+            '<button class="btn btn-sm btn-danger" data-act="del-char" data-id="' + esc(c.id) + '">' + icon("trash", 13) + "</button>" +
           "</div></div>").join("") + "</div>"
       : '<div class="hint">Chưa có nhân vật nào trong truyện này.</div>';
   };
@@ -5643,8 +5638,8 @@ function openChronicle() {
         ? '<div class="bn-list">' + story.bienNienSu.map((b) =>
             '<div class="bn-row"><span class="bn-text">' + esc(b.noiDung) + "</span>" +
             (b.nguon ? '<span class="bn-src">' + esc(b.nguon) + "</span>" : "") +
-            '<button class="tool" data-act="edit-bn" data-id="' + b.id + '">' + icon("edit", 14) + "</button>" +
-            '<button class="tool danger" data-act="del-bn" data-id="' + b.id + '">' + icon("trash", 14) + "</button></div>").join("") + "</div>"
+            '<button class="tool" data-act="edit-bn" data-id="' + esc(b.id) + '">' + icon("edit", 14) + "</button>" +
+            '<button class="tool danger" data-act="del-bn" data-id="' + esc(b.id) + '">' + icon("trash", 14) + "</button></div>").join("") + "</div>"
         : '<div class="hint">Chưa có mục nào.</div>');
     capNhatSub();
   };
@@ -5790,7 +5785,7 @@ function openConvEditor(convId, opts = {}) {
     '<div class="pick-list">' +
       (story.nhanVats.length
         ? story.nhanVats.map((c) =>
-            '<button class="pick' + ((conv.nhanVatIds || []).includes(c.id) ? " on" : "") + '" data-nv="' + c.id + '">' +
+            '<button class="pick' + ((conv.nhanVatIds || []).includes(c.id) ? " on" : "") + '" data-nv="' + esc(c.id) + '">' +
             avatarHtml(story, c, 24) + "<span>" + esc(c.ten) + "</span>" + "<span class='pick-role'>" + esc(c.vaiTro || "") + "</span></button>").join("")
         : '<div class="hint">Truyện chưa có nhân vật nào — hãy thêm nhân vật trước.</div>') +
     "</div>";
@@ -5803,7 +5798,7 @@ function openConvEditor(convId, opts = {}) {
       ? '<label class="field-label">Thuộc chương</label><select class="input" data-f="chuong">' +
         '<option value="">(không thuộc chương nào)</option>' +
         story.chuongs.slice().sort((a, b) => a.so - b.so).map((c) =>
-          '<option value="' + c.id + '">Chương ' + c.so + " — " + esc(c.tieuDe) + "</option>").join("") + "</select>"
+          '<option value="' + esc(c.id) + '">Chương ' + esc(c.so) + " — " + esc(c.tieuDe) + "</option>").join("") + "</select>"
       : "") +
     '<label class="field-label">Nhân vật tham gia (chọn từ 2 người trở lên để thành group chat)</label>' +
     htmlPick() +
@@ -6217,7 +6212,7 @@ function xoaHoSoNgoaiHinh(id, onXong) {
       for (const a of anhCua(s)) if (Array.isArray(a.hoSoIds) && a.hoSoIds.indexOf(id) >= 0) dsAnh.push(s.ten + " · " + (a.chuThich || "ảnh cảnh"));
     }
     const phan = [];
-    if (dung.nhanVat) phan.push("<b>" + dung.nhanVat + "</b> nhân vật liên kết");
+    if (dung.nhanVat) phan.push("<b>" + esc(dung.nhanVat) + "</b> nhân vật liên kết");
     if (dung.nguoiChoi) phan.push("<b>" + dung.nguoiChoi + "</b> người chơi liên kết");
     if (dung.anh) phan.push("<b>" + dung.anh + "</b> ảnh cảnh đã dựng");
     const cachGo = [];
@@ -6696,7 +6691,18 @@ function openSettings() {
       "điều cần tránh và ảnh tham chiếu. Khi bạn tạo ảnh, app nhận diện tên nhân vật trong prompt rồi ghép đúng " +
       "ngoại hình của hồ sơ đã duyệt. Dữ liệu lưu cục bộ trên trình duyệt này — không đồng bộ giữa các thiết bị.</div>" +
     '<div class="row-gap"><button class="btn btn-sm" data-s-act="open-ngoai-hinh">' + icon("users", 15) +
-      " Thư viện ngoại hình (" + dsNgoaiHinh().length + ")</button></div>";
+      " Thư viện ngoại hình (" + dsNgoaiHinh().length + ")</button></div>" +
+    '<div class="set-sec">Sao lưu & an toàn dữ liệu</div>' +
+    '<div class="set-sao-luu">' +
+      khoiCanhBaoDoiTen() +
+      '<div class="hint" data-sao-luu-trang-thai></div>' +
+      '<div class="hint" data-dung-luong-cd></div>' +
+      '<div class="row-gap">' +
+        '<button class="btn btn-sm btn-primary" data-s-act="sao-luu">' + icon("download", 15) + " Xuất bản sao lưu</button>" +
+        '<button class="btn btn-sm" data-s-act="go-loi">' + icon("alert", 15) + " Bảng gỡ lỗi</button>" +
+        '<button class="btn btn-sm" data-s-act="tu-kiem-tra">' + icon("check", 15) + " Tự kiểm tra dữ liệu</button>" +
+      "</div>" +
+    "</div>";
 
   const F = (k) => body.querySelector('[data-s="' + k + '"]');
   F("phanBietLoiThoai").checked = batPhanBiet();
@@ -6705,6 +6711,11 @@ function openSettings() {
   F("autoChronicle").checked = !!store.settings.autoChronicle;
   F("anhPhongCach").value = c.phongCach;
   F("anhKichThuoc").value = c.kichThuoc;
+  // Trạng thái sao lưu + dung lượng: đây là "mặt tiền" để người dùng thấy ngay mình có
+  // đang giữ dữ liệu mà chưa sao lưu hay không.
+  const elTT = body.querySelector("[data-sao-luu-trang-thai]");
+  if (elTT) elTT.textContent = chuTrangThaiSaoLuu(Date.now());
+  thanhDungLuong(body.querySelector("[data-dung-luong-cd]"), { khiKhongCo: "Không đọc được dung lượng trình duyệt." });
 
   F("phanBietLoiThoai").addEventListener("change", function () {
     store.settings.phanBietLoiThoai = this.checked;
@@ -6734,6 +6745,9 @@ function openSettings() {
     const b = e.target.closest("[data-s-act]");
     if (!b) return;
     if (b.dataset.sAct === "open-ngoai-hinh") openNgoaiHinh();
+    else if (b.dataset.sAct === "sao-luu") xuatTatCa();
+    else if (b.dataset.sAct === "go-loi") openGoLoi();
+    else if (b.dataset.sAct === "tu-kiem-tra") openTuKiemTra();
   });
 
   modal({
@@ -6742,6 +6756,414 @@ function openSettings() {
     body,
     actions: [{ label: "Đóng", primary: true, onClick: (m) => m.close() }],
   });
+}
+
+// ==========================================================================
+//  SAO LƯU — cảnh báo đổi tên, trạng thái, lời nhắc
+// ==========================================================================
+// Vì sao cần nói rõ: dữ liệu nằm theo ORIGIN của trang. Đổi tên generator (hoặc fork) là
+// thành origin khác ⇒ app ở địa chỉ mới không thấy dữ liệu cũ, và người dùng tưởng mất
+// sạch. Chỉ có một cách phòng: xuất bản sao lưu TRƯỚC khi đổi tên.
+function khoiCanhBaoDoiTen() {
+  return (
+    '<div class="canh-bao-sao-luu">' + icon("alert", 14) +
+      " <b>Đừng đổi tên generator (hay tạo bản fork) khi chưa sao lưu.</b> " +
+      "Truyện, tin nhắn, ảnh và hồ sơ ngoại hình được lưu theo <b>địa chỉ của trang này</b> trong trình duyệt. " +
+      "Đổi tên hoặc fork tạo ra một địa chỉ khác, và app ở địa chỉ mới <b>không thấy</b> dữ liệu cũ — trông như mất sạch, " +
+      "trong khi dữ liệu vẫn nằm ở địa chỉ cũ. Hãy bấm <b>Xuất bản sao lưu</b> rồi mới đổi tên (đổi lại tên cũ là thấy lại dữ liệu)." +
+    "</div>"
+  );
+}
+
+// Dòng dung lượng vào MỘT phần tử bất kỳ (thư viện + Cài đặt dùng chung).
+async function thanhDungLuong(el2, opts = {}) {
+  if (!el2) return null;
+  const dl = await dungLuongUocTinh();
+  if (!dl || !dl.tong) {
+    el2.textContent = opts.khiKhongCo || "";
+    return null;
+  }
+  const mb = (n) => (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + " MB";
+  const pt = Math.round((dl.dung / dl.tong) * 100);
+  el2.innerHTML =
+    "Bộ nhớ trình duyệt đã dùng: <b>" + esc(mb(dl.dung)) + "</b> / " + esc(mb(dl.tong)) + " (" + pt + "%)" +
+    (pt >= 80 ? ' · <span class="lib-canhbao">gần đầy — hãy xuất bản sao lưu rồi xoá bớt ảnh cũ</span>' : "");
+  return { dung: dl.dung, tong: dl.tong, phanTram: pt };
+}
+
+// Trạng thái sao lưu dạng chữ, dùng cho mục Cài đặt.
+function chuTrangThaiSaoLuu(now) {
+  const m = mocSaoLuu(now);
+  const qd = nenNhacSaoLuu(m, now, CFG.soNgayNhacSaoLuu);
+  const ngay = (t) => Math.max(0, Math.floor((now - t) / 86400000));
+  if (!m.daDoiLuc) return "Chưa có dữ liệu nào thay đổi kể từ khi bắt đầu dùng trên trình duyệt này.";
+  if (m.xuatLuc && m.daDoiLuc <= m.xuatLuc) {
+    return "Bản sao lưu gần nhất đã bao gồm mọi thay đổi (" + ngay(m.xuatLuc) + " ngày trước).";
+  }
+  if (!m.xuatLuc) return "Bạn chưa từng xuất bản sao lưu. Dữ liệu đã thay đổi " + ngay(m.daDoiLuc) + " ngày trước.";
+  return (
+    "Dữ liệu đã thay đổi sau lần xuất gần nhất (" + ngay(m.xuatLuc) + " ngày trước)" +
+    (qd.ly === "dang-hoan" ? " — bạn đã chọn “để sau”." : qd.nhac ? " — đến hạn nhắc sao lưu." : ".")
+  );
+}
+
+// Lời nhắc khi mở app: chỉ hiện khi dữ liệu đã đổi sau lần xuất gần nhất VÀ đã quá N
+// ngày (N = CauHinh().soNgayNhacSaoLuu), và tối đa một lần mỗi ngày. Không tự tải file —
+// chỉ mời người dùng bấm.
+function nhacSaoLuuKhiMo() {
+  const now = Date.now();
+  const m = mocSaoLuu(now);
+  const qd = nenNhacSaoLuu(m, now, CFG.soNgayNhacSaoLuu);
+  if (!qd.nhac) return qd;
+  danhDauSaoLuu("nhacLuc", now);
+  setTimeout(() => {
+    toast(
+      (qd.coLanXuat
+        ? "Đã " + qd.ngayTuMoc + " ngày kể từ lần xuất bản sao lưu gần nhất"
+        : "Bạn chưa từng xuất bản sao lưu") +
+        ", và dữ liệu đã thay đổi. Dữ liệu chỉ nằm trong trình duyệt này — nên xuất một file dự phòng.",
+      "info",
+      [
+        { nhan: "Xuất bản sao lưu", primary: true, onClick: () => { xuatTatCa(); } },
+        {
+          nhan: "Để sau",
+          onClick: () => {
+            danhDauSaoLuu("hoanLuc");
+            toast("Đã hoãn — sẽ nhắc lại sau một ngày.", "info");
+          },
+        },
+      ]
+    );
+  }, 1200);
+  return qd;
+}
+
+// ==========================================================================
+//  GỠ LỖI — nhật ký parse LLM + gói gỡ lỗi + tự kiểm tra bất biến
+// ==========================================================================
+// Gói gỡ lỗi: MẶC ĐỊNH chỉ có metadata (loại lệnh, thời điểm, ok/lỗi, lý do, độ dài đầu
+// ra). Đầu ra thô — thứ có thể chứa nội dung truyện riêng tư hoặc nội dung người lớn —
+// CHỈ được kèm khi người dùng tự tích. Hàm này thuần dữ liệu để kiểm thử được.
+async function dungGoLoi(opts = {}) {
+  const kemTho = !!opts.kemTho;
+  const kemTuKiemTra = !!opts.kemTuKiemTra;
+  const nhat = await docNhatKyLlm();
+  const dl = await dungLuongUocTinh();
+  let dem = { tinNhan: 0, anh: 0 };
+  try {
+    dem.tinNhan = (await R.kv.tinNhan.entries()).length;
+    dem.anh = (await R.kv.thuVienAnh.entries()).length;
+  } catch (e) {
+    console.error(e);
+  }
+  const goi = {
+    type: "truyen-vai-go-loi",
+    version: PHIEN_BAN_TRUYEN,
+    luc: Date.now(),
+    lucChu: new Date().toISOString(),
+    app: {
+      phienBanTruyen: PHIEN_BAN_TRUYEN,
+      phienBanHoSo: PHIEN_BAN_HO_SO,
+      generator: typeof window !== "undefined" ? window.generatorName || "" : "",
+      soTruyen: store.stories.length,
+      soHoSoNgoaiHinh: dsNgoaiHinh().length,
+      soTinNhan: dem.tinNhan,
+      soAnh: dem.anh,
+      dungLuong: dl ? { dung: dl.dung, tong: dl.tong, phanTram: Math.round((dl.dung / dl.tong) * 100) } : null,
+      manHinh: typeof navigator !== "undefined" ? navigator.userAgent : "",
+      caiDat: Object.assign({}, store.settings, { saoLuu: undefined }),
+      soNgayNhacSaoLuu: CFG.soNgayNhacSaoLuu,
+    },
+    // Nhật ký: bỏ hẳn trường `tho` khi không xin kèm đầu ra thô.
+    nhatKy: nhat.map((x) => {
+      const m = { loai: x.l, luc: x.t, ok: !!x.ok, lyDo: x.ly || "", doDaiDauRa: x.d || 0 };
+      if (kemTho) m.dauRaTho = x.tho || "";
+      return m;
+    }),
+    soMucNhatKy: nhat.length,
+    kemDauRaTho: kemTho,
+    daDonNhatKy: false,
+  };
+  if (kemTuKiemTra) {
+    try {
+      goi.tuKiemTra = await chayTuKiemTra();
+      goi.tuKiemTra = { soLoi: goi.tuKiemTra.soLoi, nhom: goi.tuKiemTra.nhom, soTruyen: goi.tuKiemTra.soTruyen, soHoSo: goi.tuKiemTra.soHoSo };
+    } catch (e) {
+      goi.tuKiemTra = { soLoi: -1, loi: String((e && e.message) || e) };
+    }
+  }
+  return goi;
+}
+
+// Một câu mô tả ĐÚNG những gì file sắp tải sẽ chứa — dùng cho hộp xác nhận.
+function moTaGoLoi(kemTho, kemTuKiemTra) {
+  const phan = [
+    "Thông tin chung: phiên bản dữ liệu, số truyện / tin nhắn / ảnh / hồ sơ ngoại hình, dung lượng trình duyệt, tên generator, và cài đặt hiển thị.",
+    "Nhật ký AI: loại lệnh, thời điểm, thành công hay lỗi, lý do, độ dài đầu ra — KHÔNG có nội dung truyện.",
+  ];
+  if (kemTho) phan.push("⚠ Đầu ra thô của AI — phần này CÓ THỂ CHỨA NỘI DUNG TRUYỆN của bạn (kể cả nội dung người lớn riêng tư).");
+  else phan.push("(Không kèm đầu ra thô — bạn chưa tích ô đó.)");
+  if (kemTuKiemTra) phan.push("Báo cáo tự kiểm tra bất biến — có id và TÊN TRUYỆN của bạn.");
+  phan.push("Gói KHÔNG chứa: nội dung tin nhắn, ảnh, hồ sơ ngoại hình, hay bất kỳ thứ gì trong thư viện truyện.");
+  return phan;
+}
+
+function taiGoLoi(goi) {
+  const ten = "truyen-vai-go-loi-" + new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".json";
+  download(ten, JSON.stringify(goi, null, 1));
+  return ten;
+}
+
+// Bảng gỡ lỗi: xem nhật ký + mở gói gỡ lỗi + mở màn tự kiểm tra.
+async function openGoLoi() {
+  const body = el("div", { class: "gl-modal" });
+  body.innerHTML = '<div class="hint">Đang đọc nhật ký…</div>';
+  const m = modal({
+    title: "Gỡ lỗi",
+    subtitle: "Chỉ nằm trên máy này — không gửi đi đâu cả.",
+    body: body,
+    wide: true,
+    actions: [{ label: "Đóng", primary: true, onClick: (mm) => mm.close() }],
+  });
+
+  async function veLai() {
+    const nhat = await docNhatKyLlm();
+    const dl = await dungLuongUocTinh();
+    const mb = (n) => (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + " MB";
+    const dong = nhat
+      .map((x, i) => {
+        const gio = new Date(x.t || 0);
+        const hh = String(gio.getHours()).padStart(2, "0") + ":" + String(gio.getMinutes()).padStart(2, "0");
+        return (
+          '<div class="gl-dong">' +
+            '<span class="gl-gio">' + esc(hh) + "</span>" +
+            '<span class="chip ' + (x.ok ? "gl-ok" : "gl-loi") + '">' + (x.ok ? "ok" : "lỗi") + "</span>" +
+            '<span class="gl-loai">' + esc(x.l || "?") + "</span>" +
+            '<span class="gl-ct">' + (x.ly ? esc(x.ly) : "") + (x.d ? ' <span class="muted">(' + x.d + " ký tự)</span>" : "") + "</span>" +
+            (x.tho
+              ? '<details class="gl-tho"><summary>đầu ra thô</summary><pre>' + esc(x.tho) + "</pre></details>"
+              : "") +
+          "</div>"
+        );
+      })
+      .join("");
+    body.innerHTML =
+      '<div class="gl-tk">' +
+        '<div><span class="muted">Phiên bản dữ liệu</span> <b>' + esc(PHIEN_BAN_TRUYEN) + "</b> · <span class=\"muted\">hồ sơ ngoại hình</span> <b>" + esc(PHIEN_BAN_HO_SO) + "</b></div>" +
+        '<div><span class="muted">Truyện</span> <b>' + store.stories.length + "</b> · <span class=\"muted\">hồ sơ</span> <b>" + dsNgoaiHinh().length + "</b></div>" +
+        (dl && dl.tong ? "<div>" + esc(mb(dl.dung)) + " / " + esc(mb(dl.tong)) + "</div>" : "") +
+      "</div>" +
+      '<div class="row-gap">' +
+        '<button class="btn btn-sm" data-gl-act="xuat">' + icon("download", 15) + " Xuất gói gỡ lỗi</button>" +
+        '<button class="btn btn-sm" data-gl-act="xoa">' + icon("trash", 15) + " Xoá nhật ký</button>" +
+        '<button class="btn btn-sm" data-gl-act="tukiem">' + icon("check", 15) + " Tự kiểm tra dữ liệu</button>" +
+      "</div>" +
+      '<div class="gl-head">' + icon("alert", 13) + " Nhật ký AI (" + nhat.length + " mục gần nhất · tối đa " + TOI_DA_MUC_NHAT_KY + " mục / " + Math.round(TOI_DA_BYTE_NHAT_KY / 1024) + " KB phần thô)</div>" +
+      (nhat.length ? '<div class="gl-list">' + dong + "</div>" : '<div class="hint">Chưa có lượt AI nào kể từ khi bật nhật ký.</div>');
+  }
+
+  body.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-gl-act]");
+    if (!b) return;
+    const viec = b.dataset.glAct;
+    if (viec === "xoa") {
+      const ok = await hoiXacNhan("Xoá nhật ký AI", "Xoá toàn bộ " + (await docNhatKyLlm()).length + " mục nhật ký trên máy này? Nhật ký chỉ dùng để gỡ lỗi — xoá không ảnh hưởng truyện.", { yesLabel: "Xoá nhật ký", danger: true });
+      if (!ok) return;
+      await xoaNhatKyLlm();
+      toast("Đã xoá nhật ký AI.");
+      await veLai();
+      return;
+    }
+    if (viec === "xuat") { openXuatGoLoi(); return; }
+    if (viec === "tukiem") { openTuKiemTra(); return; }
+  });
+
+  await veLai();
+  return m;
+}
+
+// Hộp chọn nội dung gói gỡ lỗi → hộp xác nhận nói rõ gói chứa gì → tải file.
+function openXuatGoLoi() {
+  const body = el("div");
+  body.innerHTML =
+    '<label class="set-check"><input type="checkbox" data-gl="tho">' +
+      "<span><b>Kèm đầu ra thô của AI</b>" +
+      '<span class="hint">Mặc định KHÔNG kèm. Đầu ra thô có thể chứa nội dung truyện của bạn (kể cả nội dung người lớn riêng tư) — ' +
+      "chỉ tích khi bạn thật sự cần người khác soi giúp phần parse hỏng.</span></span></label>" +
+    '<label class="set-check"><input type="checkbox" data-gl="tukiem">' +
+      "<span><b>Kèm báo cáo tự kiểm tra dữ liệu</b>" +
+      '<span class="hint">Danh sách lỗi bất biến (mồ côi, tham chiếu mồ) — có id và tên truyện của bạn.</span></span></label>' +
+    '<div class="gl-head">Gói gỡ lỗi luôn chứa</div>' +
+    '<div class="hint">' + esc(moTaGoLoi(false, false).slice(0, 2).join(" ")) + "</div>";
+  const F = (k) => body.querySelector('[data-gl="' + k + '"]');
+  F("tho").checked = false;
+  F("tukiem").checked = false;
+  modal({
+    title: "Xuất gói gỡ lỗi",
+    subtitle: "Một file JSON để soi lỗi. Không tự gửi đi đâu.",
+    body: body,
+    actions: [
+      { label: "Huỷ", onClick: (m) => m.close() },
+      {
+        label: "Xuất file…",
+        primary: true,
+        onClick: async (m) => {
+          const kemTho = F("tho").checked;
+          const kemTuKiemTra = F("tukiem").checked;
+          m.close();
+          const ds = moTaGoLoi(kemTho, kemTuKiemTra);
+          const ok = await hoiXacNhan(
+            "Gói gỡ lỗi sẽ chứa",
+            ds.map((x, i) => i + 1 + ". " + x).join("  ") + "  Tải file về máy?",
+            { yesLabel: kemTho ? "Tải file (có đầu ra thô)" : "Tải file", danger: kemTho }
+          );
+          if (!ok) return;
+          const goi = await dungGoLoi({ kemTho: kemTho, kemTuKiemTra: kemTuKiemTra });
+          const ten = taiGoLoi(goi);
+          toast("Đã tải " + ten + (kemTho ? " (có kèm đầu ra thô)" : " (chỉ metadata)") + ".");
+        },
+      },
+    ],
+  });
+}
+
+// ---- tự kiểm tra bất biến -------------------------------------------------
+async function chayTuKiemTra() {
+  await loadStories();
+  let khoaTn = [];
+  let khoaAnh = [];
+  try {
+    khoaTn = (await R.kv.tinNhan.entries()).map((e) => e[0]);
+    khoaAnh = (await R.kv.thuVienAnh.entries()).map((e) => e[0]);
+  } catch (e) {
+    console.error(e);
+  }
+  return kiemTraBatBien(store.stories, dsNgoaiHinh(), khoaTn, khoaAnh, thamChieuMo);
+}
+
+function nhanNhomKiemTra(loai) {
+  const ten = {
+    "tin-nhan-mo-coi": "Tin nhắn mồ côi (không hội thoại nào dùng)",
+    "anh-mo-coi": "Ảnh mồ côi (không truyện nào dùng)",
+    "ho-so-mo": "Thiếu hồ sơ ngoại hình mà nhân vật / ảnh đang trỏ tới",
+    "hoi-thoai-tro-nv": "Hội thoại trỏ tới nhân vật đã mất",
+    "hien-dien-tro-nv": "Người có mặt trỏ tới nhân vật đã mất",
+    "hoi-thoai-tro-chuong": "Hội thoại trỏ tới chương đã mất",
+    "canh-rieng-tro-nv": "Cảnh riêng trỏ tới nhân vật đã mất",
+    "canh-tro-hoi-thoai": "Cảnh đã khép trỏ tới hội thoại đã mất",
+    "trung-id": "Id trùng trong cùng một truyện",
+  };
+  return ten[loai] || loai;
+}
+
+const NHOM_SUA_DUOC = ["tin-nhan-mo-coi", "anh-mo-coi", "ho-so-mo", "hoi-thoai-tro-nv", "hien-dien-tro-nv", "canh-rieng-tro-nv"];
+
+async function openTuKiemTra() {
+  const body = el("div", { class: "gl-modal" });
+  body.innerHTML = '<div class="hint">Đang quét dữ liệu…</div>';
+  modal({
+    title: "Tự kiểm tra dữ liệu",
+    subtitle: "Chỉ báo cáo. Không tự sửa gì khi bạn chưa xác nhận.",
+    body: body,
+    wide: true,
+    actions: [{ label: "Đóng", primary: true, onClick: (m) => m.close() }],
+  });
+
+  async function veLai() {
+    const bc = await chayTuKiemTra();
+    const dsNhom = Object.keys(bc.nhom);
+    const suaDuoc = dsNhom.filter((k) => NHOM_SUA_DUOC.indexOf(k) >= 0).reduce((a, k) => a + bc.nhom[k].length, 0);
+    body.innerHTML =
+      '<div class="gl-tk">' +
+        "<div><span class=\"muted\">Đã quét</span> <b>" + bc.soTruyen + "</b> truyện · <b>" + bc.soHoSo + "</b> hồ sơ ngoại hình</div>" +
+        "<div>" + (bc.soLoi ? '<b class="gl-loi">' + bc.soLoi + " vấn đề</b>" : '<b class="gl-ok">Không thấy vấn đề nào</b>') + "</div>" +
+      "</div>" +
+      '<div class="hint">Bất biến được soi: mọi tham chiếu phải trỏ tới thứ còn tồn tại; không có khoá tin nhắn / ảnh mồ côi; không có id trùng trong một truyện.</div>' +
+      (dsNhom.length
+        ? dsNhom
+            .map((k) =>
+              '<div class="gl-nhom"><div class="gl-head">' + esc(nhanNhomKiemTra(k)) + " (" + bc.nhom[k].length + ")</div>" +
+              bc.nhom[k].slice(0, 40).map((x) => '<div class="gl-dong">' + esc(x.moTa) + "</div>").join("") +
+              (bc.nhom[k].length > 40 ? '<div class="hint">… và ' + (bc.nhom[k].length - 40) + " mục nữa.</div>" : "") +
+              "</div>"
+            )
+            .join("")
+        : "") +
+      (suaDuoc
+        ? '<div class="row-gap"><button class="btn btn-sm btn-danger" data-tk-act="sua">Sửa ' + suaDuoc + " lỗi an toàn</button></div>"
+        : "");
+    return bc;
+  }
+
+  body.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-tk-act]");
+    if (!b || b.dataset.tkAct !== "sua") return;
+    const bc = await chayTuKiemTra();
+    const ok = await hoiXacNhan(
+      "Sửa lỗi bất biến",
+      "Sẽ chỉ làm những việc sau, trong MỘT giao dịch (hỏng ở bước nào thì trả lại nguyên trạng): " +
+        "xoá " + ((bc.nhom["tin-nhan-mo-coi"] || []).length + (bc.nhom["anh-mo-coi"] || []).length) + " khoá mồ côi (tin nhắn / ảnh không ai dùng); " +
+        "gỡ " + ((bc.nhom["ho-so-mo"] || []).length) + " tham chiếu tới hồ sơ ngoại hình đã mất; " +
+        "gỡ " + ((bc.nhom["hoi-thoai-tro-nv"] || []).length + (bc.nhom["hien-dien-tro-nv"] || []).length + (bc.nhom["canh-rieng-tro-nv"] || []).length) + " liên kết tới nhân vật đã mất. " +
+        "Không đụng tới nội dung tin nhắn, ảnh, hay hồ sơ ngoại hình. Tiếp tục?",
+      { yesLabel: "Sửa & lưu", danger: true }
+    );
+    if (!ok) return;
+    const kq = await suaBatBien(bc);
+    if (kq.ok) toast("Đã sửa " + kq.soSua + " lỗi an toàn.");
+    else toast("Không sửa được: " + kq.loi + " — dữ liệu đã được trả lại nguyên trạng.", "error");
+    await veLai();
+  });
+
+  await veLai();
+}
+
+// Sửa các lỗi "an toàn": xoá khoá mồ côi + gỡ liên kết trỏ vào thứ đã mất. Chạy trong
+// giaoDichKV nên lỗi giữa chừng sẽ trả mọi khoá về nguyên trạng.
+async function suaBatBien(bc) {
+  const xoaTn = (bc.nhom["tin-nhan-mo-coi"] || []).map((x) => x.id);
+  const xoaAnh = (bc.nhom["anh-mo-coi"] || []).map((x) => x.id);
+  const truyenIds = ["ho-so-mo", "hoi-thoai-tro-nv", "hien-dien-tro-nv", "canh-rieng-tro-nv"]
+    .map((k) => (bc.nhom[k] || []).map((x) => x.truyen))
+    .reduce((a, b) => a.concat(b), [])
+    .filter((x) => x);
+  const ds = []
+    .concat(xoaTn.map((k) => ["tinNhan", k]))
+    .concat(xoaAnh.map((k) => ["thuVienAnh", k]))
+    .concat(Array.from(new Set(truyenIds)).map((k) => ["cotTruyen", k]));
+  const soSua = xoaTn.length + xoaAnh.length + truyenIds.length;
+  try {
+    await giaoDichKV(ds, async () => {
+      for (const k of xoaTn) {
+        delete store.messagesCache[k];
+        await R.kv.tinNhan.delete(k);
+      }
+      for (const k of xoaAnh) {
+        delete store.anhCache[k];
+        await R.kv.thuVienAnh.delete(k);
+      }
+      for (const id of Array.from(new Set(truyenIds))) {
+        const s = getStory(id);
+        if (!s) continue;
+        for (const c of s.nhanVats || []) if (c && c.ngoaiHinhId && !getNgoaiHinh(c.ngoaiHinhId)) c.ngoaiHinhId = "";
+        if (s.nguoiChoi && s.nguoiChoi.ngoaiHinhId && !getNgoaiHinh(s.nguoiChoi.ngoaiHinhId)) s.nguoiChoi.ngoaiHinhId = "";
+        for (const a of s.anh || []) if (a && Array.isArray(a.hoSoIds)) a.hoSoIds = a.hoSoIds.filter((x) => getNgoaiHinh(x));
+        const nvIds = new Set((s.nhanVats || []).map((c) => c && c.id).filter(Boolean));
+        for (const c of s.hoiThoais || []) {
+          if (!c) continue;
+          c.nhanVatIds = (c.nhanVatIds || []).filter((x) => nvIds.has(x));
+          c.hienDien = (c.hienDien || []).filter((x) => nvIds.has(x));
+          if (c.canhRieng && !nvIds.has(c.canhRieng)) c.canhRieng = null;
+        }
+        await ghiCotTruyen(s);
+      }
+    });
+  } catch (e) {
+    return { ok: false, soSua: 0, loi: String((e && e.message) || e) };
+  }
+  await loadStories();
+  await loadNgoaiHinh();
+  return { ok: true, soSua: soSua, xoaTn: xoaTn.length, xoaAnh: xoaAnh.length, truyen: Array.from(new Set(truyenIds)).length };
 }
 
 function openStoryMenu() {
@@ -6776,7 +7198,7 @@ function openStoryMenu() {
     "</select>" +
     '<label class="field-label">Nhịp phát triển (nội tâm & quan hệ)</label>' +
     '<select class="input" data-f="nhip">' +
-      TS.NHIP.map((x) => '<option value="' + x.id + '">' + esc(x.ten + " — " + x.moTa) + "</option>").join("") +
+      TS.NHIP.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.ten + " — " + x.moTa) + "</option>").join("") +
     "</select>" +
     '<label class="field-label">Chế độ Đạo diễn</label>' +
     '<select class="input" data-f="daoDien">' +
@@ -6787,7 +7209,7 @@ function openStoryMenu() {
     '<div class="hint">Tắt chỉ ẩn phần hiển thị — không xoá đính chính hay hướng nào. Hướng chỉ ngừng được bơm vào prompt khi bạn bấm <b>Tạm dừng</b> hoặc <b>Huỷ hướng</b>.</div>' +
     '<label class="field-label">Thời gian khi rời app</label>' +
     '<select class="input" data-f="vgCheDo">' +
-      CHE_DO.map((x) => '<option value="' + x.id + '">' + esc(x.ten + " — " + x.moTa) + "</option>").join("") +
+      CHE_DO.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.ten + " — " + x.moTa) + "</option>").join("") +
     "</select>" +
     '<label class="field-label">Ngưỡng xử lý</label>' +
     '<select class="input" data-f="vgNguong">' +
@@ -9260,7 +9682,7 @@ function vgSuKienDdHtml(story, e) {
         (anhHuong ? '<span class="dd-key">Tác động</span><span class="dd-val">' + esc(anhHuong) + "</span>" : "") +
       "</div>" +
       '<div class="vg-dd-ev-muc">' +
-        MUC.map((x) => '<button class="btn btn-sm' + (e.muc === x.id ? " btn-primary" : "") + '" data-act="vg-muc" data-id="' + esc(e.id) + '" data-muc="' + x.id + '" title="' + esc(x.moTa) + '">' + esc(x.ten) + "</button>").join("") +
+        MUC.map((x) => '<button class="btn btn-sm' + (e.muc === x.id ? " btn-primary" : "") + '" data-act="vg-muc" data-id="' + esc(e.id) + '" data-muc="' + esc(x.id) + '" title="' + esc(x.moTa) + '">' + esc(x.ten) + "</button>").join("") +
       "</div>" +
     "</div>"
   );
@@ -9309,6 +9731,11 @@ async function boot() {
   if (coLoiDocNgoaiHinh()) {
     toast("Không đọc được thư viện ngoại hình — thư viện có thể đang thiếu hồ sơ. Mở Thư viện ngoại hình để thử đọc lại.", "error");
   }
+  // Nhật ký parse LLM: `ai.js` chỉ giữ một hàm hook (nên vẫn thuần khi chạy ở tầng Node);
+  // app cắm hàm ghi vào kv ở đây. Ghi lỗi cũng không được làm hỏng lượt chơi.
+  AI.datHookNhatKy((muc) => {
+    ghiNhatKyLlm(muc).catch(() => {});
+  });
   bindGlobalEvents();
   window.addEventListener("hashchange", async () => {
     const h = parseHash();
@@ -9329,6 +9756,9 @@ async function boot() {
   window.__truyenVaiReady = true;
   const s0 = currentStory();
   if (s0) kiemTraVangMat(s0);
+  // Nhắc sao lưu (nếu đến hạn): chỉ khi dữ liệu đã đổi sau lần xuất gần nhất, quá N ngày,
+  // và tối đa một lần mỗi ngày. Không tự tải file.
+  nhacSaoLuuKhiMo();
   // Điểm neo cho kiểm thử trên preview: cho phép giả lập "vừa vắng mặt" mà không phải
   // chờ đủ thời gian thật. KHÔNG phải API của ứng dụng.
   // Điểm neo cho KIỂM THỬ trên preview (không phải API của ứng dụng): mở một số hàm nội
@@ -9353,6 +9783,11 @@ async function boot() {
     openTaoAnh, openCharacterEditor, gopLoaiTruNgoaiHinh, khoiNgoaiHinh, ungVienNgoaiHinh,
     openTaoHuong, ddKichHoat,
     onSend, generateTurn, streamGroupReply, streamOneReply, batDauLuot, ketThucLuot,
+    // Giai đoạn 4 — sao lưu, nhật ký parse, gỡ lỗi, tự kiểm tra bất biến
+    openGoLoi, openXuatGoLoi, openTuKiemTra, dungGoLoi, moTaGoLoi, taiGoLoi,
+    chayTuKiemTra, suaBatBien, nhanNhomKiemTra, chuTrangThaiSaoLuu, nhacSaoLuuKhiMo, thanhDungLuong,
+    docNhatKyLlm, ghiNhatKyLlm, xoaNhatKyLlm, kiemTraBatBien, catTho, themVaoVong, dungLuongTho,
+    mocSaoLuu, danhDauSaoLuu, danhDauDaDoi, nenNhacSaoLuu,
   };
   window.__tv_vg = {
     app,

@@ -174,19 +174,42 @@ export function icon(name, size = 18) {
 }
 
 let toastTimer = null;
-export function toast(message, kind = "info") {
+export function toast(message, kind = "info", hanhDong = null) {
   const root = document.getElementById("toastRoot");
   if (!root) return;
   root.innerHTML = "";
   const t = document.createElement("div");
   t.className = "toast toast-" + kind;
-  t.innerHTML = esc(message);
+  const dsHanhDong = Array.isArray(hanhDong) && hanhDong.length ? hanhDong : null;
+  t.className = "toast toast-" + kind + (dsHanhDong ? " toast-nut" : "");
+  t.innerHTML =
+    esc(message) +
+    (dsHanhDong
+      ? '<div class="toast-act">' +
+        dsHanhDong
+          .map((h, i) => '<button class="btn btn-sm' + (h && h.primary ? " btn-primary" : "") + '" data-toast-act="' + i + '">' + esc((h && h.nhan) || "OK") + "</button>")
+          .join("") +
+        "</div>"
+      : "");
+  if (dsHanhDong) {
+    t.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-toast-act]");
+      if (!b) return;
+      const h = dsHanhDong[Number(b.dataset.toastAct)];
+      try { if (h && typeof h.onClick === "function") h.onClick(); } catch (err) { console.error(err); }
+      t.remove();
+    });
+  }
   root.appendChild(t);
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    t.classList.add("toast-out");
-    setTimeout(() => t.remove(), 320);
-  }, kind === "error" ? 5200 : 3000);
+  // Toast có nút phải sống đủ lâu để người dùng kịp bấm.
+  toastTimer = setTimeout(
+    () => {
+      t.classList.add("toast-out");
+      setTimeout(() => t.remove(), 320);
+    },
+    dsHanhDong ? 20000 : kind === "error" ? 5200 : 3000
+  );
 }
 
 // opts: { title, subtitle, body (element or html), actions:[{label, onClick, primary, danger}], wide, onClose, dismissable }

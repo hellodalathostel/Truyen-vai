@@ -43,6 +43,13 @@ gọi `chayTatCa()` — xem `tests/browser/runner.js` để biết cách đăng 
 5. **Tệp do gói này viết ra không được chứa dấu gạch chéo ngược** trong phần nội dung
    do công cụ sinh; quy ước là viết bằng `String.fromCharCode` khi thật sự cần.
    `tests/lib/h.js` tự cam kết điều này và có ca canh lại.
+6. **Bộ nào ghi vào `localStorage["truyenVai.caiDat"]` phải chụp lại và TRẢ NGUYÊN** (lẫn bản
+   trong RAM — chỉ trả `localStorage` thì màn Cài đặt vẫn hiện trạng thái giả). Ba bộ `gd4-*`
+   phải ghi mốc sao lưu nên đều làm việc này; chụp/so **trong bộ nhớ**, không ghi ra tệp.
+7. **Đóng modal bằng NÚT ĐÓNG của chính nó, không gỡ node.** Nhiều màn giữ cờ trong bộ nhớ và
+   chỉ xoá cờ khi hook `onClose` chạy (vd `app.daoDienDangMo`); gỡ node trực tiếp để lại cờ
+   bật, nên lần mở sau bị chặn **im lặng**. `donModal()` trong `runner.js` bấm nút đóng của
+   từng modal theo thứ tự LIFO rồi mới gỡ phần còn sót — đừng quay lại kiểu `x.remove()`.
 
 ## Biết trước (khiếm khuyết đã biết)
 
@@ -92,6 +99,19 @@ Vì sao phải là tầng trình duyệt: tầng Node chỉ kiểm được các
 quả, đổ lên thẻ duyệt, kích hoạt, ghi kv — chỉ nằm ở `app.js`/`ai.js` nên chỉ kiểm được trong
 trang thật. Đây cũng là lý do VÌ SAO ba khung dựng này phải tồn tại: `app.js` quá lớn để dựng
 lại trạng thái bằng tay trong mỗi ca.
+
+### Bộ Giai đoạn 4 (sao lưu, nhật ký parse, gỡ lỗi, tự kiểm tra)
+
+| Bộ (`bo`) | Phủ gì |
+|---|---|
+| `gd4-saoluu` | Cảnh báo đổi tên generator ở **cả hai** mặt tiền (chân Thư viện + Cài đặt); dòng trạng thái sao lưu theo **năm** tình huống; dòng dung lượng; nút "Xuất bản sao lưu" thật sự tải file VÀ đóng dấu mốc `xuatLuc`; lời nhắc khi mở app: đến hạn ⇒ có toast 2 nút, gọi lại trong ngày ⇒ im, "Để sau" ⇒ hoãn một ngày, bản sao lưu mới hơn thay đổi ⇒ im |
+| `gd4-goloi` | Nhật ký parse: ghi/đọc/xoá, vòng đệm chặn **cả** 20 mục **lẫn** 12 KB phần thô, mỗi mục cắt ở 1000 ký tự; bảng gỡ lỗi liệt kê đúng; gói gỡ lỗi **mặc định chỉ metadata** (có dấu riêng trong đầu ra thô để chứng minh dấu đó KHÔNG lọt vào gói mặc định, vào file xuất truyện, hay vào bản sao lưu toàn bộ); hộp chọn + hộp xác nhận nói rõ gói chứa gì, cảnh báo khi có đầu ra thô |
+| `gd4-tukiem` | Dựng một truyện hỏng đủ **8 nhóm lỗi**, quét ra đủ, sửa **6 nhóm an toàn** trong một giao dịch (xoá khoá mồ côi, gỡ liên kết mồ), và khẳng định hai nhóm **không** được sửa (chương đã mất, cảnh khép trỏ hội thoại đã mất) vẫn được BÁO; nội dung tin nhắn/tên nhân vật/tên truyện không bị đụng |
+
+`tests/node/gd4.test.mjs` (128 khẳng định) giữ **luật** của cùng các hàm đó: mọi nhánh lý do của
+`nenNhacSaoLuu`, mốc `mocSaoLuu` ghi xuống ngay lần đầu, hai trần của vòng đệm **ăn khớp** với
+nhau, 9 nhóm của `kiemTraBatBien`, và một ca ghim rằng Giai đoạn 4 **không** đổi
+`PHIEN_BAN_TRUYEN`.
 
 ## Thêm một bộ kiểm thử
 

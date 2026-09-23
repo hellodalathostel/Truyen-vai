@@ -1082,7 +1082,7 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
 **Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):**
-`https://user.uploads.dev/file/3da49dd572f758748377102d876143fb.zip`
+`https://user.uploads.dev/file/a17714590e95da95e5aaa1218dfe3331.zip`
 
 - Tầng Node: `npm test` (không cần trình duyệt, không tốn quota, chạy trên CI).
 - Tầng trình duyệt: mở generator rồi nạp `tests/browser/runner.js` và gọi `chayTatCa()`.
@@ -1166,6 +1166,78 @@ hằng `LUAT_NGON_NGU` trong `src/ai.js` (máy vẽ = tiếng Anh, văn bản tr
 tiếng Việt), và các chỗ cần tên ngôn ngữ đều lấy từ hằng đó (`dichNgoaiHinh()` trong `ai.js`;
 nhãn "Mô tả khung hình", khối "Ngoại hình cố định", dòng "Chưa dịch được sang…" trong `app.js`).
 Nội dung thay thế **giống hệt từng ký tự** so với trước, nên không đổi hành vi.
+
+### Giai đoạn 4 — sao lưu, nhật ký parse, gỡ lỗi, tự kiểm tra
+
+Sáu mục theo kế hoạch, cộng ba yêu cầu siết thêm về quyền riêng tư và chống làm phiền.
+
+1. **Cảnh báo đổi tên generator** — `khoiCanhBaoDoiTen()` trong `app.js`, hiện ở **hai** chỗ:
+   chân màn Thư viện (`.lib-foot`) và mục "Sao lưu & an toàn dữ liệu" trong Cài đặt. Nói đúng
+   cơ chế (dữ liệu nằm theo **origin** của trang, nên đổi tên/fork là thành địa chỉ khác ⇒ app
+   ở địa chỉ mới không thấy dữ liệu cũ), nói rõ hậu quả trông như mất sạch, và việc cần làm:
+   xuất bản sao lưu trước, đổi lại tên cũ là thấy lại dữ liệu. CSS dùng lại đúng dạng
+   `.lib-privacy` (chữ chảy quanh icon SVG), **không** dùng flex cho khối chữ — flex biến mỗi
+   đoạn chữ và mỗi `<b>` thành một "cột" riêng (lỗi bố cục thật đã gặp và đã sửa ở bộ này).
+2. **Tự nhắc sao lưu** — `mocSaoLuu`/`danhDauSaoLuu`/`danhDauDaDoi`/`nenNhacSaoLuu` trong
+   `store.js`; mốc nằm ở `localStorage["truyenVai.caiDat"].saoLuu` (**5 mốc thời gian**, không
+   nội dung). `nhacSaoLuuKhiMo()` (gọi trong `boot()`) chỉ nhắc khi **dữ liệu đã đổi SAU lần
+   xuất gần nhất** và đã quá `CauHinh().soNgayNhacSaoLuu` (**mặc định 7**, đặt trong `main.pjs`);
+   tối đa **một lần mỗi ngày** (`nhacLuc`), và nút **Để sau** hoãn đúng **một ngày**
+   (`hoanLuc`). Toast có nút bấm (`.toast-nut`, 20 giây) — `toast()` trong `dom.js` nhận thêm
+   tham số `hanhDong`. `danhDauDaDoi()` được gọi ở **9 đường ghi/xoá trung tâm** (truyện, tin
+   nhắn, ảnh, hồ sơ ngoại hình) nên không thể ghi dữ liệu mà quên đánh dấu.
+3. **`dungLuongUocTinh` lên mặt tiền** — `thanhDungLuong(el, opts)` dùng chung cho màn Thư viện
+   và Cài đặt; dòng "Bộ nhớ trình duyệt đã dùng: X / Y (Z%)", kèm cảnh báo khi ≥ 80%.
+4. **Nhật ký parse LLM dạng vòng đệm** — `themVaoVong`/`catTho`/`docNhatKyLlm`/`ghiNhatKyLlm`
+   (`store.js`, kv folder `nhatKyLlm`), ghi một mục cho **mỗi lượt gọi AI**: loại lệnh (lấy từ
+   TASK trong prompt, `loaiLenhTuPrompt`), thời điểm, ok/lỗi + lý do, độ dài đầu ra, và đầu ra
+   thô cho các lượt parse. Vòng đệm chặn **hai đầu**: `TOI_DA_MUC_NHAT_KY = 20` và
+   `TOI_DA_BYTE_NHAT_KY = 12 KB` phần thô, mỗi mục bị cắt ở `DO_DAI_THO_MOI_MUC = 1000` ký tự.
+   Ba hằng này **phải ăn khớp** với nhau, nếu không trần dung lượng không bao giờ chạm tới
+   (đã có ca kiểm thử ghim điều đó). `ai.js` nhận hook qua `datHookNhatKy()` nên tầng Node vẫn
+   thuần khi không có hook.
+5. **Bảng gỡ lỗi** — `openGoLoi()`: số liệu tổng quan (phiên bản dữ liệu, số truyện/hồ sơ, dung
+   lượng), danh sách nhật ký (giờ + chip ok/lỗi + loại lệnh + lý do + độ dài), đầu ra thô nằm
+   trong `<details>` thu gọn, nút **Xuất gói gỡ lỗi** / **Xoá nhật ký** / **Tự kiểm tra dữ liệu**.
+6. **Màn tự kiểm tra bất biến** — `kiemTraBatBien()` (`store.js`, thuần) soi 9 nhóm: tin nhắn mồ
+   côi, ảnh mồ côi, thiếu hồ sơ ngoại hình, hội thoại/hiện diện/cảnh riêng trỏ nhân vật đã mất,
+   hội thoại trỏ chương đã mất, cảnh đã khép trỏ hội thoại đã mất, id trùng trong một truyện.
+   `suaBatBien()` chỉ sửa **6 nhóm an toàn** (xoá khoá mồ côi, gỡ liên kết trỏ vào thứ đã mất)
+   trong **một** `giaoDichKV`; hai nhóm còn lại **chỉ báo** — không bao giờ tự xoá chương hay
+   cảnh đã khép của người dùng.
+
+Ba yêu cầu siết thêm (đều đã có kiểm thử ở cả hai tầng):
+
+- **Gói gỡ lỗi mặc định CHỈ có metadata.** `dungGoLoi({kemTho})` bỏ hẳn trường `dauRaTho` khi
+  người dùng không tích; hộp chọn nói rõ vì sao đầu ra thô là nhạy cảm (có thể chứa nội dung
+  truyện, kể cả người lớn), và hộp xác nhận liệt kê **đúng** những gì file sắp chứa, kèm dòng
+  "Gói KHÔNG chứa: nội dung tin nhắn, ảnh, hồ sơ ngoại hình…". Cài đặt trong gói đã bị **bỏ mốc
+  sao lưu** trước khi ghi. Bộ `gd4-goloi` chèn một dấu riêng vào đầu ra thô rồi khẳng định dấu
+  đó **không** xuất hiện ở gói mặc định, ở file xuất truyện, và ở bản sao lưu toàn bộ.
+- **Nhật ký không bao giờ đi vào file xuất truyện** (kiểm bằng: khoá cấp cao nhất của file xuất
+  không có mục nào chứa "nhat", cộng dấu riêng ở trên), có **nút xoá nhật ký** (hỏi lại trước),
+  và vòng đệm chặn cả số mục lẫn dung lượng như mục 4.
+- **Nhắc sao lưu không làm phiền**: chỉ khi dữ liệu **thật sự đổi** sau lần xuất gần nhất, đã
+  quá N ngày, tối đa một lần mỗi ngày, có "để sau" hoãn một ngày; trạng thái bằng chữ trong Cài
+  đặt luôn nói rõ đang ở tình huống nào ("chưa từng xuất", "đã bao gồm mọi thay đổi", "đã thay
+  đổi sau lần xuất gần nhất… đến hạn nhắc sao lưu", "…bạn đã chọn để sau").
+
+**Sửa nhỏ trước Giai đoạn 4 — bất biến 5.** Bất biến 5 trong `src/CONTEXT.md` đã bỏ ngoại lệ
+"(trừ chuỗi do chính app sinh)": **mọi** giá trị động đều qua `esc()`, kể cả chuỗi do app ghép ra
+từ dữ liệu. Rà lại `app.js` bằng AST (acorn) tìm chỗ dựa vào ngoại lệ đó: **50 vị trí** —
+43 chỗ chèn `.id` vào thuộc tính `data-id`/`data-mid`/`data-nv`/`value=`, 6 chỗ chèn số chương/mức
+(`.so`), 1 chỗ chèn số đếm hồ sơ — tất cả đã bọc `esc()`, cộng thêm `paintAvatar` (`data-mau` /
+`style="background:…"` và `data-emoji`). Cách kiểm: một bộ dò dựng truyện mà **mọi** trường văn
+bản mang payload phá vỡ ngữ cảnh (`"` + thẻ + thuộc tính), rồi rà ~48 màn/hộp thoại và khẳng định
+payload **không** tạo ra phần tử/thuộc tính thật nào. Bộ dò đó nay là bộ kiểm thử thường trực
+`tests/browser/esc-bat-bien.js` (25 ca), nên ngoại lệ cũ không thể quay lại.
+
+**Kiểm chứng Giai đoạn 4:** tầng Node **10 tệp, 1.314 khẳng định, 0 không đạt** (thêm tệp
+`tests/node/gd4.test.mjs`, 128 khẳng định); tầng trình duyệt **1.034/1.034 ca · 30 bộ** (thêm ba
+bộ `gd4-saoluu` / `gd4-goloi` / `gd4-tukiem`). Dữ liệu thật của chủ dự án **không đổi một byte**
+(bộ chạy chụp kv trước/sau; ba bộ `gd4-*` còn tự chụp và trả nguyên
+`localStorage["truyenVai.caiDat"]`). Gói được đóng zip, tải lại chính URL đó, giải nén, và chạy
+lại tầng Node **trong thư mục có `git init`** để khớp môi trường CI.
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

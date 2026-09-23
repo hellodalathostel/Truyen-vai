@@ -20,6 +20,63 @@ import { suKienBiet, suKienAnVoiNguoiChoi, suKienTheoMaNgan, LOAI, MUC, mucTrong
 // ngoaiHinh.js phải khớp luật này.
 export const LUAT_NGON_NGU = { mayVe: "tiếng Anh", truyen: "tiếng Việt" };
 
+// ==========================================================================
+//  NHẬT KÝ PARSE LLM — lớp này KHÔNG tự lưu gì
+// ==========================================================================
+// App cắm một hàm ghi nhật ký (`datHookNhatKy`) — hàm đó ghi vào kv (xem store.js).
+// Không cắm thì mọi thứ ở đây là no-op, nên module này vẫn thuần khi chạy ở tầng
+// kiểm thử Node (không có kv, không có mạng).
+let hookNhatKy = null;
+
+export function datHookNhatKy(fn) {
+  hookNhatKy = typeof fn === "function" ? fn : null;
+}
+
+function ghiNhatKy(muc) {
+  if (!hookNhatKy) return;
+  try {
+    hookNhatKy(muc);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// "Loại lệnh" của một lời gọi AI = dòng TASK ở cuối prompt (mọi prompt đều kết thúc
+// bằng "TASK: …"), nên không phải sửa từng chỗ gọi.
+export function loaiLenhTuPrompt(instruction) {
+  const s = String(instruction || "");
+  const i = s.lastIndexOf("TASK:");
+  const t = (i >= 0 ? s.slice(i + 5) : s).replace(/\s+/g, " ").trim();
+  return t.slice(0, 60) || "(không rõ)";
+}
+
+// Bọc một hàm đọc/parse đầu ra model: ghi ĐÚNG MỘT mục nhật ký cho mỗi lượt, kèm đầu ra
+// thô (để soi khi parse hỏng) và lý do khi không đọc được gì. `datKhong(kq)` trả về
+// true/false, hoặc một chuỗi lý do (chuỗi ⇒ coi như lỗi, dùng luôn làm lý do).
+function bocPhanTich(loai, fn, datKhong) {
+  return function (raw, ...rest) {
+    const tho = String(raw === undefined || raw === null ? "" : raw);
+    let kq;
+    try {
+      kq = fn.call(this, raw, ...rest);
+    } catch (e) {
+      ghiNhatKy({ l: "phân tích · " + loai, ok: 0, ly: String((e && e.message) || e), d: tho.length, tho: tho });
+      throw e;
+    }
+    let ok = true;
+    let ly = "";
+    try {
+      const v = datKhong ? datKhong(kq) : true;
+      if (v === false) { ok = false; ly = "không đọc được mục nào"; }
+      else if (typeof v === "string") { ok = false; ly = v; }
+    } catch (e) {
+      console.error(e);
+    }
+    ghiNhatKy({ l: "phân tích · " + loai, ok: ok ? 1 : 0, ly: ly, d: tho.length, tho: tho });
+    return kq;
+  };
+}
+
 export function meta() {
   try {
     return R.aiTextPlugin({ getMetaObject: true }) || {};
@@ -585,14 +642,31 @@ export function streamText(opts) {
   // lại tiếp tục diễn cảnh trước khi phần xử lý sau khi dừng (chăm sóc sau, lưu trữ) chạy.
   // Lượt mới chỉ được mở phiên bằng `batDauLuot()` ở app.js; lời gọi AI ĐỘC LẬP (không
   // thuộc lượt nào) tự gọi `moPhienSinh()` ở đầu hàm của nó.
-  lastRequest = R.aiTextPlugin({
+  const yeuCau = R.aiTextPlugin({
     instruction: opts.instruction,
     startWith: opts.startWith || "",
     stopSequences: opts.stopSequences || [],
     onChunk: opts.onChunk,
     onStart: opts.onStart,
   });
-  return lastRequest;
+  lastRequest = yeuCau;
+  // Ghi nhật ký khi lời gọi kết thúc (thành công hay lỗi). Gắn thêm một nhánh xử lý vào
+  // chính promise đó nên KHÔNG đổi thứ tự, không chặn, và cũng không tạo unhandled
+  // rejection khi lời gọi hỏng.
+  const loai = opts.loai ? String(opts.loai) : loaiLenhTuPrompt(opts.instruction);
+  Promise.resolve(yeuCau).then(
+    (res) => {
+      const hong = !!(res && res.stopReason === "error");
+      ghiNhatKy({
+        l: "gọi AI · " + loai,
+        ok: hong ? 0 : 1,
+        ly: hong ? "model trả stopReason=error" : "",
+        d: String((res && res.text) || "").length,
+      });
+    },
+    (e) => ghiNhatKy({ l: "gọi AI · " + loai, ok: 0, ly: String((e && e.message) || e) })
+  );
+  return yeuCau;
 }
 
 // Dừng sinh: `stopCurrent()` cắt lời gọi AI đang chạy, còn cờ `daYeuCauDung` cho
@@ -887,7 +961,9 @@ function docHienDien(story, conv, raw) {
 
 // Đọc tín hiệu "cảnh đã tới điểm nghỉ" (MOC_KHEP). true/false, hoặc null nếu model
 // không ghi gì — khi đó KHÔNG gợi ý khép cảnh.
-export function docKhep(raw) {
+export const docKhep = bocPhanTich("tín hiệu khép cảnh", docKhepGoc, (kq) => (kq === null ? "model không ghi tín hiệu khép cảnh" : true));
+
+function docKhepGoc(raw) {
   const s = String(raw || "");
   const i = s.indexOf(MOC_KHEP);
   if (i < 0) return null;
@@ -1815,7 +1891,9 @@ export async function lapCauNoi({ story, conv, huong, ids }) {
 }
 
 // Đọc kế hoạch cầu nối (chịu lỗi: thiếu mục nào thì mục đó rỗng).
-export function docKeHoach(raw) {
+export const docKeHoach = bocPhanTich("kế hoạch cầu nối", docKeHoachGoc, (kq) => !!(kq && (kq.trangThaiDau || kq.mucTieu || kq.dauHieu || (kq.buoc || []).length)));
+
+function docKeHoachGoc(raw) {
   const map = bocTach(raw, ["TRẠNG THÁI XUẤT PHÁT", "MỤC TIÊU", "BƯỚC CHUYỂN", "DẤU HIỆU", "XUNG ĐỘT", "ĐIỀU KIỆN ĐỔI HƯỚNG"]);
   const t = (k) => {
     const v = String(map[k] || "").trim();
@@ -1833,7 +1911,12 @@ export function docKeHoach(raw) {
 
 // Phiếu khép cảnh đã parse. Luôn chịu được kết quả thiếu trường / sai định dạng:
 // phần đọc được thì dùng, phần hỏng thì bỏ — người chơi vẫn sửa được trên thẻ duyệt.
-export function docPhieu(raw, opts = {}) {
+export const docPhieu = bocPhanTich("phiếu khép cảnh", docPhieuGoc, (kq) => {
+  if (!kq) return false;
+  return (kq.tomTat || []).length + (kq.kyUc || []).length + (kq.quanHe || []).length + (kq.nhanVat || []).length + (kq.moc || []).length + (kq.tienDo || []).length > 0;
+});
+
+function docPhieuGoc(raw, opts = {}) {
   const { story, conv, messages, rieng } = opts;
   const nhip = TT.nhipCua(story);
   const sec = { tomTat: [], kyUc: [], quanHe: [], nhanVat: [], moc: [], tienDo: [] };
@@ -2163,7 +2246,9 @@ const MUC_HIEN_AI = [
 
 // Đọc kế hoạch vắng mặt. Chịu lỗi hoàn toàn: thiếu trường thì bỏ sự kiện đó, không bao
 // giờ để lộ marker ra UI.
-export function docKeHoachVangMat(raw, opts = {}) {
+export const docKeHoachVangMat = bocPhanTich("kế hoạch vắng mặt", docKeHoachVangMatGoc, (kq) => !!(kq && (kq.suKien || []).length));
+
+function docKeHoachVangMatGoc(raw, opts = {}) {
   const { story, batDau, ketThuc, phut, soToiDa, cheDo, phienId } = opts;
   const dsTruyen = story && story.nhanVats ? story.nhanVats : [];
   const toanBo = khongDau(raw || "").replace(/\s+/g, " ").trim();
@@ -2269,7 +2354,9 @@ function docAnhHuongNgoai(raw, story) {
 
 // Tín hiệu hé lộ: model ghi "<<HELO: S1, S2>>" khi một sự kiện ẩn vừa được kể/lộ ra
 // trong đoạn vừa viết. Trả về danh sách MÃ (S1, S2…); app tự ánh xạ về id sự kiện.
-export function docHeLo(raw) {
+export const docHeLo = bocPhanTich("sổ hé lộ", docHeLoGoc, (kq) => !!(Array.isArray(kq) && kq.length));
+
+function docHeLoGoc(raw) {
   const s = String(raw || "");
   const ra = [];
   const re = /<<\s*HELO\s*[:：]?\s*([^>]*)>>/gi;

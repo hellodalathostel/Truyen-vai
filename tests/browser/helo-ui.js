@@ -146,7 +146,13 @@ ck("18 trạng thái đó cũng được lưu xuống kv", !!(kvEvB && (kvEvB.he
 const sm = await cho(() => document.querySelector('[data-act="story-menu"]'), 20, 200);
 if (sm) sm.click();
 await wait(400);
-const nutDd = await cho(() => document.querySelector('[data-act="open-dao-dien"]'), 20, 200);
+// Nút "Mở" nằm TRONG menu truyện vừa mở. Cố ý không lấy nút Đạo diễn ở header chat: nút đó
+// đi qua bộ điều phối của màn chat, mà lúc này menu truyện đang che màn chat — đường đúng của
+// bước này là nút của menu (đóng menu rồi mở màn Đạo diễn).
+const nutDd = await cho(() => {
+  const bd = document.querySelector("#modalRoot .modal-backdrop");
+  return bd ? bd.querySelector('[data-act="open-dao-dien"]') : null;
+}, 20, 200);
 if (nutDd) nutDd.click();
 await wait(1000);
 const nutMuc = await cho(() => document.querySelector('[data-act="vg-muc"][data-id="vg_z1"][data-muc="an"]'), 30, 250);

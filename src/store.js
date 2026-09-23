@@ -75,6 +75,237 @@ export async function dungLuongUocTinh() {
   }
 }
 
+// ==========================================================================
+//  SAO LƯU — mốc thời gian + quyết định có nhắc hay không
+// ==========================================================================
+// Bốn mốc (ms) nằm trong `store.settings` (localStorage) — không phải dữ liệu truyện,
+// nên không tính vào kv và không đi theo file xuất:
+//   batDauLuc — lần đầu app chạy trên trình duyệt này (mốc gốc khi chưa từng xuất)
+//   xuatLuc   — lần xuất bản sao lưu gần nhất
+//   daDoiLuc  — lần gần nhất DỮ LIỆU THẬT SỰ ĐỔI (truyện / tin nhắn / ảnh / hồ sơ)
+//   hoanLuc   — lần người dùng bấm "Để sau"
+//   nhacLuc   — lần gần nhất đã hiện lời nhắc (để không nhắc quá một lần mỗi ngày)
+export const NGAY_MS = 24 * 60 * 60 * 1000;
+
+export function mocSaoLuu(now) {
+  const s = store.settings;
+  const moi = !s.saoLuu || typeof s.saoLuu !== "object";
+  if (moi) s.saoLuu = {};
+  const m = s.saoLuu;
+  const luc = Number(now) || Date.now();
+  const datBatDau = !Number(m.batDauLuc);
+  m.batDauLuc = Number(m.batDauLuc) || luc;
+  m.xuatLuc = Number(m.xuatLuc) || 0;
+  m.daDoiLuc = Number(m.daDoiLuc) || 0;
+  m.hoanLuc = Number(m.hoanLuc) || 0;
+  m.nhacLuc = Number(m.nhacLuc) || 0;
+  // Mốc "bắt đầu dùng" phải được GHI XUỐNG ngay lần đầu, nếu không nó sẽ trôi theo mỗi
+  // lần mở app và lời nhắc sao lưu không bao giờ đến hạn.
+  if (moi || datBatDau) saveSettings();
+  return m;
+}
+
+export function danhDauSaoLuu(khoa, now) {
+  const m = mocSaoLuu(now);
+  m[khoa] = Number(now) || Date.now();
+  saveSettings();
+  return m[khoa];
+}
+
+// Gọi ở MỌI đường ghi/xoá dữ liệu thật (truyện, tin nhắn, ảnh, hồ sơ ngoại hình).
+// Chỉ là một mốc thời gian, không lưu nội dung, và không chặn đường ghi.
+export function danhDauDaDoi(now) {
+  try {
+    const m = mocSaoLuu(now);
+    m.daDoiLuc = Number(now) || Date.now();
+    saveSettings();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Quyết định CÓ NHẮC hay không. Hàm thuần (nhận `now` và `soNgay`) để kiểm thử được.
+// Nguyên tắc: chỉ nhắc khi dữ liệu ĐÃ ĐỔI sau lần xuất gần nhất, và đã quá `soNgay`
+// ngày kể từ mốc gần nhất (lần xuất, hoặc lần đầu dùng nếu chưa từng xuất). "Để sau"
+// hoãn đúng một ngày; mỗi ngày nhắc tối đa một lần.
+export function nenNhacSaoLuu(m, now, soNgay) {
+  const luc = Number(now) || Date.now();
+  const n = Math.max(1, Math.round(Number(soNgay) || 7));
+  const moc = Number(m && (m.xuatLuc || m.batDauLuc)) || 0;
+  const daDoi = Number(m && m.daDoiLuc) || 0;
+  if (!moc) return { nhac: false, ly: "chua-co-moc" };
+  if (!daDoi) return { nhac: false, ly: "chua-tung-doi" };
+  if (Number(m.xuatLuc) && daDoi <= Number(m.xuatLuc)) return { nhac: false, ly: "da-xuat-sau-khi-doi" };
+  if (luc - moc < n * NGAY_MS) return { nhac: false, ly: "chua-du-ngay", ngayTuMoc: Math.floor((luc - moc) / NGAY_MS), soNgay: n };
+  if (Number(m.hoanLuc) && luc - Number(m.hoanLuc) < NGAY_MS) return { nhac: false, ly: "dang-hoan" };
+  if (Number(m.nhacLuc) && luc - Number(m.nhacLuc) < NGAY_MS) return { nhac: false, ly: "vua-nhac" };
+  return {
+    nhac: true,
+    ly: Number(m.xuatLuc) ? "da-doi-sau-lan-xuat" : "chua-tung-xuat",
+    soNgay: n,
+    ngayTuMoc: Math.floor((luc - moc) / NGAY_MS),
+    coLanXuat: !!Number(m.xuatLuc),
+  };
+}
+
+// ==========================================================================
+//  NHẬT KÝ PARSE LLM — vòng đệm, chỉ nằm trên máy người dùng
+// ==========================================================================
+// Mỗi lượt gọi AI ghi MỘT mục: loại lệnh, thời điểm, ok/lỗi + lý do, độ dài đầu ra.
+// Mục "phân tích" (parse) kèm đầu ra thô để soi khi parse hỏng.
+// Vòng đệm bị chặn hai đầu: số mục (20) VÀ tổng dung lượng phần thô — nên dù model trả
+// về văn bản rất dài thì nhật ký vẫn nhỏ. KHÔNG bao giờ đi vào file xuất truyện; chỉ đi
+// vào "gói gỡ lỗi" khi người dùng tự chọn kèm đầu ra thô.
+//
+// BA HẰNG NÀY PHẢI ĂN KHỚP VỚI NHAU: trần dung lượng chỉ có tác dụng khi
+// TOI_DA_MUC_NHAT_KY * DO_DAI_THO_MOI_MUC > TOI_DA_BYTE_NHAT_KY. Nếu ai đó nâng
+// DO_DAI_THO_MOI_MUC mà không hạ trần byte (hoặc ngược lại), trần dung lượng thành vô
+// nghĩa và ta lại có một nhật ký chỉ bị chặn bởi số mục — đúng thứ đã bị bỏ.
+export const TOI_DA_MUC_NHAT_KY = 20;
+export const TOI_DA_BYTE_NHAT_KY = 12 * 1024;
+export const DO_DAI_THO_MOI_MUC = 1000;
+
+export function catTho(tho, n) {
+  const t = typeof tho === "string" ? tho : String(tho === undefined || tho === null ? "" : tho);
+  // Trần ≤ 0 (hoặc thiếu/không phải số) nghĩa là "dùng trần mặc định". Một luật duy nhất
+  // cho mọi giá trị hỏng — trước đây 0 thì về mặc định còn -5 thì cắt sạch, hai nghĩa
+  // khác nhau cho cùng một ý "không dùng được".
+  const so = Number(n);
+  const toiDa = so > 0 ? Math.floor(so) : DO_DAI_THO_MOI_MUC;
+  if (t.length <= toiDa) return t;
+  return t.slice(0, toiDa) + "…[cắt]";
+}
+
+export function dungLuongTho(vong) {
+  let tong = 0;
+  for (const x of Array.isArray(vong) ? vong : []) tong += (x && typeof x.tho === "string" ? x.tho.length : 0);
+  return tong;
+}
+
+// Vòng đệm thuần: thêm mục mới NHẤT vào đầu, cắt bớt theo số mục và theo tổng dung
+// lượng phần thô (bỏ dần mục CŨ nhất). Trả về mảng mới.
+export function themVaoVong(vong, muc, toiDaSo, toiDaByte) {
+  const so = Math.max(1, Number(toiDaSo) || TOI_DA_MUC_NHAT_KY);
+  const byte = Math.max(0, Number(toiDaByte) || TOI_DA_BYTE_NHAT_KY);
+  const ra = [muc].concat(Array.isArray(vong) ? vong : []).slice(0, so);
+  while (ra.length > 1 && dungLuongTho(ra) > byte) ra.pop();
+  if (ra.length === 1 && dungLuongTho(ra) > byte) ra[0] = Object.assign({}, ra[0], { tho: "" });
+  return ra;
+}
+
+function viTriNhatKy() {
+  return R.kv.nhatKyLlm;
+}
+
+export async function docNhatKyLlm() {
+  try {
+    const v = await viTriNhatKy().get("vong");
+    return Array.isArray(v) ? v : [];
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
+
+export async function ghiNhatKyLlm(muc) {
+  try {
+    const m = Object.assign(
+      { t: Date.now(), ok: 1, ly: "" },
+      muc || {}
+    );
+    m.l = String(m.l || "?").slice(0, 80);
+    m.ly = String(m.ly || "").slice(0, 240);
+    m.d = Number(m.d) || 0;
+    m.tho = typeof m.tho === "string" ? catTho(m.tho) : "";
+    const cu = await docNhatKyLlm();
+    return await viTriNhatKy().set("vong", themVaoVong(cu, m));
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+export async function xoaNhatKyLlm() {
+  try {
+    await viTriNhatKy().delete("vong");
+    return true;
+  } catch (e) {
+    console.error(e);
+    return false;
+  }
+}
+
+// ==========================================================================
+//  TỰ KIỂM TRA BẤT BIẾN — chỉ BÁO CÁO, hàm thuần (kiểm thử được bằng Node)
+// ==========================================================================
+// `khoaTinNhan` / `khoaAnh` = danh sách khoá đang có trong kv. Hàm chỉ đọc và trả về
+// báo cáo; KHÔNG tự sửa gì (việc sửa do giao diện làm, có xác nhận, trong `giaoDichKV`).
+export function kiemTraBatBien(stories, dsHoSo, khoaTinNhan, khoaAnh, thamChieuMoFn) {
+  const ds = Array.isArray(stories) ? stories : [];
+  const nhom = {};
+  const them = (loai, moTa, them2) => {
+    if (!nhom[loai]) nhom[loai] = [];
+    nhom[loai].push(Object.assign({ loai, moTa }, them2 || {}));
+  };
+  const convDung = new Set();
+  const anhDung = new Set();
+
+  for (const s of ds) {
+    const nvIds = new Set(((s && s.nhanVats) || []).map((c) => c && c.id).filter(Boolean));
+    const chIds = new Set(((s && s.chuongs) || []).map((c) => c && c.id).filter(Boolean));
+    // id trùng trong cùng một truyện: hai phần tử cùng id thì mọi tham chiếu đều mơ hồ.
+    for (const [khoa, dsCon] of [["nhanVats", s.nhanVats], ["chuongs", s.chuongs], ["hoiThoais", s.hoiThoais]]) {
+      const dem = {};
+      for (const x of dsCon || []) {
+        const id = x && x.id;
+        if (!id) continue;
+        dem[id] = (dem[id] || 0) + 1;
+      }
+      for (const id in dem) if (dem[id] > 1) them("trung-id", "Truyện “" + (s.ten || s.id) + "” có " + dem[id] + " mục cùng id trong " + khoa + ": " + id, { truyen: s.id, id: id });
+    }
+    for (const c of (s && s.hoiThoais) || []) {
+      if (!c) continue;
+      convDung.add(c.id);
+      for (const id of c.nhanVatIds || []) {
+        if (!nvIds.has(id)) them("hoi-thoai-tro-nv", "Hội thoại “" + (c.tieuDe || c.id) + "” trỏ tới nhân vật không còn trong truyện: " + id, { truyen: s.id, id: c.id });
+      }
+      for (const id of c.hienDien || []) {
+        if (!nvIds.has(id)) them("hien-dien-tro-nv", "Người có mặt của hội thoại “" + (c.tieuDe || c.id) + "” có nhân vật không còn trong truyện: " + id, { truyen: s.id, id: c.id });
+      }
+      if (c.chuongId && !chIds.has(c.chuongId)) them("hoi-thoai-tro-chuong", "Hội thoại “" + (c.tieuDe || c.id) + "” trỏ tới chương đã mất: " + c.chuongId, { truyen: s.id, id: c.id });
+      if (c.canhRieng && !nvIds.has(c.canhRieng)) them("canh-rieng-tro-nv", "Cảnh riêng của hội thoại “" + (c.tieuDe || c.id) + "” trỏ tới nhân vật đã mất: " + c.canhRieng, { truyen: s.id, id: c.id });
+    }
+    for (const a of (s && s.anh) || []) if (a && a.id) anhDung.add(a.id);
+    for (const k of (s && s.canhDaKhep) || []) {
+      for (const ht of (k && (k.htIds || (k.htId ? [k.htId] : []))) || []) {
+        if (ht && !convDung.has(ht)) them("canh-tro-hoi-thoai", "Cảnh đã khép trỏ tới hội thoại đã mất: " + ht, { truyen: s.id, id: k.id });
+      }
+    }
+  }
+
+  if (typeof thamChieuMoFn === "function") {
+    for (const x of thamChieuMoFn(ds, dsHoSo) || []) {
+      them("ho-so-mo", moTaHoSoMo(x), { truyen: x.truyen, id: x.id, hoSoId: x.hoSoId });
+    }
+  }
+
+  for (const k of Array.isArray(khoaTinNhan) ? khoaTinNhan : []) {
+    if (!convDung.has(k)) them("tin-nhan-mo-coi", "Có tin nhắn trong máy nhưng không hội thoại nào dùng: " + k, { id: k });
+  }
+  for (const k of Array.isArray(khoaAnh) ? khoaAnh : []) {
+    if (!anhDung.has(k)) them("anh-mo-coi", "Có ảnh trong máy nhưng không truyện nào dùng: " + k, { id: k });
+  }
+
+  let soLoi = 0;
+  for (const k in nhom) soLoi += nhom[k].length;
+  return { soLoi: soLoi, nhom: nhom, soTruyen: ds.length, soHoSo: (dsHoSo || []).length };
+}
+
+function moTaHoSoMo(x) {
+  const nhan = x.loai === "nguoiChoi" ? "hồ sơ của người chơi" : x.loai === "anh" ? "hồ sơ gắn vào ảnh cảnh" : "hồ sơ của nhân vật";
+  return "Thiếu " + nhan + " (" + x.hoSoId + ") — mục " + x.id + " đang trỏ vào đó";
+}
+
 export const store = {
   stories: [],
   byId: {},
@@ -229,6 +460,7 @@ export async function luuNgoaiHinh(hoSo) {
   reindexNgoaiHinh();
   try {
     await R.kv.thuVienNgoaiHinh.set(h.id, h);
+    danhDauDaDoi();
   } catch (e) {
     if (truoc) {
       const i2 = store.ngoaiHinh.findIndex((x) => x.id === h.id);
@@ -263,6 +495,7 @@ export async function xoaNgoaiHinh(id) {
   reindexNgoaiHinh();
   try {
     await R.kv.thuVienNgoaiHinh.delete(id);
+    danhDauDaDoi();
   } catch (e) {
     store.ngoaiHinh = truoc;
     reindexNgoaiHinh();
@@ -665,6 +898,7 @@ export async function createStory(data) {
   reindex();
   try {
     await R.kv.cotTruyen.set(story.id, story);
+    danhDauDaDoi();
   } catch (e) {
     store.stories = store.stories.filter((s) => s.id !== story.id);
     reindex();
@@ -683,6 +917,7 @@ export async function saveStory(story) {
   story.suaLuc = Date.now();
   try {
     await R.kv.cotTruyen.set(story.id, story);
+    danhDauDaDoi();
   } catch (e) {
     story.suaLuc = truoc;
     throw loiLuu("cốt truyện “" + (story.ten || "") + "”", e);
@@ -699,6 +934,7 @@ export async function luuMoC(story) {
   if (!story || !story.id) return false;
   try {
     await R.kv.cotTruyen.set(story.id, story);
+    danhDauDaDoi();
     return true;
   } catch (e) {
     console.error("[Truyện Vai] không ghi được mốc hoạt động:", e);
@@ -801,6 +1037,7 @@ export async function deleteStory(id) {
         }
       }
       await R.kv.cotTruyen.delete(id);
+      danhDauDaDoi();
     });
   } catch (e) {
     traRam();
@@ -882,6 +1119,7 @@ export async function luuAnh(story, meta) {
   story.anh = [light].concat(anhTruoc.filter((a) => a.id !== full.id));
   try {
     await R.kv.thuVienAnh.set(full.id, full);
+    danhDauDaDoi();
   } catch (e) {
     if (cacheTruoc === undefined) delete store.anhCache[full.id];
     else store.anhCache[full.id] = cacheTruoc;
@@ -956,6 +1194,7 @@ export async function pushMessage(convId, msg) {
   arr.push(msg);
   try {
     await ghiTinNhan(convId, arr);
+    danhDauDaDoi();
   } catch (e) {
     arr.pop();
     throw e;
@@ -968,6 +1207,7 @@ export async function replaceMessages(convId, arr) {
   store.messagesCache[convId] = arr;
   try {
     await ghiTinNhan(convId, arr);
+    danhDauDaDoi();
   } catch (e) {
     store.messagesCache[convId] = truoc;
     throw e;

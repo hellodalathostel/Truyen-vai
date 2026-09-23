@@ -68,6 +68,12 @@ export const DANH_MUC = [
   { ten: "vg-base", loai: "dung", ghiChu: "khung dựng truyện cho ca thời gian vắng mặt" },
   { ten: "vg-check", loai: "bo", ghiChu: "vắng mặt: có sự kiện + tin nhắn, tạm dừng, và nhánh AI lỗi" },
 
+  { ten: "esc-bat-bien", loai: "bo", ghiChu: "bất biến 5 — mọi giá trị động phải qua esc() khi vào HTML" },
+
+  { ten: "gd4-saoluu", loai: "bo", ghiChu: "Giai đoạn 4 — cảnh báo đổi tên, trạng thái + nút sao lưu, lời nhắc khi mở app" },
+  { ten: "gd4-goloi", loai: "bo", ghiChu: "Giai đoạn 4 — nhật ký parse (vòng đệm) + gói gỡ lỗi (mặc định chỉ metadata)" },
+  { ten: "gd4-tukiem", loai: "bo", ghiChu: "Giai đoạn 4 — tự kiểm tra bất biến + sửa lỗi an toàn trong một giao dịch" },
+
   // ---------------------------------------------------------------- phụ trợ (không chạy mặc định)
   { ten: "real-a", loai: "phu", ghiChu: "CA A — AI THẬT (tốn quota, không chạy tự động)" },
   { ten: "real-b", loai: "phu", ghiChu: "CA B — AI THẬT" },
@@ -121,7 +127,21 @@ function xoaGiaTam() {
 }
 
 function donModal() {
-  try { document.querySelectorAll("#modalRoot .modal-backdrop").forEach((x) => x.remove()); } catch (e) {}
+  try {
+    // ĐÓNG BẰNG NÚT ĐÓNG của modal, không gỡ thẳng node: nhiều màn giữ cờ trong bộ nhớ và
+    // chỉ xoá cờ khi hook `onClose` chạy (vd `app.daoDienDangMo`). Gỡ node trực tiếp để lại
+    // cờ bật, và lần mở sau bị chặn IM LẶNG — bộ helo-ui từng hỏng vì thế (bấm "Mở màn Đạo
+    // diễn" không có gì xảy ra, rồi 2 ca cuối báo sai). Đóng từ trên xuống (LIFO) để modal
+    // chồng nhau đóng đúng thứ tự như người dùng bấm Escape.
+    const ds = Array.from(document.querySelectorAll("#modalRoot .modal-backdrop"));
+    for (let i = ds.length - 1; i >= 0; i--) {
+      const nut = Array.from(ds[i].querySelectorAll(".modal-head .icon-btn")).pop();
+      if (nut) { try { nut.click(); } catch (e) {} }
+      else if (ds[i].isConnected) ds[i].remove();
+    }
+    // Modal không có nút đóng (hiếm) còn sót lại thì gỡ thẳng.
+    Array.from(document.querySelectorAll("#modalRoot .modal-backdrop")).forEach((x) => x.remove());
+  } catch (e) {}
 }
 
 // ------------------------------------------------------------------ nạp & chạy một file bộ
@@ -233,13 +253,47 @@ async function chupThat() {
     for (const [k] of await root.kv.tinNhan.entries()) khoaTn.add(k);
     for (const [k] of await root.kv.thuVienAnh.entries()) khoaAnh.add(k);
   } catch (e) { ban.__loi = String((e && e.message) || e); }
-  return { ban, khoaTn, khoaAnh };
+  // Nhật ký parse cũng là DỮ LIỆU CỦA NGƯỜI DÙNG: các bộ cài AI giả nên chúng GHI vào nhật ký
+  // thật, và vòng đệm 20 mục có thể đẩy mục thật của người dùng ra ngoài. Chụp lại để trả nguyên.
+  let nhatKy;
+  try {
+    nhatKy = await root.kv.nhatKyLlm.get("vong");
+  } catch (e) { nhatKy = undefined; }
+  return { ban, khoaTn, khoaAnh, caiDat: docCaiDat(), nhatKy };
 }
 function soThat(truoc, sau) {
   const loi = [];
   for (const k of Object.keys(truoc)) if (truoc[k] !== sau[k]) loi.push(k);
   for (const k of Object.keys(sau)) if (!(k in truoc)) loi.push("(mới) " + k);
   return loi;
+}
+
+// ------------------------------------------------------------------ cài đặt trong localStorage
+// Cài đặt (`truyenVai.caiDat`) CŨNG là dữ liệu thật. Khối mốc sao lưu (`saoLuu`) đổi trong lúc
+// chạy là chuyện bình thường — bộ kiểm thử ghi/xoá dữ liệu thì app đánh dấu "đã đổi" — nhưng
+// KHÔNG được để lại mốc giả (một mốc `xuatLuc` giả sẽ hoãn lời nhắc sao lưu của người dùng 7
+// ngày). Nên: chụp trước, trả nguyên sau, và CẢNH BÁO nếu phần cài đặt NGOÀI khối mốc bị đổi.
+const KHOA_CAI_DAT = "truyenVai.caiDat";
+function docCaiDat() {
+  try { return localStorage.getItem(KHOA_CAI_DAT); } catch (e) { return null; }
+}
+function ghiCaiDat(v) {
+  try {
+    if (v === null) localStorage.removeItem(KHOA_CAI_DAT);
+    else localStorage.setItem(KHOA_CAI_DAT, v);
+    return true;
+  } catch (e) { return false; }
+}
+// So phần KHÔNG phải khối mốc sao lưu (khoá `saoLuu` bị bỏ trước khi so).
+function soCaiDat(a, b) {
+  const bo = (s) => {
+    try {
+      const o = JSON.parse(s || "{}");
+      delete o.saoLuu;
+      return JSON.stringify(o);
+    } catch (e) { return String(s); }
+  };
+  return bo(a) === bo(b);
 }
 
 // ------------------------------------------------------------------ dọn dữ liệu test còn sót
@@ -352,6 +406,12 @@ export async function chayTatCa(opts) {
   const thatSau = await chupThat();
   const lech = soThat(thatTruoc.ban, thatSau.ban);
   if (lech.length) kq.canhBao.push("DỮ LIỆU THẬT ĐÃ ĐỔI: " + lech.join(", "));
+  // Cài đặt: trả nguyên trạng (cả bản lưu LẪN bản trong RAM, nếu không màn Cài đặt vẫn hiện
+  // trạng thái giả), và cảnh báo nếu phần ngoài khối mốc sao lưu bị đụng.
+  const caiDatDoi = thatTruoc.caiDat !== thatSau.caiDat;
+  if (caiDatDoi && !soCaiDat(thatTruoc.caiDat, thatSau.caiDat)) {
+    kq.canhBao.push("CÀI ĐẶT THẬT ĐÃ ĐỔI (ngoài khối mốc sao lưu): " + KHOA_CAI_DAT);
+  }
 
   let donDep = null;
   if (o.don !== false) {
@@ -366,6 +426,28 @@ export async function chayTatCa(opts) {
     if (T) { T.app.storyId = null; T.app.convId = null; T.app.screen = "home"; T.render(); }
   } catch (e) {}
   donModal();
+
+  // TRẢ CÀI ĐẶT VỀ NGUYÊN TRẠNG — phải làm SAU khi dọn dữ liệu test, vì chính việc xoá truyện
+  // test cũng ghi mốc "đã đổi" vào cài đặt. Trả cả bản lưu lẫn bản trong RAM.
+  const daTraCaiDat = ghiCaiDat(thatTruoc.caiDat);
+  try {
+    const T = window.__tv_test;
+    if (daTraCaiDat && T && T.store && T.store.settings && thatTruoc.caiDat) {
+      Object.assign(T.store.settings, JSON.parse(thatTruoc.caiDat));
+    }
+  } catch (e) {}
+  kq.daDon = kq.daDon || {};
+  kq.daDon.caiDat = daTraCaiDat ? (caiDatDoi ? "đã trả nguyên trạng" : "không đổi") : "KHÔNG TRẢ ĐƯỢC";
+
+  // Trả NHẬT KÝ PARSE về nguyên trạng (cùng lý do như cài đặt: nó là dữ liệu thật trong kv, và
+  // vòng đệm có thể đã đẩy mục thật của người dùng ra ngoài trong lúc chạy).
+  try {
+    if (thatTruoc.nhatKy === undefined) await root.kv.nhatKyLlm.delete("vong");
+    else await root.kv.nhatKyLlm.set("vong", thatTruoc.nhatKy);
+    kq.daDon.nhatKy = Array.isArray(thatTruoc.nhatKy) ? thatTruoc.nhatKy.length + " mục (đã trả nguyên trạng)" : "chưa có (đã trả nguyên trạng)";
+  } catch (e) {
+    kq.daDon.nhatKy = "KHÔNG TRẢ ĐƯỢC: " + String((e && e.message) || e);
+  }
 
   // Trả plugin AI/máy vẽ về bản gốc sau khi chạy xong: bộ "dung" cài AI giả, và nếu bộ
   // cuối để lại thì người dùng sẽ gặp AI giả khi dùng tiếp preview.
