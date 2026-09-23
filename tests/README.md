@@ -19,7 +19,8 @@ gọi `chayTatCa()` — xem `tests/browser/runner.js` để biết cách đăng 
     tests/
       lib/h.js                  khung kiểm thử tối giản, dùng CHUNG cho cả hai tầng
       lib/moi-truong.js         dựng window.TRUYEN_VAI_ROOT giả trước khi nạp src/*
-      fixtures/*.mjs            dữ liệu mẫu HƯ CẤU (truyện, phiếu, kế hoạch, vắng mặt)
+      fixtures/*.mjs            dữ liệu mẫu HƯ CẤU (truyện, phiếu, kế hoạch, vắng mặt,
+                                phien-ban-cu: hình dạng cũ theo TỪNG PHIEN_BAN_*)
       node/*.test.mjs           tầng Node — hàm thuần, không DOM
       browser/*.js              tầng trình duyệt — mỗi tệp là một "bộ"
       browser/runner.js         DANH_MUC + bộ chạy + báo cáo
@@ -50,6 +51,14 @@ gọi `chayTatCa()` — xem `tests/browser/runner.js` để biết cách đăng 
    chỉ xoá cờ khi hook `onClose` chạy (vd `app.daoDienDangMo`); gỡ node trực tiếp để lại cờ
    bật, nên lần mở sau bị chặn **im lặng**. `donModal()` trong `runner.js` bấm nút đóng của
    từng modal theo thứ tự LIFO rồi mới gỡ phần còn sót — đừng quay lại kiểu `x.remove()`.
+8. **Mọi đường nạp dữ liệu phải đi qua MỘT cửa vào: `napBanGhi()`/`migrate()` trong `store.js`.**
+   Không chỗ nào (kể cả đường **nhập file**) được gọi thẳng `chuanHoa*` — làm vậy là **lặng lẽ** bỏ
+   qua việc kiểm hình dạng, và bản ghi dị dạng sẽ không bao giờ hiện ra ở màn Tự kiểm tra.
+   `tests/node/goi-chung.test.mjs` soát chuỗi trên `app.js`/`store.js` để ghim luật này.
+9. **`src/CONTEXT.md` phải ≤ 10 240 byte và vẫn giữ đủ các mục LUẬT.** Đó là tệp được đọc đầu
+   tiên mỗi phiên, nên nó là *luật + bảng tra*, không phải lịch sử: phần chi tiết thuộc về
+   `src/README.md` và `tests/README.md`. Có ca kiểm thử đếm byte bằng `TextEncoder` và đòi các mục
+   luật còn nguyên — viết chi tiết dài vào `CONTEXT.md` sẽ làm ca đó đỏ.
 
 ## Biết trước (khiếm khuyết đã biết)
 
@@ -68,7 +77,8 @@ gọi `chayTatCa()` — xem `tests/browser/runner.js` để biết cách đăng 
   "bộ … không trả về ca nào" cho đúng tình huống này; `goi-chung.test.mjs` canh việc
   cảnh báo đó không bị gỡ.
 - Các bộ `gy-goi-y` và `dk-loi-thoai` kiểm tra bố cục, nên chỉ đạt khi khung nhìn đủ
-  rộng (khoảng 390px trở lên). Ở khung hẹp của trình soạn thảo chúng báo lỗi giả.
+  rộng. Khung hẹp của trình soạn thảo (từng gặp 121px) làm chúng báo lỗi giả — đặt
+  `set_viewport_size({ width: 1100, height: 820 })` trước khi chạy tầng trình duyệt.
 
 ## Danh mục bộ kiểm thử
 
@@ -112,6 +122,28 @@ lại trạng thái bằng tay trong mỗi ca.
 `nenNhacSaoLuu`, mốc `mocSaoLuu` ghi xuống ngay lần đầu, hai trần của vòng đệm **ăn khớp** với
 nhau, 9 nhóm của `kiemTraBatBien`, và một ca ghim rằng Giai đoạn 4 **không** đổi
 `PHIEN_BAN_TRUYEN`.
+
+### Bộ Giai đoạn 5 (tầng schema + migration tập trung)
+
+| Bộ (`bo`) | Phủ gì |
+|---|---|
+| `gd5-schema` | **Chạy bóng trên dữ liệu THẬT của chủ dự án, trong bộ nhớ, không ghi gì**: `migrateTruyen`/`migrateHoSo`/`migrateTinNhan`/`napBanGhi` phải cho ra kết quả **giống hệt từng ký tự** với `chuanHoa*`/đường nạp cũ (đòi số khác biệt = 0, và đếm số truyện/hồ sơ/nhóm tin nhắn/ảnh đã so); đường nạp **không** sửa bản ghi đã đúng phiên bản; chạy lại lần hai vẫn ra y nguyên; **chứng minh không ghi kv** bằng cách chụp từng bản ghi trước/sau. Cộng phần validate-khi-nạp: một bản ghi **sai hình dạng** ghi thẳng vào kv ⇒ `loadStories()` **không ném, không xoá**, kv giữ nguyên byte, truyện vẫn nằm trong `store.byId`, hiện ở nhóm `hinh-dang` của màn Tự kiểm tra, **không** lọt nhóm "sửa được"; xoá khỏi kv + `xoaLoiHinhDang()` thì nhóm biến mất. Và phần nhập file cũ: `napBanGhi(..., { choNhap: true, dongY18: … })`, nhập sai hình dạng ⇒ chỉ báo, không ghi kv. |
+
+`tests/node/schema.test.mjs` (460 khẳng định) là mặt Node của cùng tầng đó: sổ đăng ký phiên bản
+(`soPhienBan`/`buocCanChay`), mô tả hình dạng **phủ đúng** bản ghi đã chuẩn hoá, kiểm hình dạng
+(bắt lỗi thật, không báo oan, trần số lỗi mỗi bản ghi), **chạy bóng `migrate*` vs `chuanHoa*` trên
+mọi fixture** (khoá `Date.now`/`Math.random` trong lúc so), **idempotent** (ba lần), nâng cấp **mọi
+hình dạng cũ** trong `tests/fixtures/phien-ban-cu.mjs` lên bản hiện tại mà không mất dữ liệu,
+`napBanGhi` (đúng phiên bản ⇒ **giữ nguyên đối tượng**; bản cũ ⇒ nâng + ghi nhật ký; **bản tương
+lai** ⇒ giữ nguyên + đánh dấu `vuotPhienBan`, **không hạ phiên bản**; bản ghi có tham chiếu mồ côi
+⇒ **không** bị dọn), bản ghi dị dạng ⇒ **chỉ báo**, và trần của hai nhật ký (20 mục / 60 mục /
+4 000 ký tự).
+
+Fixture `tests/fixtures/phien-ban-cu.mjs` dựng **một mục cho TỪNG `PHIEN_BAN_*` cũ** (truyện v0
+không có trường `phienBan` rồi v1…v7; hồ sơ; tin nhắn; ảnh). Mỗi mục tự khai `khongCo` — những
+trường mà phiên bản đó chưa có — và có ca kiểm thử khẳng định `khongCo` đúng, nên fixture không
+thể "phản ánh sai" hình dạng cũ. **Toàn bộ là dữ liệu tổng hợp** (id ngắn, tên `zz…`), không lấy
+một byte nào từ dữ liệu thật.
 
 ## Thêm một bộ kiểm thử
 

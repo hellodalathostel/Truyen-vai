@@ -74,6 +74,8 @@ export const DANH_MUC = [
   { ten: "gd4-goloi", loai: "bo", ghiChu: "Giai đoạn 4 — nhật ký parse (vòng đệm) + gói gỡ lỗi (mặc định chỉ metadata)" },
   { ten: "gd4-tukiem", loai: "bo", ghiChu: "Giai đoạn 4 — tự kiểm tra bất biến + sửa lỗi an toàn trong một giao dịch" },
 
+  { ten: "gd5-schema", loai: "bo", ghiChu: "Giai đoạn 5 — chạy bóng migrate vs chuanHoa* trên dữ liệu thật + validate khi nạp + nhập file" },
+
   // ---------------------------------------------------------------- phụ trợ (không chạy mặc định)
   { ten: "real-a", loai: "phu", ghiChu: "CA A — AI THẬT (tốn quota, không chạy tự động)" },
   { ten: "real-b", loai: "phu", ghiChu: "CA B — AI THẬT" },

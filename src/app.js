@@ -14,7 +14,16 @@ import {
   dauHieuViThanhNien, dsSeGhiCoNguoiLon, dsChanGhiCo,
   newNgoaiHinh, loadNgoaiHinh, getNgoaiHinh, dsNgoaiHinh, luuNgoaiHinh, xoaNgoaiHinh, giaoDichKV,
   coLoiDocNgoaiHinh, luuBanDichNgoaiHinh,
+  // Giai đoạn 5 — tầng schema + migration tập trung (đường nạp dùng `migrate`/`napBanGhi`).
+  migrate, napBanGhi, migrateTruyen, migrateTinNhan, migrateHoSo, docLoiHinhDang, xoaLoiHinhDang,
+  tomTatMigrate, docNhatKyMigrate, xoaNhatKyMigrate, moTaHinhDang, nhanLoaiBanGhi,
 } from "./store.js";
+// Sổ đăng ký phiên bản + hàm kiểm hình dạng: tầng giao diện chỉ ĐỌC chúng (hiện trong bảng gỡ
+// lỗi / màn tự kiểm tra và điểm neo kiểm thử), không tự nâng cấp bản ghi ở đây.
+import {
+  MIGRATION_TRUYEN, MIGRATION_HO_SO, MO_TA_TRUYEN, MO_TA_TIN_NHAN, MO_TA_ANH, MO_TA_HO_SO,
+  kiemTraTruyen, kiemTraTinNhan, kiemTraAnh, kiemTraHoSo,
+} from "./schema.js";
 import {
   PHIEN_BAN_HO_SO, MARK_NGOAI_HINH, MARK_NGOAI_HINH_CU, ungVienNgoaiHinh, nhanDienNgoaiHinh, tenUngVien,
   hoSoTheoId, ghepPromptNgoaiHinh, tachNgoaiHinh, gopLoaiTruNgoaiHinh, demLienKetNgoaiHinh,
@@ -6335,9 +6344,10 @@ function openNhapNgoaiHinh(ds, tenFile) {
 }
 
 // Chuẩn hoá một hồ sơ đến từ file: ảnh sai định dạng thì bỏ ẢNH chứ không bỏ hồ sơ.
+// Đi qua `napBanGhi` (kiểm hình dạng + migrate) như mọi đường nạp khác.
 function nhanHoSoNhap(raw) {
-  const h = chuanHoaHoSo(raw);
-  h.id = typeof raw.id === "string" ? raw.id.trim() : "";
+  const goc = Object.assign({ id: typeof raw.id === "string" ? raw.id.trim() : "" }, raw);
+  const h = napBanGhi(goc, "ho-so", goc.id);
   if (!h.id) h.id = uid("nh");
   if (h.anh && !laDataUrlAnh(h.anh)) h.anh = "";
   return h;
@@ -6929,6 +6939,7 @@ async function openGoLoi() {
   async function veLai() {
     const nhat = await docNhatKyLlm();
     const dl = await dungLuongUocTinh();
+    const lh = docLoiHinhDang();
     const mb = (n) => (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + " MB";
     const dong = nhat
       .map((x, i) => {
@@ -6952,6 +6963,10 @@ async function openGoLoi() {
         '<div><span class="muted">Phiên bản dữ liệu</span> <b>' + esc(PHIEN_BAN_TRUYEN) + "</b> · <span class=\"muted\">hồ sơ ngoại hình</span> <b>" + esc(PHIEN_BAN_HO_SO) + "</b></div>" +
         '<div><span class="muted">Truyện</span> <b>' + store.stories.length + "</b> · <span class=\"muted\">hồ sơ</span> <b>" + dsNgoaiHinh().length + "</b></div>" +
         (dl && dl.tong ? "<div>" + esc(mb(dl.dung)) + " / " + esc(mb(dl.tong)) + "</div>" : "") +
+        // Giai đoạn 5: bản ghi cũ được nâng lên phiên bản hiện tại ngay khi nạp. Nói ra để
+        // người dùng biết dữ liệu của mình đã đổi hình dạng (chỉ trên máy này).
+        "<div><span class=\"muted\">Nâng cấp dữ liệu</span> " + esc(tomTatMigrate()) + "</div>" +
+        (lh.tong ? '<div class="gl-loi"><b>' + lh.tong + "</b> cảnh báo hình dạng — xem “Tự kiểm tra dữ liệu”.</div>" : "") +
       "</div>" +
       '<div class="row-gap">' +
         '<button class="btn btn-sm" data-gl-act="xuat">' + icon("download", 15) + " Xuất gói gỡ lỗi</button>" +
@@ -7038,7 +7053,26 @@ async function chayTuKiemTra() {
   } catch (e) {
     console.error(e);
   }
-  return kiemTraBatBien(store.stories, dsNgoaiHinh(), khoaTn, khoaAnh, thamChieuMo);
+  // Giai đoạn 5: quét TRÊN CẢ bản ghi sai hình dạng — một bản ghi sai hình dạng vẫn có thể chứa tham
+  // chiếu mồ côi đáng báo, và bị chôn ở đó mới chính là rủi ro thật. Việc chịu được dữ liệu sai kiểu
+  // nằm ở `mang()` trong src/store.js.
+  const bc = kiemTraBatBien(store.stories, dsNgoaiHinh(), khoaTn, khoaAnh, thamChieuMo);
+  // Giai đoạn 5: bản ghi SAI HÌNH DẠNG gặp lúc nạp là một nhóm vấn đề riêng. Chỉ BÁO CÁO —
+  // không xoá, không tự sửa (hình dạng là chuyện của đường nạp, không phải của nút "Sửa").
+  const hd = docLoiHinhDang();
+  bc.soLoiHinhDang = hd.tong;
+  if (hd.ds.length) {
+    bc.nhom["hinh-dang"] = hd.ds.map((m) => ({
+      loai: "hinh-dang",
+      moTa:
+        nhanLoaiBanGhi(m.loai) + " “" + (m.ten || m.id || "(không tên)") + "” sai hình dạng: " +
+        (m.loi || []).map((x) => x.duong + " — " + x.moTa).join("; ") +
+        (m.soLoi > (m.loi || []).length ? " … (+" + (m.soLoi - m.loi.length) + " lỗi nữa)" : ""),
+      id: m.id,
+    }));
+    bc.soLoi += bc.nhom["hinh-dang"].length;
+  }
+  return bc;
 }
 
 function nhanNhomKiemTra(loai) {
@@ -7052,6 +7086,7 @@ function nhanNhomKiemTra(loai) {
     "canh-rieng-tro-nv": "Cảnh riêng trỏ tới nhân vật đã mất",
     "canh-tro-hoi-thoai": "Cảnh đã khép trỏ tới hội thoại đã mất",
     "trung-id": "Id trùng trong cùng một truyện",
+    "hinh-dang": "Bản ghi sai hình dạng gặp lúc nạp (chỉ báo cáo — xem ghi chú hình dạng)",
   };
   return ten[loai] || loai;
 }
@@ -7078,7 +7113,7 @@ async function openTuKiemTra() {
         "<div><span class=\"muted\">Đã quét</span> <b>" + bc.soTruyen + "</b> truyện · <b>" + bc.soHoSo + "</b> hồ sơ ngoại hình</div>" +
         "<div>" + (bc.soLoi ? '<b class="gl-loi">' + bc.soLoi + " vấn đề</b>" : '<b class="gl-ok">Không thấy vấn đề nào</b>') + "</div>" +
       "</div>" +
-      '<div class="hint">Bất biến được soi: mọi tham chiếu phải trỏ tới thứ còn tồn tại; không có khoá tin nhắn / ảnh mồ côi; không có id trùng trong một truyện.</div>' +
+      '<div class="hint">Bất biến được soi: mọi tham chiếu phải trỏ tới thứ còn tồn tại; không có khoá tin nhắn / ảnh mồ côi; không có id trùng trong một truyện; và hình dạng bản ghi lúc nạp (bản ghi dị dạng chỉ được BÁO, không bị xoá).</div>' +
       (dsNhom.length
         ? dsNhom
             .map((k) =>
@@ -8223,7 +8258,7 @@ async function ghiTruyenNhap(story, messages, anhMap, hoSoMap) {
       daGhiHoSo.push(id);
     }
     for (const c of story.hoiThoais) {
-      const arr = chuanHoaTinNhan(messages[c.id] || []);
+      const arr = napBanGhi(messages[c.id] || [], "tin-nhan", c.id);
       await R.kv.tinNhan.set(c.id, arr);
       store.messagesCache[c.id] = arr;
       daGhiHt.push(c.id);
@@ -8301,7 +8336,10 @@ async function chuanBiNhap(f, cheDo, tuyChon) {
     }
   }
   for (const raw of f.list) {
-    const story0 = chuanHoaTruyen(raw, { choNhap: true, dongY18: !!(tuyChon && tuyChon.dongY18) });
+    // Đường nhập file đi qua ĐÚNG cửa vào của Giai đoạn 5: kiểm hình dạng (báo qua màn Tự
+    // kiểm tra, không xoá) rồi nâng lên hình dạng hiện tại. Cờ xác nhận 18+ của lần nhập này
+    // vẫn được truyền vào như trước.
+    const story0 = napBanGhi(raw, "truyen", "", { choNhap: true, dongY18: !!(tuyChon && tuyChon.dongY18) });
     if (cheDo === "ghiDe") {
       const messages = {};
       for (const c of story0.hoiThoais) messages[c.id] = f.messages[c.id] || [];
@@ -9788,6 +9826,12 @@ async function boot() {
     chayTuKiemTra, suaBatBien, nhanNhomKiemTra, chuTrangThaiSaoLuu, nhacSaoLuuKhiMo, thanhDungLuong,
     docNhatKyLlm, ghiNhatKyLlm, xoaNhatKyLlm, kiemTraBatBien, catTho, themVaoVong, dungLuongTho,
     mocSaoLuu, danhDauSaoLuu, danhDauDaDoi, nenNhacSaoLuu,
+    // Giai đoạn 5 — tầng schema + migration tập trung (kiểm hình dạng, sổ đăng ký phiên bản,
+    // nhật ký nâng cấp). `chuanHoa*` vẫn mở ra để bộ kiểm thử so "chạy bóng" với `migrate`.
+    migrate, napBanGhi, migrateTruyen, migrateTinNhan, migrateHoSo, chuanHoaTinNhan,
+    docLoiHinhDang, xoaLoiHinhDang, tomTatMigrate, docNhatKyMigrate, xoaNhatKyMigrate, moTaHinhDang,
+    MIGRATION_TRUYEN, MIGRATION_HO_SO, MO_TA_TRUYEN, MO_TA_TIN_NHAN, MO_TA_ANH, MO_TA_HO_SO,
+    kiemTraTruyen, kiemTraTinNhan, kiemTraAnh, kiemTraHoSo,
   };
   window.__tv_vg = {
     app,

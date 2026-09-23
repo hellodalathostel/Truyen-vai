@@ -112,7 +112,7 @@ function tokenDai(text) {
   return quetToken(text).filter((x) => x.than.length >= NGUONG_THAN);
 }
 
-const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "store.js", "thoiGian.js", "trangThai.js"];
+const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "schema.js", "store.js", "thoiGian.js", "trangThai.js"];
 
 function ca(ten, fn) {
   test(ten, async () => {

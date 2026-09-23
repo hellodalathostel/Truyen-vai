@@ -1082,7 +1082,7 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
 **Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):**
-`https://user.uploads.dev/file/a17714590e95da95e5aaa1218dfe3331.zip`
+`https://user.uploads.dev/file/29c20b8b44adbddd616bca6b2fbef024.zip`
 
 - Tầng Node: `npm test` (không cần trình duyệt, không tốn quota, chạy trên CI).
 - Tầng trình duyệt: mở generator rồi nạp `tests/browser/runner.js` và gọi `chayTatCa()`.
@@ -1238,6 +1238,76 @@ bộ `gd4-saoluu` / `gd4-goloi` / `gd4-tukiem`). Dữ liệu thật của chủ 
 (bộ chạy chụp kv trước/sau; ba bộ `gd4-*` còn tự chụp và trả nguyên
 `localStorage["truyenVai.caiDat"]`). Gói được đóng zip, tải lại chính URL đó, giải nén, và chạy
 lại tầng Node **trong thư mục có `git init`** để khớp môi trường CI.
+
+### Giai đoạn 5 — tầng schema + migration tập trung (tháng 9/2026)
+
+Bốn yêu cầu của kế hoạch, cộng hai việc siết thêm (`src/CONTEXT.md` ≤ 10 KB, giữ hàm UI ≤ 150 dòng).
+
+1. **`src/schema.js` — tầng hình dạng dữ liệu, thuần, không import gì.** Chứa `KIEU` (các kiểu
+   nguyên thuỷ), `MO_TA_TRUYEN` / `MO_TA_NHAN_VAT` / `MO_TA_CHUONG` / `MO_TA_HOI_THOAI` /
+   `MO_TA_TIN_NHAN` / `MO_TA_ANH` / `MO_TA_HO_SO` (mô tả từng trường: kiểu, bắt buộc, mặc định),
+   `kiemTheoMo` + `kiemTraTruyen`/`kiemTraTinNhan`/`kiemTraAnh`/`kiemTraHoSo` (trả `{ ok, loi[] }`,
+   **không ném**), `nhanLoaiBanGhi`/`kiemTheoLoai`, `moTaHinhDang`, và **sổ đăng ký phiên bản**
+   `MIGRATION_TRUYEN` (7 mục, v1…v7) + `MIGRATION_HO_SO` (1 mục) với `soPhienBan`/`buocCanChay`.
+   Mô tả hình dạng **phủ đúng bản ghi đã chuẩn hoá** (đã có ca kiểm thử ghim điều này; khi thêm
+   trường vào `chuanHoa*` mà quên `MO_TA_*` thì ca đó đỏ).
+2. **Một cửa vào cho MỌI đường nạp: `napBanGhi(raw, loai, id, tuyChon)` → `migrate`.** `loadStories`,
+   `nhanHoSo`, `loadMessages`, `getAnh` và cả hai đường **nhập file** đều đi qua đó. `migrate(raw,
+   loai, tuyChon)` là điểm vào duy nhất (ném nếu `loai` lạ); `migrateTruyen`/`migrateTinNhan`/
+   `migrateHoSo`/`migrateAnh` là các vỏ mỏng. Không chỗ nào còn gọi thẳng `chuanHoa*` lúc nạp —
+   có ca kiểm thử soát chuỗi trên `app.js`/`store.js` để giữ luật đó.
+   - Bản ghi đã **đúng hoặc mới hơn** `PHIEN_BAN_*` thì **trả nguyên đối tượng** (không chuẩn hoá
+     lại — chuẩn hoá lại là *sửa* dữ liệu, mà tham chiếu mồ côi chính là thứ màn Tự kiểm tra phải
+     báo, không phải thứ đường nạp phải dọn). Bản ghi **mới hơn** app cũng được giữ nguyên, chỉ
+     ghi một dòng nhật ký `vuotPhienBan` — **không hạ phiên bản**.
+   - `migrate` **idempotent** (có ca chạy ba lần liên tiếp).
+3. **Validate khi nạp — chỉ BÁO, không xoá, không chặn.** Bản ghi sai hình dạng được ghi vào
+   **nhật ký lỗi hình dạng trong bộ nhớ** (`ghiLoiHinhDang`/`docLoiHinhDang`/`xoaLoiHinhDang`, trần
+   **60 mục** và **4 000 ký tự**), rồi hiện thành nhóm `"hinh-dang"` trong màn Tự kiểm tra của
+   Giai đoạn 4 (`chayTuKiemTra` → `bc.nhom["hinh-dang"]`, kèm `bc.soLoiHinhDang`), và có mặt trong
+   bảng gỡ lỗi. Bản ghi hỏng **vẫn nằm nguyên trong kv**, app vẫn mở được, và nó **không** lọt vào
+   nhóm "sửa được" (`suaBatBien` không đụng tới). Hai nhật ký (nâng cấp + lỗi hình dạng) **chỉ sống
+   trong phiên**, không ghi vào kv, không đi vào file xuất/backup (có ca kiểm thử chứng minh bằng
+   cách chụp kv trước/sau).
+   - Quét bất biến của `kiemTraBatBien` chạy **trên cả bản ghi sai hình dạng**, nên hàm này phải
+     chịu được dữ liệu sai kiểu — đó là lý do có `mang()` trong `store.js` (một trường đáng lẽ là
+     mảng mà lại là chuỗi từng làm cả màn Tự kiểm tra ném lỗi).
+4. **Fixture cho TỪNG `PHIEN_BAN_*` cũ** — `tests/fixtures/phien-ban-cu.mjs`: 8 mục cho truyện
+   (v0 không có trường `phienBan`, rồi v1…v7), 2 mục cho hồ sơ, 5 mục cho tin nhắn, 1 mục cho ảnh.
+   **Toàn bộ là dữ liệu TỔNG HỢP** (id ngắn, tên `zz…`), không lấy một byte nào từ dữ liệu thật.
+   Mỗi mục tự khai `khongCo` (những trường mà phiên bản đó chưa có) và có ca kiểm thử khẳng định
+   `khongCo` đúng — nếu fixture phản ánh sai hình dạng cũ thì ca đó đỏ.
+5. **Chạy bóng `migrate*` vs `chuanHoa*`** — trên mọi fixture (Node) **và trên dữ liệu THẬT** của
+   chủ dự án (trình duyệt), so sâu **trong bộ nhớ, không ghi gì**: `tests/node/schema.test.mjs` và
+   `tests/browser/gd5-schema.js`. Trên dữ liệu thật: **1 truyện · 3 hồ sơ · 2 nhóm tin nhắn · 4 ảnh
+   — khác biệt 0, idempotent 0**. Khi so phải **khoá đồng hồ** (`Date.now`) vì `tinhLaiBiet` có thể
+   đặt `suaLuc`.
+6. **Không tăng `PHIEN_BAN_*`.** Giai đoạn 5 không đổi hình dạng đã lưu (bộ kiểm thử vẫn đòi
+   `PHIEN_BAN_TRUYEN` = 7, `PHIEN_BAN_HO_SO` = 1).
+
+**`src/CONTEXT.md` ≤ 10 240 byte.** Tệp đó là thứ được đọc ĐẦU TIÊN mỗi phiên, nên nó phải là
+**luật + bảng tra**, không phải lịch sử: đã rút **12 976 → 10 177 byte** mà vẫn giữ đủ các mục luật.
+Phần chi tiết nằm ở đây (`src/README.md`) và `tests/README.md`. Có ca kiểm thử đếm byte bằng
+`TextEncoder` và đòi các mục luật (`## 1. Module + chiều import`, `## 2. Bất biến dữ liệu`,
+`## 4. Muốn sửa X`, `` `PHIEN_BAN_*` ``, `## 7. Luật làm việc`, `esc()`, `laNguoiLon()`, `schema.js`,
+`migrate`) còn nguyên.
+
+**Hai hàm UI đã tới trần 150 dòng — cấm phình thêm.** `openTaoAnh` (541 → **566**) và
+`openCharacterEditor` (533 → **537**). Từ giờ tới Giai đoạn 6, sửa gì trong hai hàm này thì **kéo
+ra hàm con**, không viết thẳng vào thân.
+
+**Kiểm chứng Giai đoạn 5:** tầng Node **11 tệp, 1 837 khẳng định, 0 không đạt** (thêm
+`tests/node/schema.test.mjs` — 460 khẳng định — và `tests/fixtures/phien-ban-cu.mjs`); tầng trình
+duyệt **1 077/1 077 ca · 31 bộ, 0 cảnh báo** (thêm bộ `gd5-schema`, 39 ca). Bộ chạy xác nhận **dữ
+liệu thật không đổi một byte** và `localStorage["truyenVai.caiDat"]` **đã trả nguyên trạng**. Gói
+được đóng zip, tải lại chính URL đó, giải nén, và chạy lại tầng Node **trong thư mục có `git init`**
+để khớp môi trường CI.
+
+**Bẫy đã gặp (giữ lại phần bị rút gọn khỏi `src/CONTEXT.md`).** Nếu khung xem trước bị bóp hẹp
+(ví dụ 121 px) thì hai bộ kiểm bố cục `gy-goi-y` / `dk-loi-thoai` **đỏ giả** — phải
+`set_viewport_size({ width: 1100, height: 820 })` trước khi chạy tầng trình duyệt. Bộ `phu` (ca AI
+THẬT, soi bố cục, dò lỗi) **không** chạy mặc định nên đừng lấy làm tiêu chuẩn nghiệm thu. Nguồn
+các bộ kiểm thử được **tiêm sẵn** vào `window.__tvNguon[<tên>]` (vì `tests/` không nằm trong `src/`).
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

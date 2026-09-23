@@ -94,12 +94,12 @@ function giaTriTruong(text, truong) {
   return ra;
 }
 
-const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "store.js", "thoiGian.js", "trangThai.js"];
+const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "schema.js", "store.js", "thoiGian.js", "trangThai.js"];
 const TEP_NODE = [
   "ai-parse.test.mjs", "dom.test.mjs", "gd4.test.mjs", "goi-chung.test.mjs", "khong-ro-ri.test.mjs",
-  "lore.test.mjs", "ngoaiHinh.test.mjs", "store.test.mjs", "thoiGian.test.mjs", "trangThai.test.mjs",
+  "lore.test.mjs", "ngoaiHinh.test.mjs", "schema.test.mjs", "store.test.mjs", "thoiGian.test.mjs", "trangThai.test.mjs",
 ];
-const TEP_FIXTURE = ["ke-hoach.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
+const TEP_FIXTURE = ["ke-hoach.mjs", "phien-ban-cu.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
 const SRC_CHO_PHEP = MODULE_SRC.concat(["styles.css", "README.md", "CONTEXT.md"]);
 const GOC_CHO_PHEP = ["main.pjs", "index.html", "package.json", "README.md", "LICENSE", ".git", ".gitignore", ".github", "src", "tests"];
 
@@ -246,4 +246,53 @@ ca("mọi tệp kiểm thử Node đều tự đăng ký ít nhất một ca", a
     const text = await bd.doc("tests/fixtures/" + f);
     ok(text.indexOf("export ") >= 0, "tests/fixtures/" + f + " có xuất dữ liệu mẫu");
   }
+});
+
+ca("src/CONTEXT.md nằm trong hạn ≤ 10240 byte và vẫn giữ đủ LUẬT", async (bd) => {
+  // CONTEXT.md là tệp được đọc ĐẦU TIÊN mỗi phiên làm việc, nên nó phải ngắn. Đã từng phình
+  // lên 12.976 byte vì chi tiết lịch sử/giải thích dài được viết thẳng vào đây; chi tiết đó
+  // giờ nằm ở src/README.md và tests/README.md. Ca này giữ cho nó không phình lại.
+  const t = await bd.doc("src/CONTEXT.md");
+  const so = new TextEncoder().encode(t).length;
+  ok(so <= 10240, "src/CONTEXT.md ≤ 10240 byte (đang " + so + " byte)");
+  // Rút gọn mà mất luật thì coi như hỏng: những mục dưới đây PHẢI còn.
+  for (const x of [
+    "## 1. Module + chiều import",
+    "## 2. Bất biến dữ liệu",
+    "## 4. Muốn sửa X",
+    "## 6. `PHIEN_BAN_*`",
+    "## 7. Luật làm việc",
+    "esc()",
+    "laNguoiLon()",
+    "schema.js",
+    "migrate",
+  ]) {
+    ok(t.indexOf(x) >= 0, "src/CONTEXT.md còn giữ: " + x);
+  }
+  // Và phải trỏ tới hai tệp chứa phần chi tiết đã chuyển đi.
+  ok(t.indexOf("src/README.md") >= 0, "CONTEXT.md trỏ tới src/README.md");
+  ok(t.indexOf("tests/README.md") >= 0, "CONTEXT.md trỏ tới tests/README.md");
+  const readme = await bd.doc("src/README.md");
+  ok(new TextEncoder().encode(readme).length > so, "CONTEXT.md phải ngắn hơn src/README.md");
+});
+
+ca("đường nạp dữ liệu đi qua MỘT cửa vào duy nhất (migrate/napBanGhi)", async (bd) => {
+  // Giai đoạn 5 gom mọi đường nạp về `napBanGhi`/`migrate` (kiểm hình dạng + nâng phiên bản).
+  // Nếu có chỗ nào tự gọi thẳng `chuanHoa*` thì chỗ đó LẶNG LẼ bỏ qua việc kiểm hình dạng, và
+  // người dùng sẽ không bao giờ thấy bản ghi dị dạng trong màn Tự kiểm tra.
+  const app = await bd.doc("src/app.js");
+  const store = await bd.doc("src/store.js");
+  ok(store.indexOf("export function migrate(") >= 0, "store.js có điểm vào migrate");
+  ok(store.indexOf("export function napBanGhi(") >= 0, "store.js có napBanGhi");
+  ok(store.indexOf("export function chuanHoaTruyen(") >= 0, "store.js vẫn là nguồn duy nhất của hình dạng (chuanHoaTruyen)");
+  // Bốn đường nạp của store.js.
+  ok(store.indexOf('napBanGhi(raw, "truyen")') >= 0, "loadStories đi qua napBanGhi (truyện)");
+  ok(store.indexOf('napBanGhi(raw, "ho-so")') >= 0, "loadNgoaiHinh đi qua napBanGhi (hồ sơ)");
+  ok(store.indexOf('napBanGhi(arr, "tin-nhan", convId)') >= 0, "loadMessages đi qua napBanGhi (tin nhắn)");
+  ok(store.indexOf("const kq = kiemTraAnh(rec);") >= 0, "getAnh kiểm hình dạng ảnh rồi mới trả về");
+  // Ba đường nạp của app.js (hồ sơ nhập tay, tin nhắn trong file nhập, truyện trong file nhập).
+  ok(app.indexOf('napBanGhi(goc, "ho-so", goc.id)') >= 0, "app.js: hồ sơ nhập tay đi qua napBanGhi");
+  ok(app.indexOf('napBanGhi(messages[c.id] || [], "tin-nhan", c.id)') >= 0, "app.js: tin nhắn trong file nhập đi qua napBanGhi");
+  ok(app.indexOf('napBanGhi(raw, "truyen", "", { choNhap: true, dongY18:') >= 0, "app.js: nhập truyện đi qua napBanGhi kèm choNhap + xác nhận 18+");
+  ok(app.indexOf("chuanHoaTruyen(") < 0, "app.js KHÔNG gọi thẳng chuanHoaTruyen (sẽ bỏ qua kiểm hình dạng)");
 });

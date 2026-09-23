@@ -1,7 +1,33 @@
 // Truyện Vai — lớp dữ liệu (IndexedDB qua kv-plugin). Không đụng tới DOM.
 
 import { thoiGianMacDinh, chuanHoaThoiGian, suKienCua, chuanHoaVgHeLo, tinhLaiBiet } from "./thoiGian.js";
-import { chuanHoaHoSo } from "./ngoaiHinh.js";
+import { chuanHoaHoSo, PHIEN_BAN_HO_SO } from "./ngoaiHinh.js";
+// Tầng schema (hình dạng + sổ đăng ký migration). Cố ý KHÔNG import gì nên nằm dưới cùng
+// DAG; chiều import vẫn một chiều: store.js → schema.js.
+import {
+  MIGRATION_TRUYEN,
+  MIGRATION_HO_SO,
+  migrateTheo,
+  kiemTheoLoai,
+  kiemTraTruyen,
+  kiemTraTinNhan,
+  kiemTraAnh,
+  kiemTraHoSo,
+  ghiMigrate,
+  ghiLoiHinhDang,
+  docLoiHinhDang,
+  xoaLoiHinhDang,
+  docNhatKyMigrate,
+  xoaNhatKyMigrate,
+  tomTatMigrate,
+  soPhienBan,
+  moTaHinhDang,
+  nhanLoaiBanGhi,
+  laDoiTuong,
+} from "./schema.js";
+
+// Bảng gỡ lỗi / màn Tự kiểm tra đọc qua `store.js` (một cửa vào cho tầng giao diện).
+export { docLoiHinhDang, xoaLoiHinhDang, docNhatKyMigrate, xoaNhatKyMigrate, tomTatMigrate, soPhienBan, moTaHinhDang, kiemTheoLoai, nhanLoaiBanGhi, migrateTheo };
 
 // Gốc perchance (`root`). Dùng `typeof window` để module này NẠP ĐƯỢC trong Node
 // (tầng kiểm thử logic thuần) — khi đó `R === null`, và mọi hàm cần kv/DOM sẽ báo lỗi
@@ -247,44 +273,50 @@ export function kiemTraBatBien(stories, dsHoSo, khoaTinNhan, khoaAnh, thamChieuM
     if (!nhom[loai]) nhom[loai] = [];
     nhom[loai].push(Object.assign({ loai, moTa }, them2 || {}));
   };
+  // Phép quét này chạy trên dữ liệu ĐỌC TỪ MÁY, nên nó phải chịu được bản ghi hỏng: một trường
+  // đáng lẽ là mảng mà lại là chuỗi/số (dữ liệu sai hình dạng — xem `src/schema.js`) thì coi như
+  // RỖNG, chứ không được ném lỗi. Ném lỗi ở đây là làm sập luôn màn Tự kiểm tra — đúng cái màn
+  // người dùng mở ra để hiểu chuyện gì đang xảy ra với dữ liệu của mình.
+  const mang = (x) => (Array.isArray(x) ? x : []);
   const convDung = new Set();
   const anhDung = new Set();
 
   for (const s of ds) {
-    const nvIds = new Set(((s && s.nhanVats) || []).map((c) => c && c.id).filter(Boolean));
-    const chIds = new Set(((s && s.chuongs) || []).map((c) => c && c.id).filter(Boolean));
+    if (!s || typeof s !== "object") continue;
+    const nvIds = new Set(mang(s.nhanVats).map((c) => c && c.id).filter(Boolean));
+    const chIds = new Set(mang(s.chuongs).map((c) => c && c.id).filter(Boolean));
     // id trùng trong cùng một truyện: hai phần tử cùng id thì mọi tham chiếu đều mơ hồ.
-    for (const [khoa, dsCon] of [["nhanVats", s.nhanVats], ["chuongs", s.chuongs], ["hoiThoais", s.hoiThoais]]) {
+    for (const [khoa, dsCon] of [["nhanVats", mang(s.nhanVats)], ["chuongs", mang(s.chuongs)], ["hoiThoais", mang(s.hoiThoais)]]) {
       const dem = {};
-      for (const x of dsCon || []) {
+      for (const x of dsCon) {
         const id = x && x.id;
         if (!id) continue;
         dem[id] = (dem[id] || 0) + 1;
       }
       for (const id in dem) if (dem[id] > 1) them("trung-id", "Truyện “" + (s.ten || s.id) + "” có " + dem[id] + " mục cùng id trong " + khoa + ": " + id, { truyen: s.id, id: id });
     }
-    for (const c of (s && s.hoiThoais) || []) {
+    for (const c of mang(s.hoiThoais)) {
       if (!c) continue;
       convDung.add(c.id);
-      for (const id of c.nhanVatIds || []) {
+      for (const id of mang(c.nhanVatIds)) {
         if (!nvIds.has(id)) them("hoi-thoai-tro-nv", "Hội thoại “" + (c.tieuDe || c.id) + "” trỏ tới nhân vật không còn trong truyện: " + id, { truyen: s.id, id: c.id });
       }
-      for (const id of c.hienDien || []) {
+      for (const id of mang(c.hienDien)) {
         if (!nvIds.has(id)) them("hien-dien-tro-nv", "Người có mặt của hội thoại “" + (c.tieuDe || c.id) + "” có nhân vật không còn trong truyện: " + id, { truyen: s.id, id: c.id });
       }
       if (c.chuongId && !chIds.has(c.chuongId)) them("hoi-thoai-tro-chuong", "Hội thoại “" + (c.tieuDe || c.id) + "” trỏ tới chương đã mất: " + c.chuongId, { truyen: s.id, id: c.id });
       if (c.canhRieng && !nvIds.has(c.canhRieng)) them("canh-rieng-tro-nv", "Cảnh riêng của hội thoại “" + (c.tieuDe || c.id) + "” trỏ tới nhân vật đã mất: " + c.canhRieng, { truyen: s.id, id: c.id });
     }
-    for (const a of (s && s.anh) || []) if (a && a.id) anhDung.add(a.id);
-    for (const k of (s && s.canhDaKhep) || []) {
-      for (const ht of (k && (k.htIds || (k.htId ? [k.htId] : []))) || []) {
+    for (const a of mang(s.anh)) if (a && a.id) anhDung.add(a.id);
+    for (const k of mang(s.canhDaKhep)) {
+      for (const ht of mang(k && (k.htIds || (k.htId ? [k.htId] : [])))) {
         if (ht && !convDung.has(ht)) them("canh-tro-hoi-thoai", "Cảnh đã khép trỏ tới hội thoại đã mất: " + ht, { truyen: s.id, id: k.id });
       }
     }
   }
 
   if (typeof thamChieuMoFn === "function") {
-    for (const x of thamChieuMoFn(ds, dsHoSo) || []) {
+    for (const x of mang(thamChieuMoFn(ds, dsHoSo))) {
       them("ho-so-mo", moTaHoSoMo(x), { truyen: x.truyen, id: x.id, hoSoId: x.hoSoId });
     }
   }
@@ -347,9 +379,26 @@ export function saveSettings() {
 }
 
 // ---------------------------------------------------------------- cốt truyện
+// Đường NẠP duy nhất của truyện. Mọi bản ghi đọc từ kv đều được KIỂM HÌNH DẠNG và — nếu
+// đang ở phiên bản cũ — NÂNG lên hình dạng hiện tại qua `migrate`. Bản ghi dị dạng KHÔNG bị
+// xoá, KHÔNG chặn app mở: nó được ghi lại để màn Tự kiểm tra nói ra (xem `napTruyen`).
 export async function loadStories() {
   const entries = await R.kv.cotTruyen.entries();
-  store.stories = entries.map((e) => e[1]).filter(Boolean);
+  const ds = [];
+  for (const en of entries) {
+    const raw = en && en[1];
+    if (!laDoiTuong(raw)) {
+      // Không phải đối tượng thì không có gì để nâng cấp, và cũng KHÔNG được thay bằng một
+      // truyện rỗng (làm vậy là che mất bản ghi hỏng). Giữ nguyên + báo.
+      ghiLoiHinhDang("truyen", en && en[0], "", {
+        loi: [{ duong: "(gốc)", moTa: "bản ghi truyện phải là đối tượng (đang là " + (raw === null ? "null" : typeof raw) + ")" }],
+      });
+      ds.push(raw);
+      continue;
+    }
+    ds.push(napTruyen(raw));
+  }
+  store.stories = ds.filter(Boolean);
   store.stories.sort((a, b) => (b.suaLuc || 0) - (a.suaLuc || 0));
   reindex();
   return store.stories;
@@ -435,7 +484,7 @@ export async function loadNgoaiHinh() {
 // Hồ sơ đọc từ kv / file nhập là dữ liệu không đáng tin: ảnh tham chiếu phải là một
 // data URL (hoặc URL http(s) sạch), nếu không thì bỏ ảnh (không bỏ cả hồ sơ).
 function nhanHoSo(raw) {
-  const h = chuanHoaHoSo(raw);
+  const h = napBanGhi(raw, "ho-so");
   if (h.anh && !laDataUrlAnh(h.anh)) h.anh = "";
   return h;
 }
@@ -1092,7 +1141,13 @@ export async function getAnh(id) {
   } catch (e) {
     throw loiLuu("ảnh cảnh", e, "đọc");
   }
-  if (rec) store.anhCache[id] = rec;
+  if (rec) {
+    // Ảnh chưa từng đổi hình dạng nên không có bước nâng cấp nào; vẫn KIỂM để bản ghi dị
+    // dạng hiện ra trong màn Tự kiểm tra (không sửa, không xoá).
+    const kq = kiemTraAnh(rec);
+    if (!kq.ok) ghiLoiHinhDang("anh", id, rec.prompt || rec.chuThich || "", kq);
+    store.anhCache[id] = rec;
+  }
   return rec || null;
 }
 
@@ -1155,7 +1210,7 @@ export async function loadMessages(convId) {
     // tiếp theo sẽ thay dữ liệu thật bằng một mảng rỗng.
     throw loiLuu("tin nhắn của hội thoại", e, "đọc");
   }
-  store.messagesCache[convId] = chuanHoaTinNhan(arr);
+  store.messagesCache[convId] = napBanGhi(arr, "tin-nhan", convId);
   return store.messagesCache[convId];
 }
 
@@ -1490,4 +1545,82 @@ export function chuanHoaTruyen(raw, tuyChon) {
   tinhLaiBiet(s, null);
   s.phienBan = PHIEN_BAN_TRUYEN;
   return s;
+}
+
+// ==========================================================================
+//  MIGRATE + KIỂM HÌNH DẠNG — cửa vào duy nhất khi đưa dữ liệu về hình dạng hiện tại
+// ==========================================================================
+// `migrate(raw, loai)` là điểm vào TẬP TRUNG của Giai đoạn 5: nó tra sổ đăng ký phiên bản
+// (`src/schema.js`), đi qua đúng những bước còn thiếu, rồi gọi hàm chuẩn hoá CUỐI. Không có
+// logic chuẩn hoá nào được viết lại ở đây — `chuanHoaTruyen`/`chuanHoaTinNhan`/`chuanHoaHoSo`
+// vẫn là nguồn duy nhất của hình dạng hiện tại (nhờ vậy "chạy bóng" migrate với `chuanHoa*`
+// luôn trùng khớp, và mọi dữ liệu đã đúng phiên bản đi qua đây mà không đổi gì).
+export function migrate(raw, loai, tuyChon) {
+  if (loai === "truyen") return migrateTruyen(raw, tuyChon);
+  if (loai === "tin-nhan") return migrateTinNhan(raw);
+  if (loai === "ho-so") return migrateHoSo(raw);
+  if (loai === "anh") return migrateAnh(raw);
+  throw new Error("migrate: loại bản ghi không rõ — " + String(loai));
+}
+
+export function migrateTruyen(raw, tuyChon) {
+  const kq = migrateTheo(raw, PHIEN_BAN_TRUYEN, MIGRATION_TRUYEN, chuanHoaTruyen, tuyChon);
+  if (kq.daNang || kq.vuotPhienBan) ghiMigrate("truyen", kq.tu, kq.den, kq.vuotPhienBan);
+  return kq.ra;
+}
+
+// Tin nhắn không mang phiên bản riêng: chúng đi theo phiên bản của TRUYỆN chứa chúng, nên
+// không có bước nào phải đi qua — chỉ có đúng một hàm chuẩn hoá.
+export function migrateTinNhan(arr) {
+  return chuanHoaTinNhan(arr);
+}
+
+export function migrateHoSo(raw) {
+  const kq = migrateTheo(raw, PHIEN_BAN_HO_SO, MIGRATION_HO_SO, chuanHoaHoSo, undefined);
+  if (kq.daNang || kq.vuotPhienBan) ghiMigrate("ho-so", kq.tu, kq.den, kq.vuotPhienBan);
+  return kq.ra;
+}
+
+// Ảnh chưa từng đổi hình dạng (mọi trường đều do `newAnh()` sinh ra và không đổi tên), nên
+// không có bước nâng cấp nào — đi qua đây chỉ để giữ MỘT cửa vào duy nhất.
+export function migrateAnh(raw) {
+  return raw;
+}
+
+// Kiểm hình dạng rồi nâng cấp — dùng cho MỌI đường nạp (kv lẫn file nhập).
+//   · sai hình dạng  → ghi lại để màn Tự kiểm tra thấy (KHÔNG sửa, KHÔNG xoá, KHÔNG chặn)
+//   · đã đúng hình dạng VÀ đúng phiên bản hiện tại → trả về ĐÚNG đối tượng nhận vào
+//     (không sao chép — nhờ vậy đọc lại kv không làm mất tham chiếu mà luồng giao diện đang giữ)
+//   · bản cũ / dị dạng → trả về bản đã nâng cấp (đối tượng mới)
+export function napBanGhi(raw, loai, id, tuyChon) {
+  const kq = kiemTheoLoai(loai, raw);
+  const ten = laDoiTuong(raw) ? raw.ten || raw.tenChinh || "" : "";
+  if (!kq.ok) ghiLoiHinhDang(loai, id || (laDoiTuong(raw) ? raw.id : ""), ten, kq);
+  // Truyện đọc từ kv mà ĐÃ ở phiên bản hiện tại (hoặc mới hơn) thì trả về ĐÚNG đối tượng, không
+  // chuẩn hoá lại. Hai lý do, cả hai đều là luật của dự án:
+  //
+  //   · Đối tượng truyện sống lâu qua các luồng bất đồng bộ (stream, lưu tin nhắn), nên đọc lại
+  //     kv không được đổi tham chiếu khi bản ghi vốn đã đúng phiên bản.
+  //   · Chuẩn hoá lại một bản ghi đã đúng phiên bản là SỬA dữ liệu (cắt tham chiếu trỏ vào thứ
+  //     đã mất, đóng cảnh riêng không còn hợp lệ…) — mà những thứ đó chính là việc màn Tự kiểm
+  //     tra phải BÁO, không phải việc đường nạp được phép lặng lẽ dọn. Bản ghi hỏng hình dạng
+  //     vẫn được GHI NHẬN ở trên, và vẫn nằm nguyên trong kv.
+  //
+  // Dữ liệu từ TƯƠNG LAI (phiên bản mới hơn app) cũng giữ nguyên — không hạ phiên bản, không
+  // cắt bỏ trường mà bản app này chưa biết — nhưng được ĐÁNH DẤU để người dùng biết mà cập nhật
+  // app (xem `vuotPhienBan` trong `src/schema.js`). Tin nhắn, ảnh và hồ sơ ngoại hình luôn đi
+  // qua chuẩn hoá như trước Giai đoạn 5 (chúng được sao chép ở mọi lần nạp, không ai giữ tham
+  // chiếu — xem `loadMessages`/`nhanHoSo`).
+  if (!tuyChon && loai === "truyen" && soPhienBan(raw) >= PHIEN_BAN_TRUYEN) {
+    const tu = soPhienBan(raw);
+    if (tu > PHIEN_BAN_TRUYEN) ghiMigrate("truyen", tu, PHIEN_BAN_TRUYEN, true);
+    return raw;
+  }
+  return migrate(raw, loai, tuyChon);
+}
+
+// Truyện đọc từ kv: đường nạp quen thuộc (dùng `napBanGhi` để giữ nguyên đối tượng khi bản
+// ghi đã đúng phiên bản — xem chú thích ở hàm đó).
+function napTruyen(raw) {
+  return napBanGhi(raw, "truyen");
 }
