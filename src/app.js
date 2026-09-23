@@ -2691,7 +2691,7 @@ async function openTaoAnh(opts = {}) {
     '<div class="anh-preview" data-preview><span class="anh-empty">Khung hình sẽ hiện ở đây</span></div>' +
     '<div class="hint anh-status" data-status></div>' +
     (opts.tinNhan ? '<div class="anh-quote">' + esc(opts.tinNhan.slice(0, 220)) + "</div>" : "") +
-    '<label class="field-label">Mô tả khung hình (tiếng Anh — máy vẽ đọc phần này)</label>' +
+    '<label class="field-label">Mô tả khung hình (' + AI.LUAT_NGON_NGU.mayVe + ' — máy vẽ đọc phần này)</label>' +
     '<div class="hint anh-prompt-note">Ô này CHỈ chứa mô tả cảnh. Ngoại hình cố định của nhân vật ' +
       "được ghép tự động vào cuối prompt lúc bấm “Dựng khung hình” — cứ viết thêm yêu cầu ở đây, không bị ghi đè.</div>" +
     '<textarea class="input" data-f="prompt" rows="5" placeholder="Đang đọc hội thoại để viết mô tả…"></textarea>' +
@@ -2878,10 +2878,10 @@ async function openTaoAnh(opts = {}) {
     box.hidden = false;
     const thieu = ds.filter((h) => thieuDich.has(h.id));
     box.innerHTML =
-      '<div class="nh-khoi-head">Ngoại hình cố định — ghép tự động vào cuối prompt khi dựng (tiếng Anh)</div>' +
+      '<div class="nh-khoi-head">Ngoại hình cố định — ghép tự động vào cuối prompt khi dựng (' + AI.LUAT_NGON_NGU.mayVe + ')</div>' +
       '<div class="nh-khoi-body">' + esc(khoi) + "</div>" +
       (thieu.length
-        ? '<div class="hint nh-khoi-thieu">Chưa dịch được sang tiếng Anh: ' + esc(thieu.map(tenHoSo).join(", ")) +
+        ? '<div class="hint nh-khoi-thieu">Chưa dịch được sang ' + AI.LUAT_NGON_NGU.mayVe + ': ' + esc(thieu.map(tenHoSo).join(", ")) +
           " — khối trên vẫn dùng đúng chữ bạn đã gõ. Bấm “Dựng khung hình” để thử dịch lại.</div>"
         : "");
   }
@@ -3114,7 +3114,7 @@ async function openTaoAnh(opts = {}) {
       "Đang dựng khung hình… mất vài giây, đừng đóng bảng này." +
         (dsHoSo.length ? " Đang áp dụng ngoại hình: " + dsHoSo.map(tenHoSo).join(", ") + "." : "") +
         (chuaDich.length
-          ? " Chưa dịch được sang tiếng Anh: " + chuaDich.map(tenHoSo).join(", ") + " — phần đó vẫn dùng chữ gốc."
+          ? " Chưa dịch được sang " + AI.LUAT_NGON_NGU.mayVe + ": " + chuaDich.map(tenHoSo).join(", ") + " — phần đó vẫn dùng chữ gốc."
           : "")
     );
     if (previewEl) previewEl.innerHTML = anhLoading("lg");
@@ -9351,6 +9351,7 @@ async function boot() {
     openNgoaiHinh, openSuaNgoaiHinh, nhapHoSoNgoaiHinh, xuatNgoaiHinh, openNhapNgoaiHinh,
     docFileNhap, nhanHoSoNhap, chonFileNgoaiHinh, idHoSoCuaTruyen, xoaHoSoNgoaiHinh,
     openTaoAnh, openCharacterEditor, gopLoaiTruNgoaiHinh, khoiNgoaiHinh, ungVienNgoaiHinh,
+    openTaoHuong, ddKichHoat,
     onSend, generateTurn, streamGroupReply, streamOneReply, batDauLuot, ketThucLuot,
   };
   window.__tv_vg = {

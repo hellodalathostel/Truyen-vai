@@ -1,5 +1,9 @@
 # Truyện Vai — sổ tay nhập vai đa nhân vật
 
+> **Agent/session mới: đọc `src/CONTEXT.md` trước.** Đây là bản đồ ngắn (sơ đồ module, bất biến
+> dữ liệu, nguồn sự thật, cách chạy test). Tệp bạn đang đọc là **lịch sử chi tiết** — tra cứu
+> khi cần, không phải điểm bắt đầu.
+
 Ứng dụng nhập vai (roleplay) dành cho **một người chơi duy nhất**: bạn là nhân vật
 chính, còn lại là các nhân vật do AI thủ vai. Toàn bộ giao diện bằng **tiếng Việt**.
 Dữ liệu lưu ngay trên máy người dùng (IndexedDB qua `kv-plugin`), không cần tài
@@ -1074,13 +1078,27 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 `package.json`, `tests/lib`, `tests/node`, `tests/browser`, `tests/fixtures`, `tests/README.md`,
 `src/` (bản sao byte-for-byte) và workflow CI `.github/workflows/test.yml`.
 
-**Gói phát hành — tải về, giải nén là chạy được:** `https://user.uploads.dev/file/ba88cfabe20f3f69f74da688c4bb8cda.zip`
+**NGUỒN SỰ THẬT: repo GitHub `https://github.com/hellodalathostel/Truyen-vai`.** Tải repo là
+cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
+
+**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):**
+`https://user.uploads.dev/file/3da49dd572f758748377102d876143fb.zip`
 
 - Tầng Node: `npm test` (không cần trình duyệt, không tốn quota, chạy trên CI).
 - Tầng trình duyệt: mở generator rồi nạp `tests/browser/runner.js` và gọi `chayTatCa()`.
 
-Hai gói đóng trước **đã thu hồi, không dùng nữa**: `65ec79c7…` và `6cfd2611…` — cả hai còn sót
-id/tên thật trong `src/README.md` (xem mục rà soát bên dưới).
+**HAI GÓI ĐÓNG TRƯỚC: CHỈ GỠ KHỎI TÀI LIỆU, CHƯA XOÁ ĐƯỢC TRÊN MÁY CHỦ — RỦI RO ĐÃ CHẤP NHẬN.**
+`65ec79c7…` và `6cfd2611…` đã bị **gỡ mọi tham chiếu** trong gói, nhưng **không** được xoá khỏi
+uploads.dev: bộ upload bất biến chỉ trả `deletionUrl` một lần lúc tải lên, và hai lần đó không giữ
+lại `deletionUrl`, cũng không có API xoá nào khác. Ta cũng không còn URL đầy đủ (chỉ còn 8 ký tự
+đầu) nên **không thể kiểm chứng chúng còn sống hay không**. Cả hai chứa **id/tên thật** bên trong
+`src/README.md` của chúng. Rủi ro được chấp nhận vì: URL là 32 ký tự hex (không đoán được), chưa
+từng công bố ở đâu ngoài cửa sổ chat với chủ dự án, và dữ liệu lộ chỉ là **id truyện/hội thoại +
+tên nhân vật/hồ sơ** — không có nội dung truyện, không có ảnh, không có bản chụp kv. Nếu chủ dự án
+còn giữ tin nhắn gốc có URL đầy đủ + liên kết xoá thì nên xoá; nếu không, coi như đã chấp nhận.
+
+**Bộ kiểm thử không nằm trong `src/`.** Luật của kế hoạch: `src/` là công khai và tính quota. Bộ
+kiểm thử là một repo riêng, đóng gói trong phiên ở `scratch/repo/`:
 
 (Bản `src/README.md` **bên trong** gói là bản ngay trước lần đóng gói đó, nên dòng URL trong đó có
 thể lùi vài nhịp so với dòng ở trên; nội dung còn lại giống hệt.)
@@ -1112,9 +1130,42 @@ người dùng (ở đoạn “Ba hồ sơ thật của người dùng…” và
 thử — và `src/README.md` đi theo generator ra công khai, nên đây cũng là chỗ nguy hiểm nhất.
 
 Giai đoạn 2 xong phần dựng repo: `tests/lib` (khung kiểm thử dùng chung hai tầng), `tests/node`
-(9 tệp, chạy bằng `node --test`, không cần DOM), `tests/browser` (40 bộ + `runner.js` nạp nguồn
+(9 tệp, chạy bằng `node --test`, không cần DOM), `tests/browser` (43 bộ + `runner.js` nạp nguồn
 tiêm sẵn qua `window.__tvNguon` để chạy được ngoài `src/`), `tests/fixtures`, `tests/README.md`
 và `.github/workflows/test.yml`.
+
+**Giai đoạn 2 — vòng chỉnh sau khi CI thật bắt lỗi.** CI của repo phát hiện hai lỗi đóng gói đã
+sửa: `node --test <thư mục>` không chạy trên Node ≥21 (đổi sang
+`node --test tests/node/*.test.mjs`, workflow ghim Node 22), và danh sách "gốc gói" trong
+`goi-chung.test.mjs` thiếu `.git` nên ca "gốc gói không có tệp lạ" luôn đỏ trong repo git thật.
+Bài học: test cấu trúc gói phải chạy được **cả** trong bản giải nén **lẫn** trong repo git; và
+Node ≥23 in `ℹ pass N` thay cho `# pass N` nên script đọc kết quả phải dựa vào **mã thoát**.
+
+**Giai đoạn 2 — vá ba lỗ hổng phủ test (đã kiểm chứng xanh):**
+
+1. `docKeHoach().buoc` **không** lọc qua `laKhongCo()` như các mục khác, nên `BƯỚC CHUYỂN: KHONG CO`
+   biến thành một bước tên là "KHONG CO". Đã lọc như mọi mục, và ca kiểm thử cũ (vốn **khoá hành
+   vi sai** lại) đã đổi thành khẳng định đúng: `buoc` rỗng, kèm các biến thể `n/a`, `-`, `none`,
+   `KHONG`, `khong co gi`.
+2. `dd-setup` / `dd-fake-ai` / `dd-fake-ai-loi` (khung dựng chế độ Đạo diễn) và `vg-base` (khung
+   dựng thời gian vắng mặt) là **phụ trợ không có bộ tiêu thụ nào** — tức là đã chết mà vẫn nằm
+   trong `DANH_MUC`. Nay đã có bộ tiêu thụ thật: `dd-check` (lập cầu nối → đọc kế hoạch → kích
+   hoạt hướng, gồm cả lượt kế hoạch RỖNG) · `dd-loi` (AI lỗi: cả promise bị từ chối lẫn
+   `stopReason: "error"`) · `vg-check` (vắng mặt: đủ ngưỡng có sự kiện + tin nhắn + dải phân
+   cách, tạm dừng thì không gọi AI, AI lỗi thì giữ phiên "thử lại"). Cả ba khung nay là bước
+   `dung`, các bộ tiêu thụ là bước `bo`.
+3. `openTaoHuong` được mở thêm trong `window.__tv_test` (điểm neo cho kiểm thử, không phải API
+   của ứng dụng) để bộ tiêu thụ chạy đúng luồng thật.
+
+### Giai đoạn 3 — `src/CONTEXT.md`
+
+Đã thêm `src/CONTEXT.md` (bản đồ ngắn cho session sau: sơ đồ module, bất biến dữ liệu, luật
+ngôn ngữ prompt, bảng "sửa X ở đâu", cách chạy test, `PHIEN_BAN_*`, luật làm việc, quyền riêng
+tư, nguồn sự thật & quy trình). Luật ngôn ngữ prompt nay được tuyên bố **một chỗ duy nhất**:
+hằng `LUAT_NGON_NGU` trong `src/ai.js` (máy vẽ = tiếng Anh, văn bản truyện/prompt văn bản =
+tiếng Việt), và các chỗ cần tên ngôn ngữ đều lấy từ hằng đó (`dichNgoaiHinh()` trong `ai.js`;
+nhãn "Mô tả khung hình", khối "Ngoại hình cố định", dòng "Chưa dịch được sang…" trong `app.js`).
+Nội dung thay thế **giống hệt từng ký tự** so với trước, nên không đổi hành vi.
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

@@ -96,7 +96,7 @@ window.__vgTrangThai = () => {
   const msgs = S2.getMessages(window.__vgIds.c1);
   const msgs2 = S2.getMessages(window.__vgIds.c2);
   return {
-    ngoai: st.ngoaiManHinh.map((e) => ({ id: e.id, loai: e.loai, muc: e.muc, htId: e.htId, luc: e.luc, tnIds: e.tnIds, thamGia: e.thamGia, biet: e.biet, phienId: e.phienId, noiDung: e.noiDung.slice(0, 70), phutVangMat: e.phutVangMat, cheDoVangMat: e.cheDoVangMat, anhHuong: e.anhHuong })),
+    ngoai: st.ngoaiManHinh.map((e) => ({ id: e.id, loai: e.loai, muc: e.muc, htId: e.htId, hinhThuc: e.hinhThuc, luc: e.luc, tnIds: e.tnIds, thamGia: e.thamGia, biet: e.biet, phienId: e.phienId, noiDung: e.noiDung.slice(0, 70), phutVangMat: e.phutVangMat, cheDoVangMat: e.cheDoVangMat, anhHuong: e.anhHuong })),
     tg: { cheDo: tg.cheDo, nguongPhut: tg.nguongPhut, chuDong: tg.chuDong, phien: tg.phien, daXuLy: tg.daXuLyLuc, hoatDong: tg.hoatDongLuc },
     m1: msgs.map((m) => ({ id: m.id, vai: m.vai, nvIds: m.nvIds, vangMat: m.vangMat, vangMatPhien: m.vangMatPhien, luc: m.luc, noiDung: m.noiDung.slice(0, 60) })),
     m2: msgs2.length,

@@ -124,12 +124,22 @@ test("docKeHoach: đọc kế hoạch Đạo diễn, không phụ thuộc thứ 
   eq(r.xungDot, "", "rỗng: xung đột");
 });
 
-test("docKeHoach: kế hoạch RỖNG — ghi nhận đúng hành vi hiện tại (bước chưa lọc)", () => {
-  // ĐÂY LÀ KHIẾM KHUYẾT ĐÃ BIẾT: các mục khác lọc qua laKhongCo(), riêng BƯỚC CHUYỂN thì
-  // không — nên "KHONG CO" vẫn thành một bước. Ca này KHOÁ hành vi hiện tại lại để lần
-  // sau có sửa thì biết ngay; xem tests/README.md phần "khiếm khuyết đã biết".
+test("docKeHoach: kế hoạch RỖNG — mọi mục đều rỗng, kể cả bước chuyển", () => {
+  // BƯỚC CHUYỂN phải được lọc qua laKhongCo() NHƯ MỌI MỤC KHÁC: "KHONG CO" ở đây nghĩa là
+  // KHÔNG CÓ BƯỚC NÀO, chứ không phải tên của một bước. Không được để một ca kiểm thử nào
+  // bảo vệ hành vi sai cũ.
   const k = docKeHoach(KE_HOACH_RONG);
-  eqSau(k.buoc, ["KHONG CO"], "bước giữ nguyên chuỗi KHONG CO (khiếm khuyết đã biết)");
+  eqSau(k.buoc, [], "BƯỚC CHUYỂN ghi KHONG CO ⇒ mảng bước RỖNG");
+  // Mọi biến thể mà laKhongCo() nhận ra đều phải bị lọc ở mục bước, không chỉ "KHONG CO".
+  for (const v of ["n/a", "-", "none", "KHONG", "khong co gi"]) {
+    eqSau(docKeHoach("BƯỚC CHUYỂN: " + v).buoc, [], "biến thể rỗng của BƯỚC CHUYỂN: " + v);
+  }
+  // Bước THẬT vẫn đi qua nguyên vẹn; chỉ dòng rỗng bị bỏ.
+  eqSau(
+    docKeHoach("BƯỚC CHUYỂN:" + NL + "- bước một" + NL + "- KHONG CO" + NL + "- bước ba").buoc,
+    ["bước một", "bước ba"],
+    "dòng KHONG CO lẫn giữa các bước thật cũng bị bỏ"
+  );
   eq(k.mucTieu, "", "mục tiêu rỗng");
   eq(k.dauHieu, "", "dấu hiệu n/a thành rỗng");
   eq(k.xungDot, "", "xung đột gạch ngang thành rỗng");

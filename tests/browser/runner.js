@@ -59,14 +59,19 @@ export const DANH_MUC = [
 
   { ten: "gd1-tuoi", loai: "bo", ghiChu: "Giai đoạn 1 — an toàn nhân vật vị thành niên (tuổi/cổng/khung an toàn)" },
 
+  { ten: "dd-setup", loai: "dung", ghiChu: "dựng truyện test cho chế độ Đạo diễn" },
+  { ten: "dd-fake-ai", loai: "dung", ghiChu: "AI giả cho chế độ Đạo diễn (kế hoạch cầu nối)" },
+  { ten: "dd-check", loai: "bo", ghiChu: "Đạo diễn: lập cầu nối → đọc kế hoạch → kích hoạt hướng" },
+  { ten: "dd-fake-ai-loi", loai: "dung", ghiChu: "AI giả 'lỗi' cho chế độ Đạo diễn" },
+  { ten: "dd-loi", loai: "bo", ghiChu: "Đạo diễn: AI lỗi thì hỏng êm, giữ nguyên bản nháp" },
+
+  { ten: "vg-base", loai: "dung", ghiChu: "khung dựng truyện cho ca thời gian vắng mặt" },
+  { ten: "vg-check", loai: "bo", ghiChu: "vắng mặt: có sự kiện + tin nhắn, tạm dừng, và nhánh AI lỗi" },
+
   // ---------------------------------------------------------------- phụ trợ (không chạy mặc định)
   { ten: "real-a", loai: "phu", ghiChu: "CA A — AI THẬT (tốn quota, không chạy tự động)" },
   { ten: "real-b", loai: "phu", ghiChu: "CA B — AI THẬT" },
   { ten: "real-c", loai: "phu", ghiChu: "CA C — AI THẬT" },
-  { ten: "vg-base", loai: "phu", ghiChu: "khung dựng truyện cho ca thời gian vắng mặt" },
-  { ten: "dd-setup", loai: "phu", ghiChu: "dựng truyện test cho chế độ Đạo diễn" },
-  { ten: "dd-fake-ai", loai: "phu", ghiChu: "AI giả cho chế độ Đạo diễn" },
-  { ten: "dd-fake-ai-loi", loai: "phu", ghiChu: "AI giả 'lỗi' cho chế độ Đạo diễn" },
   { ten: "nh-visual-setup", loai: "phu", ghiChu: "dựng trạng thái để soi bố cục bằng vision" },
   { ten: "lib-build", loai: "phu", ghiChu: "đối chiếu số schema giữa app và store" },
   { ten: "open-dialog", loai: "phu", ghiChu: "mở hộp thoại Nhập để soi bố cục (cần __TXT__)" },
@@ -361,6 +366,10 @@ export async function chayTatCa(opts) {
     if (T) { T.app.storyId = null; T.app.convId = null; T.app.screen = "home"; T.render(); }
   } catch (e) {}
   donModal();
+
+  // Trả plugin AI/máy vẽ về bản gốc sau khi chạy xong: bộ "dung" cài AI giả, và nếu bộ
+  // cuối để lại thì người dùng sẽ gặp AI giả khi dùng tiếp preview.
+  try { root.aiTextPlugin = GOC.ai; root.textToImagePlugin = GOC.ve; } catch (e) {}
 
   kq.ok = kq.hong === 0 && !kq.canhBao.length;
   kq.donDep = donDep;

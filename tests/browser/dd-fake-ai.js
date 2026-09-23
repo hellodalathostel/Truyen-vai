@@ -1,4 +1,8 @@
 // Cài AI giả vào page. Chạy trong page_eval RIÊNG (root proxy cache), rồi mới gọi tính năng.
+// Có HAI kế hoạch: kế hoạch đầy đủ 3 bước, và kế hoạch RỖNG (BƯỚC CHUYỂN ghi KHONG CO).
+// Kế hoạch rỗng được chọn khi nội dung yêu cầu chứa cụm đánh dấu ở dưới — nhờ vậy bộ tiêu
+// thụ kiểm được rằng "không có bước nào" phải thành MẢNG RỖNG, không phải một bước tên
+// là "KHONG CO".
 const KH = {
   plan: [
     "TRẠNG THÁI XUẤT PHÁT: Aric đã hứa nhưng Kai vẫn dè chừng, tin tưởng hai chiều đang lệch.",
@@ -10,6 +14,14 @@ const KH = {
     "DẤU HIỆU: Kai bớt quay đi khi Aric lại gần; Aric không hỏi dồn.",
     "XUNG ĐỘT: KHONG CO",
     "ĐIỀU KIỆN ĐỔI HƯỚNG: Nếu Kai bị đặt vào thế phải tin ngay, hướng này phải chậm lại.",
+  ].join("\n"),
+  planRong: [
+    "TRẠNG THÁI XUẤT PHÁT: Kai vẫn dè chừng, chưa cho Aric cơ hội nào.",
+    "MỤC TIÊU: Kai bớt canh chừng mỗi khi Aric lại gần.",
+    "BƯỚC CHUYỂN: KHONG CO",
+    "DẤU HIỆU: Kai bớt quay đi.",
+    "XUNG ĐỘT: KHONG CO",
+    "ĐIỀU KIỆN ĐỔI HƯỚNG: KHONG CO",
   ].join("\n"),
   group: "Kai liếc sang Aric rồi cúi xuống, giọng thấp hơn hẳn mọi khi.\n<<HIENDIEN>> Kai, Aric\n<<KHEP>> có\n<<HET>>",
   phieu: [
@@ -31,7 +43,7 @@ const KH = {
 function chon(instruction) {
   const s = String(instruction || "");
   if (s.indexOf("KHÉP CẢNH") >= 0) return KH.phieu;
-  if (s.indexOf("KẾ HOẠCH CẦU NỐI") >= 0) return KH.plan;
+  if (s.indexOf("KẾ HOẠCH CẦU NỐI") >= 0) return s.indexOf("BƯỚC CHUYỂN RỖNG") >= 0 ? KH.planRong : KH.plan;
   if (s.indexOf("<<HIENDIEN>>") >= 0) return KH.group;
   return KH.don;
 }

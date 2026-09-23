@@ -11,6 +11,15 @@ import { buildLore } from "./lore.js";
 import * as TT from "./trangThai.js";
 import { suKienBiet, suKienAnVoiNguoiChoi, suKienTheoMaNgan, LOAI, MUC, mucTrong, bietTrong } from "./thoiGian.js";
 
+// LUẬT NGÔN NGỮ PROMPT — MỘT CHỖ DUY NHẤT.
+//   • Prompt cho MÁY VẼ ẢNH: tiếng Anh (`mayVe`) — máy vẽ đọc tiếng Anh tốt hơn hẳn.
+//   • Văn bản truyện và MỌI prompt văn bản gửi model: tiếng Việt (`truyen`).
+// Không viết lại hai chữ này ở nơi khác: chỗ nào cần TÊN ngôn ngữ thì lấy từ đây (ví dụ
+// `dichNgoaiHinh` bên dưới, và các nhãn ô "Mô tả khung hình"/dòng "Chưa dịch được…" ở
+// app.js). Nhãn khối ngoại hình cố định cũng là tiếng Anh — hằng `MARK_NGOAI_HINH` ở
+// ngoaiHinh.js phải khớp luật này.
+export const LUAT_NGON_NGU = { mayVe: "tiếng Anh", truyen: "tiếng Việt" };
+
 export function meta() {
   try {
     return R.aiTextPlugin({ getMetaObject: true }) || {};
@@ -1552,9 +1561,9 @@ export async function dichNgoaiHinh(ds) {
   if (!dsHoSo.length) return [];
   const ids = dsHoSo.map((h) => h.id);
   const task =
-    "TASK: Dịch mô tả NGOẠI HÌNH của từng người dưới đây sang TIẾNG ANH để đưa vào prompt vẽ ảnh.\n" +
+    "TASK: Dịch mô tả NGOẠI HÌNH của từng người dưới đây sang " + LUAT_NGON_NGU.mayVe.toUpperCase() + " để đưa vào prompt vẽ ảnh.\n" +
     "Trả về MỖI người ĐÚNG một khối, theo đúng khuôn (giữ nguyên dòng ID):\n" +
-    "ID: <id>\nAPPEARANCE: <bản dịch tiếng Anh của phần NGOẠI HÌNH — để trống nếu phần đó trống>\nAVOID: <bản dịch tiếng Anh của phần CẦN TRÁNH — để trống nếu phần đó trống>\n" +
+    "ID: <id>\nAPPEARANCE: <bản dịch " + LUAT_NGON_NGU.mayVe + " của phần NGOẠI HÌNH — để trống nếu phần đó trống>\nAVOID: <bản dịch " + LUAT_NGON_NGU.mayVe + " của phần CẦN TRÁNH — để trống nếu phần đó trống>\n" +
     "QUY TẮC BẮT BUỘC:\n" +
     "- Dịch SÁT NGHĨA: không thêm, không bớt, không suy đoán thêm (tuổi, chiều cao, cân nặng, màu da…) nếu bản gốc không nói.\n" +
     "- Mỗi khối chỉ nói về đúng người đó — TUYỆT ĐỐI không trộn đặc điểm giữa những người khác nhau.\n" +
@@ -1815,7 +1824,7 @@ export function docKeHoach(raw) {
   return {
     trangThaiDau: t("TRẠNG THÁI XUẤT PHÁT"),
     mucTieu: t("MỤC TIÊU"),
-    buoc: splitLines(map["BƯỚC CHUYỂN"] || "").slice(0, 4),
+    buoc: splitLines(map["BƯỚC CHUYỂN"] || "").filter((s) => !laKhongCo(s)).slice(0, 4),
     dauHieu: t("DẤU HIỆU"),
     xungDot: t("XUNG ĐỘT"),
     dieuKienDung: t("ĐIỀU KIỆN ĐỔI HƯỚNG"),

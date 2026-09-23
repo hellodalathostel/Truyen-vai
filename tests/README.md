@@ -46,10 +46,12 @@ gọi `chayTatCa()` — xem `tests/browser/runner.js` để biết cách đăng 
 
 ## Biết trước (khiếm khuyết đã biết)
 
-- `docKeHoach()` lọc mọi mục qua `laKhongCo()` **trừ** danh sách bước chuyển: một kế
-  hoạch ghi `BƯỚC CHUYỂN: KHONG CO` sẽ cho ra `buoc` bằng đúng mảng `["KHONG CO"]`.
-  Ca kiểm thử đang **khoá hành vi hiện tại** lại (xem `ai-parse.test.mjs`), không phải
-  khẳng định nó là đúng. Sửa thì sửa ở `docKeHoach()` rồi cập nhật ca.
+- `docKeHoach()` từng lọc mọi mục qua `laKhongCo()` **trừ** danh sách bước chuyển, nên một
+  kế hoạch ghi `BƯỚC CHUYỂN: KHONG CO` cho ra `buoc` bằng đúng mảng `["KHONG CO"]`. **Đã
+  sửa** trong `src/ai.js` — mục bước nay lọc y như mọi mục khác — và ca kiểm thử đã đổi
+  thành khẳng định ĐÚNG: `buoc` phải rỗng khi đầu ra là `KHONG CO` (kèm các biến thể
+  `n/a`, `-`, `none`, `KHONG`, `khong co gi`, và ca bước thật lẫn một dòng rỗng).
+  Không còn ca nào khoá hành vi sai đó lại.
 - `laKhongCo()` từng có hai nhánh chết: nó so `n/a` và `-` trên chuỗi **đã bỏ dấu**,
   mà bỏ dấu thì xoá luôn dấu xuyệt và dấu gạch ngang. Hậu quả: mô hình ghi `n/a` cho một
   mục thì chuỗi `n/a` bị lưu thẳng vào dữ liệu. **Đã sửa** trong `src/ai.js`
@@ -74,6 +76,23 @@ gọi `chayTatCa()` — xem `tests/browser/runner.js` để biết cách đăng 
 Mọi tệp trong `tests/browser/` (trừ `runner.js`) phải được khai báo trong `DANH_MUC`,
 và ngược lại — `goi-chung.test.mjs` canh cả hai chiều.
 
+### Bộ tiêu thụ cho các khung dựng (`dung` → `bo`)
+
+Ba khung dựng từng **không có bộ tiêu thụ nào** — chúng đã chết mà vẫn nằm trong `DANH_MUC`.
+Nay mỗi khung có bộ tiêu thụ thật, chạy đúng luồng của người dùng:
+
+| Khung dựng (`dung`) | Bộ tiêu thụ (`bo`) | Phủ gì |
+|---|---|---|
+| `dd-setup` + `dd-fake-ai` | `dd-check` | Chế độ Đạo diễn: mở hộp thoại Hướng mới → "Lập cầu nối" → đọc kế hoạch đã bóc tách → "Kích hoạt hướng", kiểm cả hướng đã ghi xuống kv; và **lượt kế hoạch RỖNG** (`BƯỚC CHUYỂN: KHONG CO` phải ra mảng bước rỗng, không phải một bước tên "KHONG CO") |
+| `dd-fake-ai-loi` | `dd-loi` | Chế độ Đạo diễn, nhánh AI lỗi — cả promise bị từ chối **lẫn** `stopReason: "error"`: báo lỗi trong hộp thoại, giữ nguyên bản nháp, không tạo hướng, không đóng hộp thoại, nút "Lập cầu nối" dùng lại được |
+| `vg-base` | `vg-check` | Thời gian vắng mặt: đủ ngưỡng ⇒ có sự kiện + tin nhắn nhìn thấy được + dải phân cách, phiên đóng, và **không** mô phỏng lại cùng khoảng vắng mặt; `cheDo: "tamDung"` ⇒ không gọi AI; AI lỗi ⇒ giữ phiên ở "thử lại" và hiện dòng báo lỗi |
+
+Vì sao phải là tầng trình duyệt: tầng Node chỉ kiểm được các hàm thuần **rời** (`docKeHoach`,
+`docPhieu`, `docKeHoachVangMat`, `xetDieuKien`…). Phần **nối** — dựng prompt, gọi AI, bóc kết
+quả, đổ lên thẻ duyệt, kích hoạt, ghi kv — chỉ nằm ở `app.js`/`ai.js` nên chỉ kiểm được trong
+trang thật. Đây cũng là lý do VÌ SAO ba khung dựng này phải tồn tại: `app.js` quá lớn để dựng
+lại trạng thái bằng tay trong mỗi ca.
+
 ## Thêm một bộ kiểm thử
 
 1. Viết `tests/browser/<tên>.js`, dùng `import { test, ok, eq, eqSau } from "../lib/h.js"`.
@@ -81,6 +100,25 @@ và ngược lại — `goi-chung.test.mjs` canh cả hai chiều.
 3. Nếu là hàm thuần của `src/`, viết thêm ca ở `tests/node/<tên>.test.mjs` — nhanh hơn,
    không tốn quota, và chạy được trên CI.
 4. Chạy `npm test` và chạy tầng trình duyệt một lượt đầy đủ trước khi đóng gói.
+
+## Đóng gói & CI
+
+- **Nguồn sự thật: repo GitHub `https://github.com/hellodalathostel/Truyen-vai`.** Gói zip trên
+  uploads.dev chỉ là bản dự phòng. Mỗi giai đoạn: agent đóng gói zip → chủ dự án đẩy lên repo →
+  **CI phải xanh** thì giai đoạn đó mới coi là xong.
+- CI (`.github/workflows/test.yml`) chạy `npm test` trên **Node 22**. `package.json` dùng
+  `node --test tests/node/*.test.mjs`: dạng **thư mục** (`node --test tests/node/`) hỏng trên
+  Node ≥21.
+- Test cấu trúc gói (`goi-chung.test.mjs`) phải chạy được **cả** trong bản zip giải nén **lẫn**
+  trong repo git thật — danh sách "gốc gói" phải cho phép `.git`.
+- Node ≥23 in kết quả kiểu `ℹ pass N` thay cho `# pass N`: đừng grep theo định dạng in, hãy dựa
+  vào **mã thoát** của `npm test`.
+- Gói zip **không thể** chứa URL của chính nó, nên `src/README.md` *bên trong* gói luôn trỏ tới
+  lần đóng trước; sau khi upload thì cập nhật dòng URL trong `src/README.md` ở workspace.
+- Các bộ `phu` (dò nút, soi bố cục, ca AI THẬT) là **công cụ gỡ lỗi**, không chạy mặc định và
+  **không** phải tiêu chuẩn nghiệm thu. Ví dụ `dbg-t3c` bấm thử nút trong trạng thái do bộ trước
+  để lại; chạy cả `phu` (`gomPhu: true`) có thể làm preview bận rất lâu. Nghiệm thu bằng lượt
+  chạy **mặc định** (`chayTatCa()`).
 
 ## Tầng Node không có node:fs
 
