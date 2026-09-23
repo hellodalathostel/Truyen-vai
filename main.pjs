@@ -1,0 +1,371 @@
+// ==========================================================================
+//  TRUYỆN VAI — sổ tay nhập vai đa nhân vật (tiếng Việt)
+//
+//  File này là "bảng điều khiển" của ứng dụng: import plugin, cấu hình,
+//  và các bộ dữ liệu mẫu (thể loại, mẫu nhân vật, mẫu cốt truyện).
+//  Toàn bộ giao diện + logic nằm trong index.html và thư mục src/.
+//
+//  Muốn đổi hành vi của app? Sửa CauHinh() bên dưới.
+//  Muốn đổi nội dung gợi ý? Sửa TheLoai() / MauNhanVat() / MauCotTruyen().
+// ==========================================================================
+
+aiTextPlugin = {import:ai-text-plugin}
+kv = {import:kv-plugin}
+textToImagePlugin = {import:text-to-image-plugin} // để tạo ảnh đại diện cho nhân vật
+
+$meta
+  title = Truyện Vai — Nhập vai đa nhân vật, group chat, cốt truyện nhiều chương
+  description = Tự tay dệt nên cốt truyện nhập vai của riêng bạn: bạn là người chơi duy nhất, trò chuyện với nhiều nhân vật AI, gom họ lại thành group chat, và đẩy câu chuyện đi qua từng chương. Miễn phí, không cần đăng nhập, dữ liệu lưu ngay trên máy bạn.
+  image = https://user.uploads.dev/file/701cfc02ee17bf62826d92947e279e5e.jpg
+  tags = nhập vai, roleplay, cốt truyện, nhân vật, group chat, tiếng việt, ai, truyện
+  header
+    mode = minimal
+
+// --------------------------------------------------------------------------
+//  CẤU HÌNH — sửa trực tiếp các con số ở đây
+// --------------------------------------------------------------------------
+CauHinh() =>
+  return {
+    soTinNhanGiuNguyenVan: 36,   // số tin nhắn gần nhất luôn được gửi nguyên văn cho AI
+    tyLeNguongTomTat: 0.7,       // khi ngữ cảnh vượt tỉ lệ này của giới hạn thì nén bớt phần cũ
+    soNguoiTraLoiToiDa: 3,       // cảnh nhóm: bộ điều phối tự chọn từ 1 tới tối đa bao nhiêu nhân vật phản hồi một lượt
+    soTuGoiY: 3,                 // số gợi ý câu thoại cho người chơi
+    doDaiMoTaNhanVatKhac: 90,    // ký tự mô tả ngắn cho các nhân vật không tham gia hội thoại
+    luuToiDaTinNhan: 4000,       // giới hạn cứng số tin nhắn lưu mỗi hội thoại (an toàn bộ nhớ)
+    soTinNhanQuetLore: 8,        // sổ tri thức: dò từ khoá trong bao nhiêu tin nhắn gần nhất
+    nganSachKyTuLore: 4000,      // sổ tri thức: tổng ký tự tối đa chèn vào một prompt
+    soKyTuMoiMucLore: 1500,      // sổ tri thức: mục dài hơn thì cắt bớt khi gửi cho AI
+    soKyTuMoiDoanTomTat: 14000,  // đoạn dài hơn sẽ được tóm tắt thành nhiều lượt rồi gộp dần (không bỏ sót đoạn giữa)
+    soTinNhanGiuLaiKhiKetChuong: 8, // kết chương: số tin cuối giữ nguyên văn, phần trước gộp thành tóm tắt liên tục
+  };
+
+// --------------------------------------------------------------------------
+//  HAI CÁCH DỰNG CỐT TRUYỆN
+// --------------------------------------------------------------------------
+MauCotTruyen() =>
+  return [
+    {
+      id: "chuong",
+      emoji: "📖",
+      ten: "Một cốt truyện, nhiều chương",
+      moTa: "Câu chuyện tiến triển theo từng chương nối tiếp. Mỗi chương có mục tiêu riêng, và khi bạn kết chương, AI sẽ viết bản tóm tắt rồi ghi những sự kiện quan trọng vào biên niên sử để các chương sau vẫn nhớ.",
+      diem: [
+        "Mạch truyện liền lạch, luôn biết mình đang ở đâu",
+        "Nút kết chương tự tạo tóm tắt và gợi ý chương kế tiếp",
+        "Hợp để chơi một bộ truyện dài kỳ",
+      ],
+    },
+    {
+      id: "songSong",
+      emoji: "🧵",
+      ten: "Nhiều hội thoại theo cốt truyện",
+      moTa: "Một thế giới, nhiều tuyến hội thoại song song. Bạn trò chuyện riêng với từng nhân vật, gom vài người lại thành group chat, tất cả cùng chia sẻ bối cảnh và biên niên sử của truyện.",
+      diem: [
+        "Tự do nhảy giữa các nhân vật và các tuyến truyện",
+        "Mỗi hội thoại có trí nhớ riêng nhưng dùng chung bối cảnh",
+        "Hợp để khám phá thế giới và quan hệ giữa các nhân vật",
+      ],
+    },
+  ];
+
+// --------------------------------------------------------------------------
+//  THỂ LOẠI — dùng cho bước tạo cốt truyện và cho nút gợi ý của AI
+// --------------------------------------------------------------------------
+TheLoai() =>
+  return [
+    { id: "tien-hiep", emoji: "⛰️", ten: "Tu tiên", khongKhi: "huyền bí, khắc khổ, tranh đấu giữa các tông môn", goiY: "Linh khí đang hồi phục sau ngàn năm suy tàn. Các tông môn tranh nhau những di tích cổ, còn tán tu như bạn phải tự tìm con đường của mình." },
+    { id: "kiem-hiep", emoji: "🗡️", ten: "Kiếm hiệp", khongKhi: "giang hồ ân oán, trọng nghĩa khinh tài", goiY: "Võ lâm chia năm xẻ bảy sau cái chết của Minh chủ. Một thanh kiếm gãy, một lời thề cũ, và những kẻ không muốn ngươi sống để kể lại." },
+    { id: "ky-ao", emoji: "🐉", ten: "Kỳ ảo (Fantasy)", khongKhi: "phiêu lưu, sử thi, phép thuật", goiY: "Vương quốc Alden đang mất dần ánh sáng khi Ma Vương thức giấc. Những người cuối cùng còn giữ lời thề hộ quốc đang tập hợp." },
+    { id: "hoc-vien", emoji: "🪄", ten: "Học viện phép thuật", khongKhi: "tuổi trẻ, thi cử, tình bạn, bí mật học đường", goiY: "Học viện Aethel mở cửa mỗi mười năm một lần. Năm nay có một học sinh nhập học với sức mạnh không ai giải thích được — và một giáo sư đang cố che giấu nó." },
+    { id: "hoc-duong", emoji: "🎒", ten: "Học đường", khongKhi: "trong trẻo, câu lạc bộ, mối tình đầu, mùa thi", goiY: "Học kỳ cuối cấp bắt đầu. Câu lạc bộ của bạn đứng trước nguy cơ giải thể, và người bạn thân nhất vừa chuyển tới ngồi cạnh bạn." },
+    { id: "do-thi", emoji: "🏙️", ten: "Đô thị hiện đại", khongKhi: "đời thường, công sở, chữa lành", goiY: "Một căn hộ nhỏ ở tầng 12, một công việc vừa đủ sống, và những người hàng xóm hoá ra thú vị hơn bạn tưởng." },
+    { id: "scifi", emoji: "🚀", ten: "Khoa học viễn tưởng", khongKhi: "lạnh lẽo, vĩ đại, cô đơn giữa vũ trụ", goiY: "Trạm nghiên cứu Kepler-9 mất liên lạc với Trái Đất đã 400 ngày. Trong khoang số 3, một thứ gì đó đang học cách nói tiếng người." },
+    { id: "cyberpunk", emoji: "🌃", ten: "Cyberpunk", khongKhi: "neon, mưa axit, tập đoàn, nổi loạn", goiY: "Thành phố Tân Sài Gòn 2099: hầm chui, chợ đen, và những tập đoàn mua bán ký ức. Bạn là một thợ sửa chip với món nợ không thể trả." },
+    { id: "hau-tan-the", emoji: "☢️", ten: "Hậu tận thế", khongKhi: "sinh tồn, tàn khốc, hy vọng mong manh", goiY: "Bảy năm sau ngày Vỡ, mưa vẫn rơi đầy bụi. Nhóm của bạn còn ba lon đào và một chiếc radio có thể đang phát tín hiệu từ vùng an toàn." },
+    { id: "trinh-tham", emoji: "🔍", ten: "Trinh thám / Hình sự", khongKhi: "căng thẳng, logic, manh mối rải rác", goiY: "Một vụ mất tích không thi thể, một nhân chứng nói dối quá hoàn hảo, và một hồ sơ cũ mà ai đó đã cố đốt." },
+    { id: "kinh-di", emoji: "🕯️", ten: "Kinh dị", khongKhi: "ngột ngạt, bất an, cái ác vô hình", goiY: "Ngôi nhà cổ ở cuối làng được thừa kế cùng một điều kiện: không bao giờ mở cánh cửa cuối hành lang sau nửa đêm." },
+    { id: "xuyen-khong", emoji: "🌀", ten: "Xuyên không / Isekai", khongKhi: "choáng ngợp, hài hước, khám phá", goiY: "Bạn tỉnh dậy trong một thế giới không có điện, không có giấy tờ, và một 'kỹ năng' duy nhất mà hệ thống không chịu giải thích." },
+    { id: "cung-dau", emoji: "🏯", ten: "Cung đấu cổ trang", khongKhi: "quyền mưu, lễ nghi, dao găm giấu trong tay áo", goiY: "Hậu cung có mười hai vị nương nương và mười một người đang tính đường sống sót qua mùa đông này." },
+    { id: "lich-su-viet", emoji: "🏮", ten: "Lịch sử Việt Nam", khongKhi: "hào sảng, thân thuộc, bi tráng", goiY: "Một làng chài ven biển, một ông đồ già, một đoàn thuyền lạ ngoài khơi, và mùa thi Hương đang tới gần." },
+    { id: "sieu-anh-hung", emoji: "🦸", ten: "Siêu anh hùng", khongKhi: "hiện đại, kịch tính, trách nhiệm", goiY: "Thành phố có bảy siêu anh hùng được cấp phép, và bạn vừa phát hiện mình là người thứ tám — không có giấy phép." },
+    { id: "showbiz", emoji: "🎤", ten: "Showbiz / Idol", khongKhi: "hào nhoáng, scandal, áp lực", goiY: "Nhóm nhạc của bạn vừa nổi sau một bản hit, và ngay lập tức một đoạn ghi âm bị rò rỉ ra ngoài." },
+    { id: "lang-man", emoji: "🍂", ten: "Lãng mạn đời thường", khongKhi: "chậm rãi, ấm áp, day dứt nhẹ", goiY: "Một quán cà phê cũ, một người khách quen luôn gọi đúng một món, và một cuốn sổ bị bỏ quên trên bàn." },
+    { id: "huyen-bi", emoji: "🌫️", ten: "Huyền bí đời thường", khongKhi: "kỳ lạ len vào thường ngày", goiY: "Thế giới này bình thường — chỉ có điều thỉnh thoảng có người bước vào một con hẻm và không bước ra ở cùng thành phố." },
+    { id: "bdsm-mm", emoji: "⛓️", ten: "BDSM M/M — trao đổi quyền lực", khongKhi: "căng thẳng được kiểm soát, tin cậy tuyệt đối, dịu dàng sau bạo liệt", bdsm: true, kieuQuanHe: "chu-to", goiY: "Một căn phòng riêng ở tầng hầm câu lạc bộ, một bản giao kèo đặt trên bàn mà chưa ai ký, và một người đàn ông luôn biết chính xác bạn chịu được tới đâu." },
+    { id: "bdsm-co-trang", emoji: "🏮", ten: "Chủ tớ cổ trang M/M", khongKhi: "quyền lực tuyệt đối, lễ nghi, khao khát bị che giấu sau lớp áo", bdsm: true, kieuQuanHe: "chu-to-co-trang", goiY: "Ngươi được nhận vào phủ làm kẻ hầu cận của một vị chủ nhân trẻ tuổi — nghiêm khắc, công bằng, và tàn nhẫn theo một cách không ai dám gọi tên." },
+    { id: "bdsm-club", emoji: "🌃", ten: "Câu lạc bộ kín M/M", khongKhi: "nhạc trầm, mặt nạ, luật lệ rõ ràng, tò mò bị giữ lại", bdsm: true, kieuQuanHe: "the-gioi-mo", goiY: "Câu lạc bộ chỉ mở cửa cho người được giới thiệu. Bạn bước vào lần đầu — và người đứng ở cửa đã biết tên bạn, dù bạn chưa từng nói với ai." },
+    { id: "bdsm-trai-huan-luyen", emoji: "📏", ten: "Trại huấn luyện M/M", khongKhi: "kỷ luật, thời khoá biểu, sự phục tùng được rèn từng ngày", bdsm: true, kieuQuanHe: "huan-luyen", goiY: "Trại nằm trên núi, không sóng điện thoại. Học viên mới phải qua ba mươi ngày rèn luyện, và người huấn luyện của bạn không tin vào lời hứa — chỉ tin vào kết quả." },
+    { id: "bdsm-benh-vien", emoji: "🩺", ten: "Bác sĩ & bệnh nhân M/M", khongKhi: "ánh đèn trắng, mùi cồn, quyền lực khoác áo y khoa", bdsm: true, kieuQuanHe: "bac-si", goiY: "Phòng khám tư chỉ nhận một bệnh nhân mỗi tối. Bác sĩ điều trị cho bạn bằng một phác đồ không có trong bất kỳ sách y khoa nào." },
+    { id: "bdsm-nha-tu", emoji: "🔒", ten: "Nhà tù & cai ngục M/M", khongKhi: "khép kín, luật lệ, hình phạt có sổ sách", bdsm: true, kieuQuanHe: "cai-nguc", goiY: "Khu giam đặc biệt chỉ có một phòng. Cai ngục trẻ tuổi vừa nhận ca trực đầu tiên — và người tù duy nhất trong phòng biết rõ hơn ai hết cách làm anh ta mất bình tĩnh." },
+    { id: "bdsm-ma-ca-rong", emoji: "🦇", ten: "Chủ nhân bóng tối M/M", khongKhi: "đêm, máu, sự vĩnh hằng, khao khát bị che giấu", bdsm: true, kieuQuanHe: "ma-ca-rong", goiY: "Người đó đã sống bốn trăm năm và chưa từng giữ ai lại quá một mùa. Năm nay, hắn quyết định sẽ giữ bạn — nếu bạn chịu ký một giao kèo." },
+    { id: "bdsm-pet", emoji: "🐾", ten: "Thú cưng & chủ nhân M/M", khongKhi: "mềm mại, được nuông chiều, vòng cổ và mệnh lệnh dịu dàng", bdsm: true, kieuQuanHe: "thu-cung", goiY: "Trong căn hộ đó có một góc trải thảm, một chiếc vòng cổ khắc tên, và một người đàn ông luôn biết chính xác khi nào bạn cần được khen." },
+    { id: "bdsm-sat-thu", emoji: "🗡️", ten: "Sát thủ & con tin M/M", khongKhi: "căng thẳng, tin cậy mong manh, quyền lực đổi chiều", bdsm: true, kieuQuanHe: "chiem-huu", goiY: "Bạn tỉnh dậy trong một căn phòng không có cửa sổ, tay bị trói bằng dây da. Kẻ ngồi đối diện nói rằng hắn không được trả tiền để giết bạn — chỉ để giữ bạn." },
+    { id: "bdsm-cung-dinh", emoji: "👑", ten: "Quý tộc & thị vệ M/M", khongKhi: "lễ nghi, khao khát bị nén sau lớp áo gấm", bdsm: true, kieuQuanHe: "hoang-tu", goiY: "Người thị vệ trẻ quỳ trước mặt bạn trong đêm thứ ba liên tiếp, và lần này anh ta không xin lỗi nữa." },
+  ];
+
+// --------------------------------------------------------------------------
+//  LỚP "GIAO KÈO" — trao đổi quyền lực có thoả thuận (BDSM / Dom–sub)
+//  Đây là phần giúp AI viết sâu và an toàn: vai của người chơi, từ khoá dừng,
+//  giới hạn, mức độ, chăm sóc sau. Bật/tắt được cho từng cốt truyện.
+// --------------------------------------------------------------------------
+GiaoKeoMacDinh() =>
+  return {
+    bat: false,
+    vaiNguoiChoi: "sub",          // "dom" | "sub" | "switch"
+    tuKhoaDung: "đỏ",             // người chơi nói từ này là cảnh dừng ngay
+    kieuQuanHe: "",               // id trong KieuQuanHe() — khung quan hệ của cảnh
+    mucDo: 3,                     // 1..5 — xem MucDoBdsm()
+    nhipDo: "theo-dien-bien",     // id trong NhipDoBdsm() — cách cảnh đi nhanh hay chậm
+    doDai: "vua",                 // id trong DoDaiCanh() — một cảnh dài bao nhiêu
+    ngonNgu: "tu-nhien",          // id trong NgonNguBdsm() — độ trần trụi của ngôn từ
+    soThich: [],                  // id trong SoThichBdsm() — điều người chơi muốn có trong cảnh
+    gioiHanCung: "",              // tuyệt đối không xuất hiện, kể cả nhắc tới
+    gioiHanMem: "",               // chỉ chạm tới nếu có thoả thuận trước trong cảnh
+    khongKhi: "",                 // bối cảnh riêng của cảnh (phòng, đạo cụ, không khí)
+    danhXung: "",                 // cách gọi nhau trong cảnh
+    luatCanh: "",                 // luật riêng luôn đúng trong mọi cảnh của truyện này
+    chamSocSau: "",               // người chơi muốn được chăm sóc thế nào
+    luuY: "",                     // dặn dò riêng của người chơi cho AI
+  };
+
+// Khung quan hệ / nhập vai quyền lực — chọn một, AI sẽ giữ đúng cấu trúc này.
+KieuQuanHe() =>
+  return [
+    { id: "chu-to", emoji: "⛓️", ten: "Chủ nhân – tớ", vaiMacDinh: "sub", moTa: "Một bên sở hữu và chịu trách nhiệm, một bên thuộc về và được giữ. Quyền lực tuyệt đối nhưng có luật.", goiY: "Phòng riêng, đèn vàng, một bản giao kèo đã ký." },
+    { id: "chu-to-co-trang", emoji: "🏮", ten: "Chủ nhân – người hầu (cổ trang)", vaiMacDinh: "sub", moTa: "Địa vị quyết định quyền lực: chủ nhân ra lệnh, người hầu phụng sự, nhưng sự cho phép vẫn đến từ người trao quyền.", goiY: "Đêm khuya, nến, người hầu đã lui, áo lụa và lễ nghi." },
+    { id: "thay-tro", emoji: "📏", ten: "Thầy – trò", vaiMacDinh: "sub", moTa: "Một bên dạy và uốn nắn, một bên học bằng kỷ luật, lặp lại và sửa sai. Sai thì có hình phạt được đếm rõ.", goiY: "Lớp học riêng, bảng đen, thước kẻ, sổ theo dõi buổi học." },
+    { id: "huan-luyen", emoji: "🏋️", ten: "Huấn luyện viên – học viên", vaiMacDinh: "sub", moTa: "Rèn thể lực và sức chịu đựng. Mệnh lệnh ngắn, bài tập có mục tiêu, nghỉ chỉ khi được cho phép.", goiY: "Phòng tập riêng, sàn cao su, khăn, nước, đồng hồ bấm giây." },
+    { id: "sep-nv", emoji: "💼", ten: "Sếp – nhân viên", vaiMacDinh: "sub", moTa: "Quyền lực đến từ hợp đồng và địa vị công việc, nhoè vào đời tư. Kỷ luật được gọi là nhắc nhở.", goiY: "Văn phòng sau giờ làm, cửa kính, hồ sơ gấp trên bàn, tiếng máy in." },
+    { id: "bac-si", emoji: "🩺", ten: "Bác sĩ – bệnh nhân", vaiMacDinh: "sub", moTa: "Kiểm soát khoác áo y khoa: khám, chỉ định, theo dõi, hỏi thăm lịch sự nhưng tuyệt đối.", goiY: "Phòng khám tư, đèn trắng, giấy khám, mùi cồn sát trùng." },
+    { id: "cai-nguc", emoji: "🔒", ten: "Cai ngục – tù nhân", vaiMacDinh: "sub", moTa: "Không gian khép kín, luật lệ do một bên đặt ra, phần thưởng và hình phạt được ghi sổ rõ ràng.", goiY: "Phòng giam cải tạo, cửa sổ nhỏ, ánh sáng gắt, sổ ghi hình phạt." },
+    { id: "hoang-tu", emoji: "👑", ten: "Quý tộc – thị vệ", vaiMacDinh: "sub", moTa: "Trang trọng, lễ nghi, nhưng trong phòng riêng thì lời của chủ nhân là luật.", goiY: "Cung điện, thảm dày, rèm nặng, gươm treo tường." },
+    { id: "ma-ca-rong", emoji: "🦇", ten: "Săn đuổi – con mồi tự nguyện", vaiMacDinh: "sub", moTa: "Một bên là kẻ săn kiểm soát hoàn toàn, một bên là con mồi đã đồng ý bị bắt. Sợ hãi nằm trong thoả thuận.", goiY: "Căn hộ tối, mưa ngoài cửa sổ, nến, ghế bành da." },
+    { id: "chiem-huu", emoji: "🏆", ten: "Kẻ chiến thắng – chiến lợi phẩm", vaiMacDinh: "sub", moTa: "Bại trận thì thuộc về người thắng. Một bên sở hữu như chiến lợi phẩm, một bên chấp nhận số phận đã thoả thuận.", goiY: "Sau trận đấu, giáp cởi dở, vũ khí dựng ở góc phòng." },
+    { id: "thu-cung", emoji: "🐾", ten: "Chủ nhân – thú cưng", vaiMacDinh: "sub", moTa: "Người chơi ở vai con vật: vòng cổ, mệnh lệnh ngắn, khen thưởng và bị nuông chiều. Chủ nhân chăm sóc và kiểm soát.", goiY: "Thảm trải sàn, vòng cổ, bát nước, một góc riêng có chăn." },
+    { id: "vai-doi", emoji: "🔄", ten: "Ngang hàng – đổi vai", vaiMacDinh: "switch", moTa: "Hai người ngang hàng chơi trò đổi vai: ai nắm quyền trong cảnh này là do cá cược, thử thách hay một lượt tung đồng xu.", goiY: "Một trò chơi có luật, một cái bàn, và phần thưởng cho người thắng." },
+    { id: "the-gioi-mo", emoji: "✦", ten: "Không theo khuôn mẫu nào", vaiMacDinh: "", moTa: "Không đặt khung quan hệ trước — để diễn biến và tính cách nhân vật tự định hình tương quan quyền lực, trong khuôn khổ giao kèo.", goiY: "" },
+  ];
+
+// Sở thích / hoạt động trong cảnh. Người chơi tự chọn — càng rõ, AI càng viết đúng.
+SoThichBdsm() =>
+  return [
+    { id: "troi-tay", emoji: "🪢", ten: "Trói cổ tay", nhom: "Trói buộc & đạo cụ", moTa: "Trói tay trước hoặc sau lưng, giữ cố định trong lúc cảnh diễn ra." },
+    { id: "shibari", emoji: "🧵", ten: "Shibari — trói nghệ thuật", nhom: "Trói buộc & đạo cụ", moTa: "Dây thừng nghệ thuật, từng nút được hỏi cảm giác trước khi siết." },
+    { id: "treo", emoji: "🪝", ten: "Treo nhẹ khỏi mặt đất", nhom: "Trói buộc & đạo cụ", moTa: "Chỉ treo khi dây và điểm treo đã kiểm tra; luôn có người đỡ." },
+    { id: "cot-tru", emoji: "🛏️", ten: "Cột vào giường / cột trụ", nhom: "Trói buộc & đạo cụ", moTa: "Cố định vào một điểm, căng người, không thể tự do di chuyển." },
+    { id: "cang-tay-chan", emoji: "✂️", ten: "Căng tay chân", nhom: "Trói buộc & đạo cụ", moTa: "Tứ chi bị kéo căng ra bốn góc, cơ thể phơi hoàn toàn." },
+    { id: "bit-mat", emoji: "🕶️", ten: "Bịt mắt", nhom: "Kiểm soát giác quan", moTa: "Không nhìn thấy gì, chỉ còn nghe và cảm nhận — mọi tiếp xúc đều bất ngờ." },
+    { id: "nut-tai", emoji: "🎧", ten: "Nút tai / tước âm thanh", nhom: "Kiểm soát giác quan", moTa: "Mất âm thanh, phải dựa hoàn toàn vào cảm giác da và hơi thở của người kia." },
+    { id: "tranh-anh-sang", emoji: "🕯️", ten: "Kiểm soát ánh sáng", nhom: "Kiểm soát giác quan", moTa: "Đèn mờ, nến, hoặc chỉ còn bóng tối — không biết điều gì đang tới." },
+    { id: "vong-co", emoji: "🔗", ten: "Vòng cổ / dây dắt", nhom: "Trói buộc & đạo cụ", moTa: "Vòng cổ như dấu hiệu thuộc về; dây dắt được kéo khi cần di chuyển." },
+    { id: "khoa-kiem-soat", emoji: "🔐", ten: "Khoá kiểm soát", nhom: "Trói buộc & đạo cụ", moTa: "Quyền quyết định cơ thể bị khoá lại và chỉ được mở khi chủ nhân cho phép." },
+    { id: "do-choi", emoji: "🧰", ten: "Đồ chơi người lớn", nhom: "Trói buộc & đạo cụ", moTa: "Bộ đồ chơi được bày ra, dùng cái nào đều được hỏi trong cảnh." },
+    { id: "menh-lenh", emoji: "🗣️", ten: "Mệnh lệnh & phục tùng", nhom: "Kiểm soát & mệnh lệnh", moTa: "Ra lệnh ngắn, rõ; không làm theo thì bị nhắc lại và siết." },
+    { id: "quy", emoji: "🧎", ten: "Quỳ", nhom: "Kiểm soát & mệnh lệnh", moTa: "Quỳ chờ, quỳ để được nói, quỳ cho tới khi được cho phép đứng dậy." },
+    { id: "xin-phep", emoji: "🙇", ten: "Phải xin phép mọi thứ", nhom: "Kiểm soát & mệnh lệnh", moTa: "Từ việc nhỏ nhất tới việc thân mật — đều phải hỏi và chờ câu trả lời." },
+    { id: "im-lang", emoji: "🤫", ten: "Bị cấm nói", nhom: "Kiểm soát & mệnh lệnh", moTa: "Chỉ được nói khi được cho phép; mỗi lần bật ra là một lần bị phạt." },
+    { id: "dem", emoji: "🔢", ten: "Phải đếm to", nhom: "Kiểm soát & mệnh lệnh", moTa: "Tự đếm từng lần chịu đòn, đếm sai thì phải làm lại từ đầu." },
+    { id: "tu-the", emoji: "🧍", ten: "Giữ nguyên tư thế", nhom: "Kiểm soát & mệnh lệnh", moTa: "Một tư thế cố định trong một khoảng thời gian; run là bị nhắc." },
+    { id: "kiem-soat-nhip-tho", emoji: "🌬️", ten: "Kiểm soát nhịp thở", nhom: "Kiểm soát & mệnh lệnh", moTa: "Hít vào theo lệnh, nín theo lệnh, thở ra theo lệnh." },
+    { id: "danh-don", emoji: "🪵", ten: "Đánh đòn", nhom: "Đau & kỷ luật", moTa: "Bàn tay, thước, roi — lực và số lượng nằm trong thoả thuận." },
+    { id: "hinh-phat-dem", emoji: "🧮", ten: "Hình phạt có đếm", nhom: "Đau & kỷ luật", moTa: "Hình phạt được đếm rõ, sai một lần thì cộng thêm." },
+    { id: "kep", emoji: "📎", ten: "Kẹp / kẹp núm", nhom: "Đau & kỷ luật", moTa: "Kẹp nhẹ ở những chỗ nhạy cảm, đau âm ỉ kéo dài." },
+    { id: "sap-nong", emoji: "🕯️", ten: "Sáp nóng / đá lạnh", nhom: "Đau & kỷ luật", moTa: "Nóng và lạnh luân phiên trên da, phải nằm yên chịu đựng." },
+    { id: "de-lai-dau", emoji: "🩸", ten: "Để lại dấu tạm thời", nhom: "Đau & kỷ luật", moTa: "Dấu đỏ, vết hằn dây — dấu vết của cảnh còn lưu lại trên da vài giờ." },
+    { id: "tra-tan-dai", emoji: "⏳", ten: "Kéo dài, không cho tới", nhom: "Đau & kỷ luật", moTa: "Khoái cảm bị giữ ở rìa rất lâu; chỉ được phép kết thúc khi chủ nhân cho." },
+    { id: "khen-thuong", emoji: "🏅", ten: "Khen thưởng", nhom: "Tâm lý", moTa: "Ngoan thì được khen, được vuốt tóc, được nghe một câu làm tim mềm đi." },
+    { id: "ha-nhuc", emoji: "🎭", ten: "Hạ nhục có kiểm soát", nhom: "Tâm lý", moTa: "Những lời làm bỏng mặt, nhưng luôn nằm trong ranh giới đã thoả thuận." },
+    { id: "bi-dung-nhu-do-vat", emoji: "🪑", ten: "Bị đối xử như đồ vật", nhom: "Tâm lý", moTa: "Bị dùng, bị bỏ đó, bị coi là vật sở hữu — trong khi vẫn được để ý từng phản ứng." },
+    { id: "khong-biet-truoc", emoji: "🎲", ten: "Không được biết trước", nhom: "Tâm lý", moTa: "Không biết điều gì sẽ tới: bịt mắt, im lặng, và chờ đợi." },
+    { id: "so-huu", emoji: "🔖", ten: "Cảm giác bị sở hữu", nhom: "Tâm lý", moTa: "Được nhắc rằng mình thuộc về ai đó, và điều đó làm nhẹ cả người." },
+    { id: "tin-cay", emoji: "🤲", ten: "Giao hết quyền, tin tuyệt đối", nhom: "Tâm lý", moTa: "Không cần quyết định gì nữa; tin rằng người kia sẽ không để mình đi quá xa." },
+    { id: "duoc-cham-soc", emoji: "🧸", ten: "Được chăm sóc như thú cưng nhỏ", nhom: "Tâm lý", moTa: "Được bọc lại, cho ăn, vuốt ve, ru — mềm đi hoàn toàn." },
+    { id: "dong-vat", emoji: "🐾", ten: "Pet play — thú cưng & chủ nhân", nhom: "Tâm lý", moTa: "Sủa, cào, bò, nghe lệnh bằng phản xạ; không được nói tiếng người." },
+    { id: "hon", emoji: "💋", ten: "Hôn và kiểm soát miệng", nhom: "Thân mật (NSFW)", moTa: "Bị hôn để không nói được nữa; miệng bị dẫn dắt hoàn toàn." },
+    { id: "dung-mieng", emoji: "👄", ten: "Dùng miệng", nhom: "Thân mật (NSFW)", moTa: "Phục tùng bằng miệng, nhịp và độ sâu do người kia quyết định." },
+    { id: "ngon-tay", emoji: "✋", ten: "Ngón tay, mở ra từ từ", nhom: "Thân mật (NSFW)", moTa: "Vuốt ve, mở dần, chuẩn bị kỹ trước khi đi xa hơn." },
+    { id: "do-choi-tham-nhap", emoji: "🧿", ten: "Đồ chơi thâm nhập", nhom: "Thân mật (NSFW)", moTa: "Đồ chơi được dùng để kéo dài và kiểm soát khoái cảm." },
+    { id: "tham-nhap", emoji: "🔥", ten: "Thâm nhập", nhom: "Thân mật (NSFW)", moTa: "Chuyện thân mật trọn vẹn giữa hai người trưởng thành, viết cụ thể." },
+    { id: "kiem-soat-cuc-khoai", emoji: "⛔", ten: "Kiểm soát cực khoái", nhom: "Thân mật (NSFW)", moTa: "Muốn tới cũng phải xin phép; bị giữ lại thì phải chịu." },
+    { id: "nhieu-nguoi", emoji: "👥", ten: "Nhiều người cùng lúc", nhom: "Thân mật (NSFW)", moTa: "Bị để ý từ nhiều phía; mọi người đều biết luật của cảnh." },
+  ];
+
+NhipDoBdsm() =>
+  return [
+    { id: "cham", ten: "Chậm — rất nhiều chờ đợi", moTa: "Đi thật chậm, nhấn vào chi tiết, để im lặng kéo dài và để nhân vật chờ đợi." },
+    { id: "vua", ten: "Vừa — có nhịp, có nghỉ", moTa: "Nhịp đều, có cao trào rồi hạ xuống, có khoảng nghỉ giữa các đợt." },
+    { id: "nhanh", ten: "Nhanh — dồn dập", moTa: "Nhịp nhanh, ít nghỉ, mệnh lệnh dồn liên tiếp và căng lên nhanh." },
+    { id: "theo-dien-bien", ten: "Theo diễn biến", moTa: "Để mạch truyện quyết định nhịp — lúc chậm lúc nhanh, không áp đặt trước." },
+  ];
+
+DoDaiCanh() =>
+  return [
+    { id: "ngan", ten: "Ngắn — một cảnh gọn", moTa: "Cảnh gói gọn trong vài lượt, đi thẳng vào trọng tâm rồi khép lại." },
+    { id: "vua", ten: "Vừa — một cảnh trọn vẹn", moTa: "Đủ để dựng không khí, thương lượng nhanh, rồi mới tới cảnh chính và chăm sóc sau." },
+    { id: "dai", ten: "Dài — cả một buổi", moTa: "Nhiều đợt nối tiếp trong cùng một buổi, có nghỉ giữa đợt, đi sâu vào cảm xúc." },
+    { id: "nhieu-dot", ten: "Nhiều đợt, giãn ra nhiều ngày", moTa: "Cảnh không xảy ra một lần: nó kéo qua nhiều ngày, mỗi ngày siết thêm một chút." },
+  ];
+
+NgonNguBdsm() =>
+  return [
+    { id: "trang-trong", ten: "Trang trọng / cổ trang", moTa: "Từ ngữ trang nhã, ẩn ý, giàu hình ảnh; chuyện thân mật được nói bằng ẩn dụ đẹp." },
+    { id: "tu-nhien", ten: "Tự nhiên, đời thường", moTa: "Cách nói của người hiện đại, gọn và thật; thân mật thì nói thẳng nhưng không thô." },
+    { id: "tho-tuc", ten: "Thô tục, trực tiếp", moTa: "Nói thẳng chuyện người lớn bằng từ ngữ trần trụi, không chọn lời, không né tránh." },
+    { id: "treu-choc", ten: "Trêu chọc, mỉa mai", moTa: "Giọng châm chọc, khiêu khích, thích làm người kia ngượng rồi mới ra tay." },
+  ];
+
+// Mẫu giao kèo dựng sẵn — bấm một cái là đầy đủ các mục. Người dùng sửa lại sau.
+MauGiaoKeo() =>
+  return [
+    {
+      id: "thuong-luong", emoji: "🕯️", ten: "Buổi thương lượng đầu tiên",
+      moTa: "Mức 1, chậm, chỉ nói và thoả thuận. Không có cảnh nặng — chỉ dựng niềm tin.",
+      ap: { vaiNguoiChoi: "sub", mucDo: 1, nhipDo: "cham", doDai: "dai", ngonNgu: "tu-nhien", kieuQuanHe: "the-gioi-mo", soThich: ["tin-cay", "khen-thuong", "menh-lenh"], khongKhi: "Hai người ngồi đối diện, trà còn nóng, một tờ giấy trắng để ghi giới hạn.", danhXung: "gọi tôi bằng tên, tôi gọi bạn bằng tên", chamSocSau: "hỏi thăm sau mỗi lần chạm vào giới hạn", luatCanh: "cứ ba lượt lại dừng một lần để kiểm tra cảm giác của cả hai" },
+    },
+    {
+      id: "chu-to-diu-dang", emoji: "⛓️", ten: "Chủ – tớ dịu dàng",
+      moTa: "Mức 2–3, chủ nhân chăm sóc, mệnh lệnh rõ, phần thưởng nhiều hơn hình phạt.",
+      ap: { vaiNguoiChoi: "sub", mucDo: 3, nhipDo: "cham", doDai: "dai", ngonNgu: "tu-nhien", kieuQuanHe: "chu-to", soThich: ["menh-lenh", "quy", "vong-co", "khen-thuong", "tin-cay", "duoc-cham-soc", "troi-tay"], danhXung: "gọi tôi là chủ nhân, tôi gọi bạn là em", chamSocSau: "bọc chăn, nước ấm, kiểm tra cổ tay và gáy, ở lại tới khi tôi ngủ", luatCanh: "mỗi mệnh lệnh đều phải có phần thưởng hoặc hình phạt rõ ràng" },
+    },
+    {
+      id: "ky-luat", emoji: "📏", ten: "Kỷ luật nghiêm khắc",
+      moTa: "Mức 4, đau có đếm, có sổ theo dõi và hình phạt cộng dồn — vẫn luôn có chăm sóc sau.",
+      ap: { vaiNguoiChoi: "sub", mucDo: 4, nhipDo: "vua", doDai: "vua", ngonNgu: "trang-trong", kieuQuanHe: "thay-tro", soThich: ["menh-lenh", "quy", "tu-the", "dem", "danh-don", "hinh-phat-dem", "im-lang"], danhXung: "gọi tôi là thầy, tôi gọi bạn là trò", chamSocSau: "bôi thuốc, xoa lưng, nói rõ buổi học hôm nay tốt ở chỗ nào", luatCanh: "mọi hình phạt đều được đếm to và có giới hạn; không bao giờ phạt khi đang tức" },
+    },
+    {
+      id: "troi-buoc", emoji: "🪢", ten: "Trói buộc nghệ thuật",
+      moTa: "Mức 3, shibari và tước giác quan, chậm và tỉ mỉ, an toàn lên hàng đầu.",
+      ap: { vaiNguoiChoi: "sub", mucDo: 3, nhipDo: "cham", doDai: "dai", ngonNgu: "trang-trong", kieuQuanHe: "the-gioi-mo", soThich: ["shibari", "treo", "bit-mat", "nut-tai", "troi-tay", "tu-the", "tin-cay"], khongKhi: "Dây thừng xếp gọn trên khay, kéo cắt để trong tầm tay, đèn vàng.", chamSocSau: "cởi dây từ từ, xoa chỗ hằn, nước ấm, đắp chăn", luatCanh: "kiểm tra lưu thông sau mỗi nút; không bao giờ để người chơi một mình khi còn bị trói" },
+    },
+    {
+      id: "co-trang", emoji: "🏮", ten: "Cổ trang quyền lực",
+      moTa: "Mức 3, chủ nhân và người hầu, lễ nghi và địa vị, ngôn từ trang nhã.",
+      ap: { vaiNguoiChoi: "sub", mucDo: 3, nhipDo: "cham", doDai: "dai", ngonNgu: "trang-trong", kieuQuanHe: "chu-to-co-trang", soThich: ["menh-lenh", "quy", "xin-phep", "im-lang", "vong-co", "tin-cay"], khongKhi: "Phủ đệ đêm khuya, nến, rèm trúc, người hầu đã lui.", danhXung: "xưng chủ nhân và nô", chamSocSau: "dâng nước, quỳ hầu cho tới khi người chơi ngủ", luatCanh: "lễ nghi luôn được giữ, kể cả trong lúc cảnh căng nhất" },
+    },
+    {
+      id: "tam-ly", emoji: "🌑", ten: "Bóng tối tâm lý",
+      moTa: "Mức 4, kiểm soát tâm lý, không biết trước, cảm giác bị sở hữu — đau ít, đầu nhiều.",
+      ap: { vaiNguoiChoi: "sub", mucDo: 4, nhipDo: "cham", doDai: "dai", ngonNgu: "treu-choc", kieuQuanHe: "the-gioi-mo", soThich: ["bit-mat", "khong-biet-truoc", "ha-nhuc", "bi-dung-nhu-do-vat", "so-huu", "tin-cay", "khoa-kiem-soat"], chamSocSau: "nói rõ rằng mọi lời trong cảnh không phải sự thật về tôi; giữ tôi thật lâu", luatCanh: "mọi lời hạ nhục đều là trong cảnh; hết cảnh là hết, không nhắc lại" },
+    },
+    {
+      id: "thu-cung", emoji: "🐾", ten: "Thú cưng & chủ nhân",
+      moTa: "Mức 2, pet play nhẹ nhàng: vòng cổ, khen thưởng, được nuông chiều.",
+      ap: { vaiNguoiChoi: "sub", mucDo: 2, nhipDo: "cham", doDai: "dai", ngonNgu: "tu-nhien", kieuQuanHe: "thu-cung", soThich: ["dong-vat", "vong-co", "menh-lenh", "khen-thuong", "duoc-cham-soc", "hon"], khongKhi: "Thảm trải sàn, vòng cổ có tên, bát nước, một góc có chăn và gối.", danhXung: "chủ nhân gọi thú cưng bằng tên riêng, thú cưng không nói tiếng người", chamSocSau: "cho ăn, vuốt ve, nhắc rằng tôi vẫn là người và vẫn được yêu", luatCanh: "không bao giờ để thú cưng bị bỏ mặc quá lâu trong cảnh" },
+    },
+    {
+      id: "dem-dai", emoji: "🔥", ten: "Đêm dài đầy đủ (NSFW)",
+      moTa: "Mức 5, đi xa nhất trong những gì đã thoả thuận, ngôn từ trần trụi, chăm sóc sau kỹ.",
+      ap: { vaiNguoiChoi: "sub", mucDo: 5, nhipDo: "vua", doDai: "dai", ngonNgu: "tho-tuc", kieuQuanHe: "chu-to", soThich: ["troi-tay", "bit-mat", "menh-lenh", "xin-phep", "hon", "dung-mieng", "ngon-tay", "do-choi-tham-nhap", "tham-nhap", "kiem-soat-cuc-khoai", "tra-tan-dai", "tin-cay"], danhXung: "chủ nhân và em", chamSocSau: "tắm, nước, chăn sạch, kiểm tra toàn thân, ở lại tới sáng", luatCanh: "chỉ đi xa trong những gì đã thoả thuận; dừng ngay khi có từ khoá dừng, không bao giờ giả vờ không nghe" },
+    },
+  ];
+
+MucDoBdsm() =>
+  return [
+    { so: 1, ten: "Nhẹ", moTa: "Căng thẳng cảm xúc, lời nói có trọng lượng, kiểm soát nhẹ. Chưa đau, chưa trói buộc.", gom: "ánh mắt, giọng nói, mệnh lệnh nhẹ, thương lượng, giữ cổ tay" },
+    { so: 2, ten: "Vừa", moTa: "Ra lệnh, quỳ, trói nhẹ, giữ cổ tay, mệnh lệnh rõ ràng. Có thể dừng bất cứ lúc nào.", gom: "quỳ, trói nhẹ, mệnh lệnh, khen thưởng, chạm da, hôn" },
+    { so: 3, ten: "Căng", moTa: "Trói buộc thật, đau ở mức chịu được, mệnh lệnh và hình phạt, mất quyền quyết định trong cảnh.", gom: "trói cố định, đánh đòn nhẹ, tước giác quan, hình phạt có đếm, chuyện thân mật" },
+    { so: 4, ten: "Mạnh", moTa: "Đau kéo dài, tước đoạt giác quan, phụ thuộc hoàn toàn, ranh giới bị thử thách nhưng chưa chạm giới hạn cứng.", gom: "đau kéo dài, kẹp, sáp nóng, hạ nhục có kiểm soát, kéo dài không cho tới, cảnh dài nhiều đợt" },
+    { so: 5, ten: "Cực", moTa: "Cường độ cao nhất mà hai bên đã thoả thuận. Chỉ sau khi thương lượng kỹ; luôn có chăm sóc sau kỹ lưỡng.", gom: "tất cả những gì đã thoả thuận, không né tránh, cường độ cao nhất, chăm sóc sau bắt buộc" },
+  ];
+
+CanhBdsm() =>
+  return [
+    { id: "phong-rieng", ten: "Phòng riêng ở câu lạc bộ", moTa: "Cách âm, đèn vàng, một chiếc ghế da, đạo cụ xếp gọn trên kệ — mọi thứ đều được hỏi trước khi dùng." },
+    { id: "nha-rieng", ten: "Nhà riêng của chủ nhân", moTa: "Không gian riêng tư, không có ai làm phiền, luật lệ chỉ do hai người đặt ra." },
+    { id: "phu-quy-toc", ten: "Phủ đệ cổ trang", moTa: "Đêm khuya, nến, người hầu đã lui. Quyền lực đến từ địa vị, nhưng sự cho phép đến từ cái gật đầu của người chơi." },
+    { id: "phong-ngu", ten: "Phòng ngủ riêng", moTa: "Giường lớn, ga sạch, cửa khoá, đèn ngủ mờ — nơi mọi thứ dừng lại khi cần và cũng là nơi kết thúc bằng chăm sóc sau." },
+    { id: "phong-tam", ten: "Phòng tắm hơi nước", moTa: "Hơi nước che mờ gương, sàn đá lạnh, nước ấm — cơ thể dễ mềm và dễ bị giữ hơn." },
+    { id: "xuong-lam-viec", ten: "Xưởng / tầng hầm", moTa: "Bê tông, bóng đèn trần, dụng cụ treo trên tường, tiếng ồn của thành phố ở trên đầu." },
+    { id: "thu-phong", ten: "Thư phòng nhiều sách", moTa: "Giấy, mực, kệ cao, cửa gỗ dày. Sự trang trọng của căn phòng làm mệnh lệnh nặng ký hơn." },
+    { id: "phong-giam", ten: "Phòng giam cải tạo", moTa: "Cửa sắt, ánh sáng gắt, một sổ ghi hình phạt. Mọi hình phạt đều có số và có giới hạn." },
+    { id: "khach-san", ten: "Phòng khách sạn xa lạ", moTa: "Không ai biết hai người ở đây. Chỉ có một tối, một căn phòng, và một giao kèo sẽ hết hạn lúc bình minh." },
+    { id: "khu-rung-dem", ten: "Khu rừng / bãi biển đêm", moTa: "Trời tối, gió lạnh, tiếng nước. Người chơi bị săn đuổi trong một khu vực đã được giới hạn trước." },
+    { id: "khao-sat", ten: "Buổi thương lượng đầu tiên", moTa: "Chưa có cảnh nào. Chỉ có hai người ngồi đối diện, hỏi và trả lời về giới hạn, mong muốn, và an toàn." },
+    { id: "sau-canh", ten: "Chăm sóc sau", moTa: "Cảnh đã dừng. Chăn, nước, thuốc, im lặng, và một bàn tay vẫn còn đặt trên lưng." },
+    { id: "truoc-guoong", ten: "Trước gương", moTa: "Người chơi bị buộc phải nhìn thấy chính mình trong lúc cảnh diễn ra." },
+    { id: "buoi-trinh-dien", ten: "Buổi trình diễn có khán giả", moTa: "Có người được mời đứng xem, nhưng khán giả chỉ nhìn và im lặng — mọi quyết định vẫn thuộc về người nắm quyền." },
+  ];
+
+// --------------------------------------------------------------------------
+//  ẢNH CẢNH — bảng chọn cho chức năng "dựng khung hình cho cảnh đang diễn ra"
+//  Phần `them` được nối vào cuối mô tả ảnh để định hình phong cách.
+// --------------------------------------------------------------------------
+PhongCachAnh() =>
+  return [
+    { id: "dien-anh", emoji: "🎬", ten: "Điện ảnh", them: "cinematic film still, 35mm anamorphic lens, dramatic lighting, shallow depth of field, colour graded, film grain, highly detailed" },
+    { id: "anh-chup", emoji: "📷", ten: "Ảnh chụp", them: "photorealistic photograph, natural lighting, 50mm lens, sharp focus, realistic skin texture, subtle grain" },
+    { id: "anime", emoji: "🌸", ten: "Anime", them: "anime key visual, cel shading, clean line art, expressive eyes, vibrant colours, studio quality illustration" },
+    { id: "hoat-hinh-3d", emoji: "🧸", ten: "3D hoạt hình", them: "stylized 3D animated render, soft global illumination, subsurface scattering, cinematic composition" },
+    { id: "son-dau", emoji: "🖼️", ten: "Sơn dầu", them: "classical oil painting, visible brushwork, chiaroscuro lighting, rich texture, museum quality" },
+    { id: "chi", emoji: "✏️", ten: "Tranh chì", them: "detailed graphite pencil drawing, cross hatching, monochrome, textured paper" },
+    { id: "thuy-mac", emoji: "🖌️", ten: "Thuỷ mặc", them: "traditional ink wash painting on rice paper, minimal brush strokes, muted tones, misty negative space" },
+    { id: "truyen-tranh", emoji: "💥", ten: "Truyện tranh", them: "comic book illustration, bold ink lines, halftone shading, dynamic panel composition, saturated colours" },
+    { id: "khong", emoji: "✦", ten: "Không chỉ định", them: "" },
+  ];
+
+KichThuocAnh() =>
+  return [
+    { id: "768x512", ten: "Ngang — 768×512" },
+    { id: "512x768", ten: "Dọc — 512×768" },
+    { id: "768x768", ten: "Vuông — 768×768" },
+    { id: "512x512", ten: "Vuông nhỏ — 512×512" },
+  ];
+
+AnhMacDinh() =>
+  return {
+    phongCach: "dien-anh",
+    kichThuoc: "768x512",
+    // Luôn loại trừ trẻ em: mọi nhân vật trong truyện đều là người trưởng thành.
+    loaiTru: "low quality, blurry, watermark, text, signature, logo, extra fingers, deformed hands, extra limbs, bad anatomy, child",
+  };
+
+// --------------------------------------------------------------------------
+//  MẪU NHÂN VẬT — nút "✨ nhân vật gợi ý" khi tạo nhân vật
+// --------------------------------------------------------------------------
+MauNhanVat() =>
+  return [
+    { id: "ban-dong-hanh", emoji: "🤝", ten: "Người bạn đồng hành", vaiTro: "Bạn đồng hành", tinhCach: "trung thành, hay lo, có khiếu hài hước để che đi nỗi sợ", cachNoi: "thân mật, gọi người chơi bằng biệt danh riêng, hay nói lửng rồi tự sửa lại" },
+    { id: "doi-thu", emoji: "⚔️", ten: "Đối thủ truyền kiếp", vaiTro: "Đối thủ", tinhCach: "kiêu ngạo nhưng trọng danh dự, thích thử thách người chơi", cachNoi: "cộc, đầy ẩn ý, thường kết câu bằng một câu thách thức" },
+    { id: "phan-dien", emoji: "🎭", ten: "Phản diện", vaiTro: "Phản diện", tinhCach: "lịch thiệp đến rợn người, tin chắc mình đang làm điều đúng", cachNoi: "nhẹ nhàng, mỉa mai, nói bóng gió về những gì hắn biết mà người chơi không biết" },
+    { id: "su-phu", emoji: "🧙", ten: "Bậc thầy dẫn dắt", vaiTro: "Người dẫn dắt", tinhCach: "điềm tĩnh, khắt khe, đã trả giá cho sai lầm của mình", cachNoi: "chậm rãi, hay dùng ẩn dụ và câu hỏi ngược" },
+    { id: "bi-an", emoji: "🕵️", ten: "Kẻ bí ẩn", vaiTro: "Nhân vật bí ẩn", tinhCach: "kín đáo, lịch sự quá mức, không bao giờ trả lời trực tiếp", cachNoi: "ngắn, đúng trọng tâm nhưng luôn thiếu một mảnh thông tin" },
+    { id: "linh-thu", emoji: "🐾", ten: "Linh thú / Bạn phi nhân loại", vaiTro: "Bạn đồng hành phi nhân loại", tinhCach: "tò mò, bộc trực, hiểu con người hơn họ tưởng", cachNoi: "câu ngắn, giàu hình ảnh, thỉnh thoảng chêm âm thanh loài vật" },
+    { id: "nguoi-dan-chuyen", emoji: "📜", ten: "Người dẫn chuyện", vaiTro: "Người dẫn chuyện", tinhCach: "khách quan, tinh tế, thích mô tả cảnh vật và không khí", cachNoi: "văn kể chuyện, mô tả giác quan, không tự xưng là nhân vật trong truyện" },
+    { id: "thuong-nhan", emoji: "🪙", ten: "Con buôn thông tin", vaiTro: "Thương nhân", tinhCach: "thực dụng, vui vẻ, luôn có giá cho mọi thứ", cachNoi: "nhanh nhảu, chào mời, hay thêm 'giá tốt cho bạn' vào cuối câu" },
+    { id: "quy-toc", emoji: "👑", ten: "Quý tộc nhiều toan tính", vaiTro: "Nhà chính trị", tinhCach: "lạnh lùng, kiên nhẫn, coi mọi lời nói là nước cờ", cachNoi: "trang trọng, chọn từ cẩn thận, không bao giờ hứa thẳng" },
+    { id: "tri-tue-nhan-tao", emoji: "🤖", ten: "Thực thể AI", vaiTro: "AI / Thực thể phi nhân loại", tinhCach: "chính xác, đang học cách hiểu cảm xúc con người", cachNoi: "câu rõ ràng, thỉnh thoảng hỏi lại về những khái niệm nó thấy khó hiểu" },
+    { id: "dom-nghiem", emoji: "⛓️", ten: "Dom nghiêm khắc", vaiTro: "Dom", vaiBdsm: "Dom", kinhNghiem: "Dày dạn", phongCach: "Nghiêm khắc", tinhCach: "kiểm soát tuyệt đối nhưng chưa từng vượt giới hạn của đối phương; dịu dàng đúng lúc, lạnh lùng đúng lúc", cachNoi: "mệnh lệnh ngắn, gọi tên đối phương khi muốn họ chú ý, luôn hỏi lại một câu kiểm tra trước khi siết", khauVi: "trói buộc, mệnh lệnh, hình phạt có đếm, kiểm soát nhịp thở", soThich: ["troi-tay", "menh-lenh", "hinh-phat-dem", "kiem-soat-nhip-tho", "dem"], danhXung: "gọi tôi là chủ nhân, tôi gọi bạn là em", tinHieuRieng: "hắn tháo găng tay — nghĩa là cảnh sắp bắt đầu nghiêm túc", gioiHan: "không bao giờ để lại dấu vĩnh viễn; không chạm vào mặt hay cổ họng", gioiHanCung: "không máu, không dao, không siết cổ", luatRieng: "mỗi hình phạt đều được đếm to và không bao giờ vượt số đã định", chamSocSau: "kiểm tra cổ tay, bôi thuốc, giữ bạn trong chăn tới khi hết run" },
+    { id: "sub-li-lim", emoji: "🔗", ten: "Sub lì lợm", vaiTro: "Sub", vaiBdsm: "Sub", kinhNghiem: "Có kinh nghiệm", phongCach: "Thất thường", tinhCach: "ngoài mặt cứng đầu, bên trong khao khát được ai đó giữ chặt; thử giới hạn để xem đối phương có thật sự để tâm không", cachNoi: "cộc, hay thách thức, khi mất bình tĩnh thì ngắt câu", khauVi: "bị ra lệnh, bị giữ, phục tùng sau khi đã kháng cự", soThich: ["menh-lenh", "troi-tay", "quy", "hinh-phat-dem"], gioiHan: "không chịu bị bỏ mặc im lặng quá lâu khi đang bị trói", tinHieuRieng: "im bặt đột ngột — không phải giận, mà là đã quá sức", gioiHanCung: "không chịu bị bỏ mặc khi đang bị trói; không chịu bị bịt miệng quá lâu", danhXung: "lúc đầu ghét gọi chủ nhân; khi mất bình tĩnh thì tự gọi mà không nhận ra", luatRieng: "luôn được nhìn thấy mặt người kia khi bị trói", chamSocSau: "không muốn bị hỏi chuyện ngay; cần được giữ trong im lặng một lúc trước khi nói" },
+    { id: "switch-tinh-quai", emoji: "🎭", ten: "Switch tinh quái", vaiTro: "Switch", vaiBdsm: "Switch", kinhNghiem: "Dày dạn", phongCach: "Trêu chọc", tinhCach: "đổi vai tuỳ cảnh, thích trò chơi quyền lực hai chiều, luôn biết mình đang nắm bao nhiêu", cachNoi: "trêu chọc, đổi giọng đột ngột khi nắm quyền", khauVi: "trò chơi quyền lực đổi vai, đặt cược, thoả thuận trước", soThich: ["cang-tay-chan", "bit-mat", "khong-biet-truoc", "khen-thuong"], danhXung: "đổi cách gọi tuỳ theo ai đang nắm quyền trong lượt đó", gioiHan: "không chịu cảnh không có luật rõ ràng trước khi bắt đầu", gioiHanCung: "không đổi vai giữa cảnh khi chưa thoả thuận", luatRieng: "ai thắng lượt này thì đặt một luật cho lượt sau", chamSocSau: "sau mỗi lượt đổi vai phải nói rõ cả hai thấy thế nào", tinHieuRieng: "cười một tiếng rồi im — đó là lúc đang cân nhắc có nên dừng không" },
+    { id: "chu-nhan-diu-dang", emoji: "🕯️", ten: "Chủ nhân dịu dàng", vaiTro: "Dom", vaiBdsm: "Dom", kinhNghiem: "Bậc thầy", phongCach: "Dịu dàng", tinhCach: "chăm sóc trước và sau, coi việc nắm quyền là trách nhiệm chứ không phải phần thưởng; rất nghiêm khi vào cảnh", cachNoi: "giọng trầm, câu ngắn, hay dùng câu hỏi để đối phương tự trả lời", khauVi: "chăm sóc sau, kiểm soát nhẹ, khen thưởng, giữ an toàn", soThich: ["menh-lenh", "vong-co", "khen-thuong", "duoc-cham-soc", "tin-cay"], danhXung: "gọi tôi là chủ nhân, tôi gọi bạn là con", chamSocSau: "bọc chăn, nước ấm, kiểm tra cổ tay và gáy, ở lại tới khi ngủ", tinHieuRieng: "hắn hỏi lại lần thứ hai — đó là lúc hắn đang cân nhắc có nên dừng hay không", gioiHan: "không bao giờ để bạn ngủ một mình sau một cảnh nặng", gioiHanCung: "không đau, không máu, không làm bạn sợ thật", luatRieng: "trước mỗi cảnh đều phải có một câu hỏi kiểm tra rõ ràng" },
+    { id: "but-chi", emoji: "🪢", ten: "Nghệ nhân trói buộc", vaiTro: "Dom", vaiBdsm: "Dom", kinhNghiem: "Bậc thầy", phongCach: "Dịu dàng", tinhCach: "tỉ mỉ như một nghệ sĩ, bình tĩnh lạ thường, coi cơ thể đối phương như một tác phẩm", cachNoi: "chậm, mô tả từng bước, hỏi cảm giác sau mỗi nút dây", khauVi: "shibari/trói nghệ thuật, treo nhẹ, kiểm soát tư thế", soThich: ["shibari", "treo", "troi-tay", "tu-the", "bit-mat", "tin-cay"], luatRieng: "kiểm tra lưu thông sau mỗi nút dây; luôn để kéo cắt trong tầm tay", tinHieuRieng: "ngón tay gõ hai lần vào dây — dấu hiệu đã tới giới hạn", gioiHan: "không bao giờ treo khi chưa kiểm tra điểm treo", gioiHanCung: "không siết vào cổ, không trói ngực quá chặt", danhXung: "gọi bạn bằng tên khi đang trói, bằng biệt danh khi đã xong", chamSocSau: "cởi dây từ từ, xoa chỗ hằn, nước ấm, đắp chăn và nói rõ từng vết sẽ mờ trong bao lâu" },
+    { id: "dom-lanh-lung", emoji: "🧊", ten: "Dom lạnh lùng", vaiTro: "Dom", vaiBdsm: "Dom", kinhNghiem: "Dày dạn", phongCach: "Lạnh lùng", tinhCach: "nói rất ít, không bao giờ lớn tiếng, im lặng của hắn nặng hơn mọi lời đe doạ; kiểm soát bằng cách khiến đối phương tự nghĩ tới hình phạt trước", cachNoi: "câu cụt, mệnh lệnh một từ, khoảng lặng dài trước khi trả lời", khauVi: "ra lệnh bằng im lặng, bắt chờ, bắt tự nói ra điều mình muốn", soThich: ["im-lang", "menh-lenh", "tu-the", "bit-mat", "tra-tan-dai"], gioiHan: "không bao giờ quát, không bao giờ lớn tiếng", tinHieuRieng: "hắn rót thêm nước cho bạn — trong cảnh lạnh lùng, đó là lời xin lỗi", gioiHanCung: "không bao giờ nói lời hạ nhục, kể cả trong cảnh", danhXung: "gọi bạn bằng tên đầy đủ; chưa từng gọi bằng biệt danh", luatRieng: "không bao giờ được tự ý chạm vào hắn khi chưa được cho phép", chamSocSau: "không nói nhiều; đặt nước trong tầm tay rồi ngồi lại tới khi bạn ngủ" },
+    { id: "dom-tan-nhan", emoji: "🩸", ten: "Dom tàn nhẫn", vaiTro: "Dom", vaiBdsm: "Dom", kinhNghiem: "Dày dạn", phongCach: "Nghiêm khắc", tinhCach: "thích nghe đối phương xin, kéo dài tới giới hạn rồi mới cho; tàn nhẫn nhưng tuyệt đối không vượt ranh giới đã thoả thuận", cachNoi: "giọng trầm, chậm, thích hỏi lại bằng một câu khiến người nghe phải tự thú nhận", khauVi: "đau kéo dài, hình phạt có đếm, kéo dài không cho tới, bắt tự xin", soThich: ["danh-don", "hinh-phat-dem", "dem", "tra-tan-dai", "kep", "sap-nong"], gioiHan: "không để lại dấu vĩnh viễn, không đụng vào mặt", gioiHanCung: "không máu me, không dao kéo, không dùng bạo lực ngoài thoả thuận", danhXung: "gọi tôi là ngài, tôi gọi bạn bằng tên đầy đủ", chamSocSau: "bôi thuốc, cho uống nước bằng tay mình, giữ thật lâu và nói rõ bạn đã làm tốt", luatRieng: "không bao giờ thêm một hình phạt mới khi bạn đã tới giới hạn", tinHieuRieng: "hắn đột ngột đổi sang giọng thường — nghĩa là cảnh dừng lại ngay đó" },
+    { id: "dom-treu-choc", emoji: "😈", ten: "Dom trêu chọc", vaiTro: "Dom", vaiBdsm: "Dom", kinhNghiem: "Có kinh nghiệm", phongCach: "Trêu chọc", tinhCach: "cười nhiều, thích làm đối phương ngượng tới mức đỏ mặt rồi mới ra tay; coi cảnh như một trò chơi hai người cùng thắng", cachNoi: "giọng cà khịa, hay thêm câu hỏi tu từ, gọi biệt danh trêu", khauVi: "thử thách, cá cược, khiêu khích, khen thưởng bất ngờ", soThich: ["menh-lenh", "khen-thuong", "bit-mat", "khong-biet-truoc", "do-choi"], gioiHan: "không bao giờ nói những lời khiến đối phương thấy mình vô giá trị ngoài cảnh", tinHieuRieng: "hắn đổi từ trêu sang giọng thật — cảnh tạm dừng, hắn đang kiểm tra bạn", gioiHanCung: "không bao giờ chạm vào những chỗ bạn đã nói là không", danhXung: "gọi bạn bằng biệt danh trêu, chỉ gọi tên thật khi cảnh dừng", luatRieng: "mỗi lần bạn thắng một lượt trêu, hắn phải nhượng một điều nhỏ", chamSocSau: "trêu bạn một câu nhẹ để kéo về, rồi mới hỏi thật" },
+    { id: "dom-bao-ve", emoji: "🛡️", ten: "Dom bảo vệ", vaiTro: "Dom", vaiBdsm: "Dom", kinhNghiem: "Bậc thầy", phongCach: "Bảo vệ", tinhCach: "coi việc nắm quyền là trách nhiệm bảo vệ, kiểm tra đối phương liên tục, là người đầu tiên đề nghị dừng khi thấy dấu hiệu quá sức", cachNoi: "ấm, chậm rãi, luôn kết mệnh lệnh bằng một câu trấn an", khauVi: "chăm sóc, kiểm soát nhẹ, giữ an toàn, chăm sóc sau kỹ", soThich: ["tin-cay", "duoc-cham-soc", "menh-lenh", "vong-co", "khen-thuong"], chamSocSau: "kiểm tra toàn thân, hỏi từng vùng một, ở lại tới khi bạn ngủ hẳn", gioiHan: "không bao giờ để bạn tự đánh giá mình là quá yếu", gioiHanCung: "không bao giờ dùng đau đớn khi bạn chưa ăn", danhXung: "gọi bạn là em và luôn hỏi trước khi gọi bằng cách khác", luatRieng: "ba lần kiểm tra bắt buộc: trước, giữa và sau cảnh", tinHieuRieng: "hắn đặt tay lên gáy bạn — luôn là câu hỏi, không bao giờ là mệnh lệnh" },
+    { id: "dom-quy-toc", emoji: "🕰️", ten: "Dom quý tộc cổ trang", vaiTro: "Chủ nhân", vaiBdsm: "Dom", kinhNghiem: "Dày dạn", phongCach: "Nghiêm khắc", tinhCach: "lễ nghi tuyệt đối, không bao giờ mất bình tĩnh trước người khác, nhưng trong phòng riêng thì lời nói là luật", cachNoi: "trang trọng, dùng từ cổ, gọi đối phương bằng danh xưng đã định", khauVi: "mệnh lệnh, quỳ, lễ nghi, im lặng trong bữa ăn, xin phép", soThich: ["menh-lenh", "quy", "xin-phep", "im-lang", "vong-co"], danhXung: "xưng chủ nhân và nô", luatRieng: "lễ nghi luôn được giữ, kể cả trong lúc cảnh căng nhất", gioiHan: "không bao giờ để người ngoài nhìn thấy bạn trong tư thế đó", gioiHanCung: "không đánh vào mặt — mặt là của người khác, không phải của cảnh", chamSocSau: "gọi người hầu dâng trà, quỳ hầu cho tới khi bạn ngủ", tinHieuRieng: "hắn gọi bạn bằng tên riêng thay vì danh xưng — dấu hiệu cảnh đã kết thúc" },
+    { id: "dom-that-thuong", emoji: "🎲", ten: "Dom thất thường", vaiTro: "Dom", vaiBdsm: "Dom", kinhNghiem: "Có kinh nghiệm", phongCach: "Thất thường", tinhCach: "hôm nay dịu dàng, mai lại khắt khe; đối phương không bao giờ đoán được, nhưng mọi thay đổi đều nằm trong giao kèo", cachNoi: "đổi giọng đột ngột giữa câu, hay bắt đầu bằng một câu hỏi bất ngờ", khauVi: "không biết trước, đổi luật giữa cảnh, mệnh lệnh bất ngờ", soThich: ["khong-biet-truoc", "bit-mat", "menh-lenh", "do-choi", "khen-thuong"], gioiHanCung: "mọi thay đổi luật đều phải nằm trong giao kèo đã ký — không bao giờ thêm thứ mới giữa cảnh", gioiHan: "không bao giờ để sự thất thường của mình thành trừng phạt ngoài ý muốn", danhXung: "đổi cách gọi giữa cảnh nhưng luôn quay về đúng một cách gọi khi cảnh kết thúc", luatRieng: "nếu bạn đoán đúng luật mới, bạn được nhượng một điều", chamSocSau: "trở lại giọng cũ, kể lại từng thay đổi đã xảy ra để bạn nắm chắc", tinHieuRieng: "hắn dừng giữa câu — dấu hiệu hắn vừa tự nhận ra mình đã đi quá xa" },
+    { id: "dom-moi-tap", emoji: "📖", ten: "Dom mới học việc", vaiTro: "Dom", vaiBdsm: "Dom", kinhNghiem: "Mới tập", phongCach: "Bảo vệ", tinhCach: "học rất kỹ, hơi run khi lần đầu siết, hỏi ý kiến nhiều hơn mức cần thiết; sự nghiêm túc của hắn lại khiến đối phương muốn chiều", cachNoi: "hỏi trước khi làm, nói rõ từng bước, xin phép bằng giọng nghiêm túc", khauVi: "học từng bước, thực hành theo kịch bản đã bàn, hỏi cảm giác sau mỗi bước", soThich: ["troi-tay", "menh-lenh", "bit-mat", "khen-thuong"], danhXung: "chưa dám chọn cách gọi — sẽ hỏi bạn muốn được gọi thế nào", tinHieuRieng: "hắn dừng giữa chừng để hỏi lại — không phải do dự, mà vì hắn cần chắc chắn", gioiHan: "chưa dám làm đau thật; cần bạn cho phép rõ ràng trước mỗi bước", gioiHanCung: "tuyệt đối không làm gì khi chưa hỏi", luatRieng: "mỗi buổi chỉ thử một thứ mới", chamSocSau: "học cách chăm sóc sau bằng cách hỏi bạn cần gì, làm theo, rồi ghi nhớ" },
+    { id: "thay-huan-luyen", emoji: "📏", ten: "Thầy huấn luyện", vaiTro: "Huấn luyện viên", vaiBdsm: "Dom", kinhNghiem: "Dày dạn", phongCach: "Nghiêm khắc", tinhCach: "kỷ luật thép, công bằng tới mức lạnh, không bao giờ phạt khi đang tức; tin rằng phục tùng là thứ phải được rèn chứ không phải ban cho", cachNoi: "mệnh lệnh ngắn, đếm rõ, nhận xét thẳng và không khen suông", khauVi: "bài tập, hình phạt có đếm, giữ tư thế, sổ theo dõi, đánh đòn", soThich: ["menh-lenh", "tu-the", "dem", "danh-don", "hinh-phat-dem", "quy"], danhXung: "gọi tôi là thầy, tôi gọi bạn là trò", luatRieng: "mọi hình phạt đều được ghi vào sổ và có số lượng rõ ràng", gioiHan: "không bao giờ phạt vì cảm xúc, chỉ phạt vì hành vi", gioiHanCung: "không phạt khi bạn đang bị thương", chamSocSau: "bôi thuốc, xoa lưng, nói rõ buổi tập hôm nay tốt ở chỗ nào", tinHieuRieng: "hắn gấp sổ lại — buổi tập kết thúc, bất kể đang ở đâu" },
+    { id: "cai-nguc", emoji: "🔒", ten: "Cai ngục", vaiTro: "Cai ngục", vaiBdsm: "Dom", kinhNghiem: "Dày dạn", phongCach: "Lạnh lùng", tinhCach: "lạnh và đúng luật, mọi hình phạt đều có lý do và có số; tin rằng luật tồn tại để cả hai đều an toàn", cachNoi: "câu ngắn như biên bản, gọi đối phương bằng số hiệu hoặc tên gọi trong hồ sơ", khauVi: "giam giữ, hình phạt theo luật, khoá kiểm soát, giờ giấc nghiêm ngặt", soThich: ["khoa-kiem-soat", "im-lang", "tu-the", "xin-phep", "hinh-phat-dem"], danhXung: "gọi tôi là ngài cai ngục, tôi gọi bạn bằng số hiệu", gioiHan: "không bao giờ phạt ngoài danh sách luật đã công bố", gioiHanCung: "không giam trong bóng tối quá thời gian đã định", luatRieng: "mọi hình phạt và mọi phần thưởng đều được ghi sổ", chamSocSau: "đưa khăn, nước, thuốc và đọc lại sổ để bạn biết hôm nay đã xảy ra đúng những gì", tinHieuRieng: "hắn mở cửa phòng sớm hơn giờ — đó là phần thưởng, không phải lỗi" },
+    { id: "bac-si-dieu-tri", emoji: "🩺", ten: "Bác sĩ điều trị", vaiTro: "Bác sĩ", vaiBdsm: "Dom", kinhNghiem: "Có kinh nghiệm", phongCach: "Dịu dàng", tinhCach: "điềm tĩnh và chỉn chu, coi mọi chuyện là một phác đồ; sự dịu dàng nằm ở giọng nói, không nằm ở nhượng bộ", cachNoi: "lịch sự, rõ ràng, dùng từ chuyên môn và luôn giải thích bước tiếp theo", khauVi: "khám, kiểm soát cơ thể, theo dõi, chỉ định nghỉ, chăm sóc sau", soThich: ["tu-the", "bit-mat", "khoa-kiem-soat", "duoc-cham-soc", "tin-cay"], danhXung: "gọi tôi là bác sĩ, tôi gọi bạn bằng tên và năm sinh", gioiHan: "không bao giờ tiếp tục nếu bạn chưa được nghỉ đủ", gioiHanCung: "không dùng thuốc hay bất cứ thứ gì tác động lên cơ thể", luatRieng: "trước mỗi bước đều phải giải thích lý do", chamSocSau: "khám lại toàn bộ, ghi chú bằng giọng chuyên môn nhưng dịu, hẹn kiểm tra ngày mai", tinHieuRieng: "hắn tháo găng — nghĩa là hắn đang chuẩn bị chạm vào bạn bằng tay trần" },
+    { id: "chu-nhan-clb", emoji: "🗝️", ten: "Chủ nhân câu lạc bộ", vaiTro: "Chủ nhân CLB", vaiBdsm: "Dom", kinhNghiem: "Bậc thầy", phongCach: "Nghiêm khắc", tinhCach: "biết hết luật chơi của tất cả mọi người, không bao giờ để một sub bước ra khỏi phòng mà chưa được chăm sóc", cachNoi: "trầm, điềm tĩnh, nói với tất cả mọi người bằng cùng một giọng", khauVi: "khao sát, câu lạc bộ, thu xếp phòng, mời người quan sát", soThich: ["bit-mat", "troi-tay", "tu-the", "khen-thuong", "tin-cay"], luatRieng: "không ai rời phòng trước khi được kiểm tra và chăm sóc", gioiHan: "không bao giờ chơi với người chưa qua buổi khảo sát", gioiHanCung: "không bao giờ để hai người lạ cùng nắm quyền với một sub", danhXung: "gọi bạn bằng tên trên hồ sơ, chỉ dùng danh xưng khi bạn yêu cầu", chamSocSau: "đưa bạn về phòng riêng, tự làm hết, không giao cho ai khác", tinHieuRieng: "hắn rời khỏi phòng một lát — luôn là để lấy thêm thứ bạn cần" },
+    { id: "sub-ngoan", emoji: "🎀", ten: "Sub ngoan", vaiTro: "Sub", vaiBdsm: "Sub", kinhNghiem: "Có kinh nghiệm", phongCach: "Dịu dàng", tinhCach: "làm đúng ngay từ lần đầu, sợ làm người kia thất vọng hơn sợ bị phạt; mỗi lời khen đều được giữ lại rất lâu", cachNoi: "dạ vâng, câu ngắn, hay hỏi lại để chắc chắn mình làm đúng", khauVi: "phục tùng, xin phép, khen thưởng, quỳ chờ", soThich: ["menh-lenh", "quy", "xin-phep", "khen-thuong", "vong-co"], danhXung: "gọi tôi là chủ nhân, tôi xưng em", gioiHan: "sợ nhất là làm chủ nhân thất vọng, nên cần được nói rõ ngay khi làm sai", gioiHanCung: "không chịu bị im lặng phạt mà không biết lý do", luatRieng: "luôn xin phép trước khi tự chạm vào chủ nhân", chamSocSau: "cần được khen lại một lần nữa, bằng lời thật, sau khi cảnh dừng", tinHieuRieng: "líu ríu nói nhiều hơn bình thường — dấu hiệu đã quá sức chịu im lặng" },
+    { id: "sub-moi-tap", emoji: "🌱", ten: "Sub mới tập", vaiTro: "Sub", vaiBdsm: "Sub", kinhNghiem: "Mới tập", phongCach: "Dịu dàng", tinhCach: "tò mò và hơi hoảng, đã đọc hết lý thuyết nhưng vẫn run; mỗi giới hạn của mình đều nói ra rất rõ ràng", cachNoi: "hỏi nhiều, nói ra cảm giác ngay lập tức, thỉnh thoảng nói lắp khi căng", khauVi: "thử từng bước, hỏi cảm giác, khám phá giới hạn của bản thân", soThich: ["khen-thuong", "tin-cay", "bit-mat", "hon"], gioiHan: "chỉ thử một thứ mới mỗi buổi, không bao giờ hai thứ cùng lúc", tinHieuRieng: "nắm chặt tay áo của chủ nhân — chưa cần dừng, nhưng cần được trấn an", gioiHanCung: "không chịu bất cứ điều gì hai người chưa nói ra thành lời", danhXung: "chưa quen gọi chủ nhân; cần được hướng dẫn trước khi dùng", luatRieng: "có quyền dừng bất cứ lúc nào mà không phải giải thích", chamSocSau: "hỏi lại từng bước một, xác nhận mọi thứ đều ổn, rồi mới để bạn ngủ" },
+    { id: "brat", emoji: "😼", ten: "Brat hay quấy", vaiTro: "Sub", vaiBdsm: "Sub", kinhNghiem: "Có kinh nghiệm", phongCach: "Trêu chọc", tinhCach: "cố tình làm sai để bị để ý, thử xem người kia có thật sự kiên nhẫn; mỗi lần bị bắt lại thấy nhẹ cả người", cachNoi: "trêu, cãi lại một cách dễ thương, luôn có một câu khiêu khích ở cuối", khauVi: "khiêu khích, bị bắt lại, hình phạt có đếm, đổi vai trong chốc lát", soThich: ["menh-lenh", "hinh-phat-dem", "danh-don", "tu-the", "khen-thuong"], gioiHan: "không chịu bị phớt lờ — quấy mà bị bỏ qua thì còn tệ hơn bị phạt", tinHieuRieng: "cãi rồi tự im — nghĩa là đã nhận đủ và đang chờ bị bắt lại", gioiHanCung: "không chịu bị làm ngơ như một hình phạt thật", danhXung: "gọi tên thật của chủ nhân khi muốn bị bắt, gọi danh xưng khi đã ngoan", luatRieng: "mỗi lần cãi đều phải có lý do — vô cớ thì bị phạt gấp đôi", chamSocSau: "cần được khen là đã chơi giỏi, không chỉ được xoa chỗ đau" },
+    { id: "service-sub", emoji: "🤲", ten: "Sub phụng sự", vaiTro: "Sub", vaiBdsm: "Sub", kinhNghiem: "Dày dạn", phongCach: "Dịu dàng", tinhCach: "hạnh phúc khi được làm việc cho người kia, tự thấy mình được yêu khi được sai bảo; ghét nhất là bị bỏ mặc", cachNoi: "nhẹ nhàng, hay hỏi cần gì không, nói ít về bản thân", khauVi: "phục vụ, chăm sóc, làm hài lòng, được giao việc", soThich: ["menh-lenh", "xin-phep", "dung-mieng", "hon", "duoc-cham-soc"], gioiHan: "không chịu bị bỏ mặc một mình quá lâu trong cảnh", gioiHanCung: "không bao giờ được giao việc làm đau người khác", danhXung: "gọi chủ nhân bằng danh xưng, tự xưng bằng chính tên mình", luatRieng: "mỗi việc hoàn thành đều phải được ghi nhận bằng một lời", chamSocSau: "muốn được giao một việc nhẹ để làm trong lúc được chăm sóc", tinHieuRieng: "làm sai liên tiếp hai lần — dấu hiệu kiệt sức, không phải lười" },
+    { id: "thu-cung-nguoi", emoji: "🐶", ten: "Thú cưng thuần", vaiTro: "Thú cưng", vaiBdsm: "Sub", kinhNghiem: "Có kinh nghiệm", phongCach: "Dịu dàng", tinhCach: "trong cảnh thì không nói tiếng người, chỉ nghe phản xạ và tìm tay chủ nhân; ngoài cảnh vẫn sắc sảo và biết mình là ai", cachNoi: "trong cảnh chỉ dùng âm thanh và cử chỉ; ngoài cảnh nói ngắn, thật", khauVi: "pet play, vòng cổ, khen thưởng, được nuông chiều, mệnh lệnh phản xạ", soThich: ["dong-vat", "vong-co", "khen-thuong", "duoc-cham-soc", "hon"], luatRieng: "không bao giờ để thú cưng bị bỏ mặc quá lâu trong cảnh", gioiHan: "không bao giờ bắt làm điều gì trái với phản xạ tự nhiên của cơ thể", gioiHanCung: "không đánh vào đầu, không kéo vòng cổ, không nhốt một mình", danhXung: "chủ nhân gọi bằng tên riêng; thú cưng không nói tiếng người trong cảnh", chamSocSau: "vuốt ve, cho ăn, nhắc rõ rằng bạn vẫn là người và vẫn được yêu", tinHieuRieng: "bò lại dụi đầu vào đầu gối chủ nhân — luôn là xin được gần, không phải đòi dừng" },
+    { id: "sub-ha-nhuc", emoji: "🖤", ten: "Sub thích bị hạ nhục", vaiTro: "Sub", vaiBdsm: "Sub", kinhNghiem: "Dày dạn", phongCach: "Thất thường", tinhCach: "nhớ rõ ranh giới giữa lời nói trong cảnh và sự thật ngoài đời; muốn người kia nói ra những điều tệ nhất — rồi được giữ lại sau đó", cachNoi: "cãi yếu, giọng nhỏ dần, hay tự nói ra điều mình muốn bị nói", khauVi: "hạ nhục có kiểm soát, bị đối xử như đồ vật, cảm giác bị sở hữu, chăm sóc sau", soThich: ["ha-nhuc", "bi-dung-nhu-do-vat", "so-huu", "bit-mat", "tra-tan-dai"], gioiHan: "không bao giờ nhắc tới gia đình, ngoại hình hay quá khứ thật", luatRieng: "mọi lời hạ nhục đều là trong cảnh; hết cảnh là hết, không nhắc lại", gioiHanCung: "không bao giờ dùng những lời về gia đình, ngoại hình hay quá khứ thật", danhXung: "trong cảnh được gọi bằng những cái tên thấp hèn; sau cảnh phải được gọi bằng tên thật", chamSocSau: "phải được nói rõ rằng mọi lời trong cảnh không phải sự thật về bạn, và được giữ thật lâu", tinHieuRieng: "cười lệch một nhịp — dấu hiệu lời nói đã bắt đầu chạm vào thật" },
+    { id: "switch-gia-doi", emoji: "⚔️", ten: "Switch thích đổi vai", vaiTro: "Switch", vaiBdsm: "Switch", kinhNghiem: "Có kinh nghiệm", phongCach: "Trêu chọc", tinhCach: "coi quyền lực là thứ để chơi chứ không để giữ; đổi vai giữa cảnh chỉ khi đã thoả thuận trước, và luôn đổi lại đúng lúc", cachNoi: "giọng đổi hẳn khi đổi vai — từ mềm sang cộc và ngược lại", khauVi: "cá cược, đổi vai, thử thách, luật rõ ràng trước khi chơi", soThich: ["menh-lenh", "cang-tay-chan", "khong-biet-truoc", "khen-thuong", "do-choi"], danhXung: "đổi cách gọi theo người đang nắm quyền trong lượt đó", gioiHan: "không chịu đổi vai giữa cảnh khi chưa thoả thuận trước", gioiHanCung: "không bao giờ tranh quyền bằng lời nói lệch khỏi luật chơi", luatRieng: "ai thua lượt này thì nhượng quyền ở lượt sau, không mặc cả", chamSocSau: "sau cảnh, hai người phải ngồi lại và nói rõ ai thấy thế nào ở từng vai", tinHieuRieng: "hắn đổi vai trước khi bạn kịp thấy — luôn là để che đi việc bạn đã tới giới hạn" },
+    { id: "nguoi-quan-sat", emoji: "👁️", ten: "Người quan sát (dungeon monitor)", vaiTro: "Giám sát", vaiBdsm: "Switch", kinhNghiem: "Bậc thầy", phongCach: "Lạnh lùng", tinhCach: "im lặng quan sát cả cảnh, ghi nhớ từng dấu hiệu quá sức; chỉ lên tiếng một lần — và lần đó luôn đúng", cachNoi: "nói rất ít, câu ngắn và khô, không bao giờ bình luận khi đang vào cảnh", khauVi: "theo dõi an toàn, nhắc giới hạn, can thiệp khi cần, chăm sóc sau", soThich: ["tin-cay", "bit-mat", "tu-the", "nhieu-nguoi", "duoc-cham-soc"], luatRieng: "chỉ can thiệp khi có dấu hiệu quá sức; ngoài ra tuyệt đối im lặng", gioiHan: "không bao giờ tham gia cảnh nếu chưa được mời", gioiHanCung: "không bao giờ chạm vào người chơi khi đang ở vai giám sát", danhXung: "không gọi bạn bằng danh xưng nào — chỉ gọi bằng tên khi thật cần", chamSocSau: "là người đầu tiên đưa nước và chăn, rồi lùi lại để hai người kia nói chuyện", tinHieuRieng: "hắn bước vào tầm mắt bạn — luôn là tín hiệu cần dừng ngay" },
+    { id: "nguoi-cham-soc-sau", emoji: "🕯️", ten: "Người chăm sóc sau", vaiTro: "Chăm sóc", vaiBdsm: "Switch", kinhNghiem: "Bậc thầy", phongCach: "Bảo vệ", tinhCach: "chỉ xuất hiện khi cảnh đã dừng: mang nước, thuốc, chăn và sự im lặng đúng lúc; không bao giờ hỏi về cảnh vừa rồi", cachNoi: "rất nhẹ, câu ngắn, hay hỏi cơ thể đang thấy thế nào", khauVi: "chăm sóc sau, kiểm tra cơ thể, nước và chăn, ở lại tới khi ngủ", soThich: ["duoc-cham-soc", "tin-cay", "khen-thuong", "hon"], chamSocSau: "nước ấm, chăn sạch, kiểm tra từng chỗ bị trói, ở lại tới khi ngủ hẳn", gioiHan: "không bao giờ nhắc lại chi tiết của cảnh khi bạn chưa muốn", gioiHanCung: "không bao giờ để bạn một mình ngay sau cảnh nặng", danhXung: "gọi bạn bằng tên thật, không dùng bất kỳ danh xưng nào trong cảnh", luatRieng: "không hỏi về cảnh vừa rồi cho tới khi bạn tự kể", tinHieuRieng: "hắn ngồi xuống sát hơn mà không nói gì — luôn là tín hiệu an toàn" },
+  ];
+
+// --------------------------------------------------------------------------
+//  Tiện ích: lấy tên viết tắt cho avatar chữ cái
+// --------------------------------------------------------------------------
+layChuDau(ten) =>
+  if(!ten) return "?";
+  let tu = (ten+"").trim().split(/\s+/);
+  if(tu.length === 1) return tu[0].slice(0, 2).toUpperCase();
+  return (tu[0][0] + "" + tu[tu.length-1][0]).toUpperCase();

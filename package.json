@@ -1,0 +1,14 @@
+{
+  "name": "truyen-vai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Truyện Vai — bộ kiểm thử hai tầng (Node + trình duyệt) của generator perchance.org/phufantasyroleplay",
+  "scripts": {
+    "test": "node --test tests/node/",
+    "test:gioi-han": "node --test tests/node/ai-parse.test.mjs tests/node/store.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
