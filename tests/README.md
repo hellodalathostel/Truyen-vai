@@ -47,6 +47,7 @@ tách ra từ `app.js`:
     src/ui/tuyChonTruyen/tuyChonTruyenFlow.js  logic THUẦN — ngưỡng, nhãn nút, chụp/khôi phục
     src/ui/lorebook/index.js      vỏ màn "Sổ tri thức"
     src/ui/lorebook/lorebookFlow.js  logic THUẦN — parse/xếp/lọc mục lore, có test Node
+    src/ui/vietTruyen/vietTruyenFlow.js  logic THUẦN — nguồn, chia lô, nén prose (Giai đoạn 8)
     src/ui/suKien/index.js        gopBangSuKien(D) + BANG_CON — gộp 7 bảng sự kiện
     src/ui/suKien/*.js            mỗi tệp MỘT bảng "data-act" ⇒ hàm xử lý (theo tính năng)
     src/ui/cong18.js              cửa 18+ DÙNG CHUNG: câu chữ + ai được ghi cờ (THUẦN)
@@ -480,6 +481,32 @@ tăng khi có mục `MIGRATION_TRUYEN` + đường chuẩn hoá (ràng buộc gh
 
 **Kiểm chứng Đợt 1:** tầng Node **23 tệp · 5 500 khẳng định · 0 không đạt** (mốc 7a: 5 437). Tầng
 trình duyệt: xem mục "Kiểm chứng Giai đoạn 8" bên dưới (chạy lại đầy đủ trước khi đóng gói).
+
+**Đợt 2 — logic THUẦN: chọn nguồn · chia lô · nén prose (đã xong, đã kiểm chứng):**
+
+| Việc | Ở đâu |
+|---|---|
+| `layNguonVietTruyen(story, hoiThoaiId, loaiNguon, tinNhan)` — lọc `vai` theo `luc`, cảnh khép theo `huy`/`htIds` | `src/ui/vietTruyen/vietTruyenFlow.js` |
+| `chiaLoNguon(doanNguon, gioiHanKyTu)` — chia lô, cắt đoạn quá dài ở ranh giới câu, **không mất chữ** | nt |
+| `gioiHanKyTuChoLo(countTokens, idealMaxTokens, mauDo)` — ngân sách ký tự **đo** từ `countTokens` | nt |
+| `canNenProse` / `cutProseGiuMachVan` / `phanDauProseCanNen` — mốc 0,6 và phần cuối giữ nguyên | nt |
+| Ca Node (24 tệp, **165 khẳng định** riêng tệp này) | `tests/node/vietTruyenFlow.test.mjs` |
+
+Ba điểm cần nhớ khi sửa tệp đó:
+
+- **Tin nhắn là tham số, không nằm trong `story`.** Log thô nằm ở kv riêng (`tinNhan`) nên phải truyền
+  vào — cùng quy ước `buildLog(story, conv, messages)` của `ai.js`. Quên truyền ⇒ nguồn rỗng chứ
+  không ném lỗi.
+- **Không có hằng số ký tự nào bị đóng cứng.** Ngân sách một lô = `0,4 × idealMaxTokens()` (token) ×
+  tỉ lệ ký tự/token ĐO trên chính văn bản nguồn; đổi bộ đếm token là ngưỡng tự đổi. Tỉ lệ dự phòng
+  3,6 chỉ dùng khi không đo được, và nó bằng đúng mặc định của `countTokens` trong `ai.js`.
+- **Chia lô phải chứng minh KHÔNG mất chữ**: ca kiểm so `Σ ký tự các mảnh = Σ ký tự nguồn`, mọi lô
+  ≤ ngưỡng (tính cả 2 ký tự nối `"\n\n"`), và nối mọi mảnh ra đúng chuỗi gốc — với cả ngưỡng 1 ký tự
+  và đoạn không có dấu câu (phải cắt thẳng thay vì để lô vượt ngưỡng). Đối chứng âm: đoạn LẶP ở hai
+  chỗ vẫn phải là **hai** đoạn (chặn lỗi gộp/khử trùng làm mất một đoạn của người dùng).
+
+**Kiểm chứng Đợt 2:** tầng Node **24 tệp · 5 683 khẳng định · 0 không đạt** (Đợt 1: 23 tệp ·
+5 500).
 
 ## Thêm một bộ kiểm thử
 

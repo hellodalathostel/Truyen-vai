@@ -106,7 +106,7 @@ const TEP_NODE = [
   "prompt.test.mjs",
   "schema.test.mjs", "store.test.mjs", "suaNgoaiHinhFlow.test.mjs", "suKien.test.mjs", "taoAnhFlow.test.mjs",
   "taoTruyenFlow.test.mjs",
-  "thoiGian.test.mjs", "trangThai.test.mjs", "tuyChonTruyenFlow.test.mjs",
+  "thoiGian.test.mjs", "trangThai.test.mjs", "tuyChonTruyenFlow.test.mjs", "vietTruyenFlow.test.mjs",
 ];
 const TEP_FIXTURE = ["ke-hoach.mjs", "phien-ban-cu.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
 // Snapshot prompt (Giai đoạn 7a): 3 truyện mẫu × 5 lượt + mốc prefix-cache. Nằm trong thư mục

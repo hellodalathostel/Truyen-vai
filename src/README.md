@@ -1724,6 +1724,22 @@ Thiết kế (chốt với chủ dự án; làm theo 5 đợt, mỗi đợt DỪ
   migration v8, `buocCanChay`, idempotent cho v8, báo lỗi hình dạng), `nhap.test.mjs` (id mới +
   dịch tham chiếu + giữ nội dung), `gd4.test.mjs` (mốc phiên bản toàn dự án).
 
+### Đợt 2 — logic THUẦN: chọn nguồn · chia lô · nén prose (đã xong)
+
+Tệp mới `src/ui/vietTruyen/vietTruyenFlow.js` — **0 import**, mọi phụ thuộc truyền vào:
+
+| Hàm | Việc |
+|---|---|
+| `layNguonVietTruyen(story, hoiThoaiId, loaiNguon, tinNhan)` | Nguồn để viết: log thô (chỉ `vai` là `nguoi`/`ai`, theo `luc` tăng dần; tin nhắn nằm ở kv riêng nên TRUYỀN VÀO — cùng quy ước `buildLog`) hoặc `tomTat` của cảnh đã khép (`huy !== true`, khớp `htId` **hoặc** `htIds`). Bỏ đoạn không có chữ. |
+| `chiaLoNguon(doanNguon, gioiHanKyTu)` | Chia nguồn thành các lô vừa một lượt gọi AI. Đoạn dài hơn ngưỡng bị cắt nhỏ tại ranh giới câu/đoạn (cắt thẳng là phương án cuối) và **giữ nguyên từng ký tự**. |
+| `gioiHanKyTuChoLo(countTokens, idealMaxTokens, mauDo)` | Ngân sách ký tự một lô = `0,4 × idealMaxTokens()` token × tỉ lệ ký tự/token **ĐO trên chính văn bản nguồn**. Không có số ký tự nào bị đóng cứng; không đo được thì dùng tỉ lệ mặc định (bằng mặc định của `countTokens` trong `ai.js`). |
+| `canNenProse(proseDaViet, idealMaxTokens, countTokens)` | Prose đã viết có vượt **0,6** ngân sách token (không phải ký tự) không. |
+| `cutProseGiuMachVan(proseDaViet, tyLeGiuCuoi)` · `phanDauProseCanNen(...)` | Phần cuối giữ nguyên (~20%, cắt ở ranh giới đoạn ⇒ câu ⇒ cắt thẳng, luôn là **đuôi nguyên văn**) và phần đầu đem đi nén; hai phần ghép lại đúng bằng prose. |
+
+Ca Node: `tests/node/vietTruyenFlow.test.mjs` (**165 khẳng định**). Ba bất biến được ghim: tổng ký tự
+các lô = tổng ký tự nguồn (thử cả ngưỡng 1 ký tự) · mọi lô ≤ ngưỡng (tính cả 2 ký tự nối `"\n\n"`) ·
+đoạn LẶP ở hai chỗ vẫn là hai đoạn (đối chứng âm chống gộp/khử trùng).
+
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 
 Đã sửa xong toàn bộ P0 và P1, cùng phần lớn P2. Ghi lại để lần sau không sửa lại
