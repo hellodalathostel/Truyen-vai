@@ -95,12 +95,16 @@ function giaTriTruong(text, truong) {
 }
 
 const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "schema.js", "store.js", "thoiGian.js", "trangThai.js"];
+// Tầng giao diện tách riêng (Giai đoạn 6): `src/ui/**`. Lõi KHÔNG bao giờ import ngược
+// vào đây — có ca "DAG" ở cuối tệp ghim luật đó.
+const MODULE_UI_GOC = "src/ui";
 const TEP_NODE = [
   "ai-parse.test.mjs", "dom.test.mjs", "gd4.test.mjs", "goi-chung.test.mjs", "khong-ro-ri.test.mjs",
-  "lore.test.mjs", "ngoaiHinh.test.mjs", "schema.test.mjs", "store.test.mjs", "thoiGian.test.mjs", "trangThai.test.mjs",
+  "lore.test.mjs", "ngoaiHinh.test.mjs", "schema.test.mjs", "store.test.mjs", "taoAnhFlow.test.mjs",
+  "thoiGian.test.mjs", "trangThai.test.mjs",
 ];
 const TEP_FIXTURE = ["ke-hoach.mjs", "phien-ban-cu.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
-const SRC_CHO_PHEP = MODULE_SRC.concat(["styles.css", "README.md", "CONTEXT.md"]);
+const SRC_CHO_PHEP = MODULE_SRC.concat(["styles.css", "README.md", "CONTEXT.md", "ui"]);
 const GOC_CHO_PHEP = ["main.pjs", "index.html", "package.json", "README.md", "LICENSE", ".git", ".gitignore", ".github", "src", "tests"];
 
 // Chạy một ca có cần đọc tệp; tự bỏ qua khi môi trường không đọc được tệp.
@@ -199,8 +203,16 @@ ca("cổng an toàn tuổi của Giai đoạn 1 còn nguyên trong mã", async (
   ok(ai.indexOf("KHUNG HÌNH AN TOÀN") < 0, "ai.js đã bỏ hẳn khung hình an toàn");
   ok(ai.indexOf("function laKhongCo") >= 0, "ai.js còn bộ nhận biết mục rỗng");
   const app = await bd.doc("src/app.js");
-  ok(app.indexOf("chanViChuaXacNhan") >= 0, "app.js còn cổng chặn tạo ảnh khi chưa xác nhận");
   ok(app.indexOf("xacNhan18Plus") >= 0, "app.js còn hàm xác nhận 18+");
+  // Cổng chặn tạo ảnh khi chưa xác nhận: từ Giai đoạn 6 nó nằm ở tầng giao diện tạo ảnh
+  // (`src/ui/taoAnh/`). Phải còn cả TÊN HÀM, cả câu giải thích, và chỉ MỘT chỗ định nghĩa
+  // dùng chung cho mọi đường vào màn tạo ảnh.
+  const dung = await bd.doc("src/ui/taoAnh/taoAnhDung.js");
+  const demGoi = dung.split("chanViChuaXacNhan").length - 1;
+  ok(demGoi >= 3, "còn cổng chặn tạo ảnh khi chưa xác nhận, gọi ở cả hai đường (" + demGoi + " lần)");
+  const flow = await bd.doc("src/ui/taoAnh/taoAnhFlow.js");
+  ok(flow.indexOf("nvChuaXacNhanChoTaoAnh") >= 0, "quyết định cổng nằm ở tầng logic thuần");
+  ok(flow.indexOf("chưa được xác nhận là người trưởng thành") >= 0, "còn câu giải thích cách sửa");
   const store = await bd.doc("src/store.js");
   ok(store.indexOf("xacNhanMoiNguoiLon") >= 0, "store.js còn hàm xác nhận người lớn");
   ok(store.indexOf("dauHieuViThanhNien") >= 0, "store.js còn bộ dò dấu hiệu vị thành niên");
@@ -295,4 +307,123 @@ ca("đường nạp dữ liệu đi qua MỘT cửa vào duy nhất (migrate/nap
   ok(app.indexOf('napBanGhi(messages[c.id] || [], "tin-nhan", c.id)') >= 0, "app.js: tin nhắn trong file nhập đi qua napBanGhi");
   ok(app.indexOf('napBanGhi(raw, "truyen", "", { choNhap: true, dongY18:') >= 0, "app.js: nhập truyện đi qua napBanGhi kèm choNhap + xác nhận 18+");
   ok(app.indexOf("chuanHoaTruyen(") < 0, "app.js KHÔNG gọi thẳng chuanHoaTruyen (sẽ bỏ qua kiểm hình dạng)");
+});
+
+// ---------------------------------------------------------------- tầng giao diện src/ui/
+// Mọi đường dẫn module trong một tệp — bắt CẢ import một dòng LẪN nhiều dòng (dãy `from "…"`).
+// `dsImport()` ở trên chỉ đọc dòng bắt đầu bằng "import ", nên nó bỏ sót import nhiều dòng;
+// ở đây cần chắc chắn không sót, vì một import ngược chiều lọt lưới là luật DAG đã vỡ.
+function dsDuongDan(text) {
+  const ra = [];
+  for (const dong of String(text).split(NL)) {
+    const i = dong.indexOf("from ");
+    if (i < 0) continue;
+    const q = catNhay(dong.slice(i + 5));
+    if (q.length) ra.push(q[0]);
+  }
+  return ra;
+}
+
+// Mọi tệp .js trong src/ui/ (đi đệ quy: hiện chỉ một tầng thư mục con, nhưng luật phải
+// đúng cả khi sau này có thêm tầng nữa).
+async function dsTepUi(bd) {
+  const ra = [];
+  const di = async (rel) => {
+    let con = [];
+    try {
+      con = await bd.lietKe(rel);
+    } catch (e) {
+      return;
+    }
+    for (const f of con) {
+      if (f.slice(-3) === ".js") ra.push(rel + "/" + f);
+      else await di(rel + "/" + f);
+    }
+  };
+  await di(MODULE_UI_GOC);
+  return ra.sort();
+}
+
+// `./x.js` / `../../y.js` tính từ một tệp nguồn ⇒ đường dẫn tính từ gốc gói.
+function giaiTu(bd, tuTep, spec) {
+  const phan = String(tuTep).split("/");
+  phan.pop();
+  for (const p of String(spec).split("/")) {
+    if (!p || p === ".") continue;
+    if (p === "..") phan.pop();
+    else phan.push(p);
+  }
+  return phan.join("/");
+}
+
+ca("DAG: lõi KHÔNG BAO GIỜ import src/ui (một chiều)", async (bd) => {
+  // `src/ui/*` được import lõi (store/ngoaiHinh/schema/dom/…). Chiều ngược lại là cấm:
+  // một import ngược sẽ kéo DOM vào tầng thuần và làm `src/ui` không còn tách ra được.
+  for (const m of MODULE_SRC) {
+    if (m === "app.js") continue; // app.js là vỏ nối giao diện — xem ca dưới
+    const text = await bd.doc("src/" + m);
+    for (const s of dsDuongDan(text)) ok(s.indexOf("ui/") < 0, "src/" + m + " KHÔNG được import src/ui: " + s);
+  }
+  // app.js là tệp lõi DUY NHẤT được nối vào tầng giao diện (nó là vỏ của app).
+  const app = await bd.doc("src/app.js");
+  ok(app.indexOf('from "./ui/') >= 0, "app.js là vỏ nối vào src/ui/");
+  const ui = await dsTepUi(bd);
+  ok(ui.length >= 5, "đọc được các tệp src/ui (" + ui.length + " tệp)");
+  ok(ui.indexOf("src/ui/taoAnh/taoAnhFlow.js") >= 0, "có tệp logic thuần của màn tạo ảnh");
+  ok(ui.indexOf("src/ui/taoAnh/index.js") >= 0, "có điểm vào của màn tạo ảnh");
+});
+
+ca("import trong src/ui/ đều tương đối và trỏ đúng tệp có thật", async (bd) => {
+  const ui = await dsTepUi(bd);
+  let soImport = 0;
+  for (const f of ui) {
+    const text = await bd.doc(f);
+    for (const s of dsDuongDan(text)) {
+      soImport += 1;
+      const noiBo = s.indexOf("./") === 0;
+      const lenLoi = s.indexOf("../../") === 0;
+      ok(noiBo || lenLoi, f + " chỉ import trong cùng thư mục hoặc lên lõi: " + s);
+      if (noiBo || lenLoi) ok(await bd.co(giaiTu(bd, f, s)), f + " trỏ đúng tệp: " + s);
+    }
+  }
+  ok(soImport >= 10, "đọc được import của src/ui/ (" + soImport + " dòng)");
+});
+
+ca("màn tạo ảnh: logic thuần nằm ở src/ui, KHÔNG ở app.js", async (bd) => {
+  // Sau khi tách (Giai đoạn 6), `openTaoAnh` trong app.js chỉ còn là vỏ ngắn. Nếu ai đó
+  // viết lại thân màn tạo ảnh vào app.js thì vỏ sẽ phình ra — ca này bắt đúng lúc đó.
+  const app = await bd.doc("src/app.js");
+  const i = app.indexOf("async function openTaoAnh(opts = {}) {");
+  ok(i >= 0, "app.js còn định nghĩa openTaoAnh (vỏ)");
+  const than = app.slice(i, app.indexOf("\n}\n", i) + 3);
+  const soDong = than.split(NL).length;
+  ok(soDong <= 150, "openTaoAnh ≤ 150 dòng (đang " + soDong + " dòng)");
+  ok(than.indexOf("moTaoAnh(opts, TAO_ANH_DEPS)") >= 0, "vỏ gọi thẳng vào src/ui/taoAnh");
+  ok(app.indexOf("const TAO_ANH_DEPS = {") >= 0, "có bảng phụ thuộc tường minh");
+});
+
+ca("không hàm nào trong src/ui/ dài quá 150 dòng", async (bd) => {
+  // Cùng luật 150 dòng với `openTaoAnh`, nhưng áp cho MỌI hàm của tầng giao diện — kể cả
+  // hàm con bên trong từng tệp. Không dùng regex: chỉ tìm dòng khai báo ở cột 0 và dòng
+  // đóng `}` ở cột 0, đúng quy ước trình bày của dự án.
+  const ui = await dsTepUi(bd);
+  let soHam = 0;
+  for (const f of ui) {
+    const dong = String(await bd.doc(f)).split(NL);
+    for (let i = 0; i < dong.length; i++) {
+      const t = dong[i];
+      const laKhaiBao =
+        t.indexOf("function ") === 0 ||
+        t.indexOf("export function ") === 0 ||
+        t.indexOf("async function ") === 0 ||
+        t.indexOf("export async function ") === 0;
+      if (!laKhaiBao) continue;
+      soHam += 1;
+      let j = i + 1;
+      while (j < dong.length && dong[j] !== "}") j += 1;
+      const soDong = (j < dong.length ? j : dong.length - 1) - i + 1;
+      ok(soDong <= 150, f + " · " + t.slice(0, 56) + " · " + soDong + " dòng");
+    }
+  }
+  ok(soHam >= 6, "đếm được hàm trong src/ui/ (" + soHam + " hàm)");
 });

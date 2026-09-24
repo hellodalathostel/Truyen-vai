@@ -162,6 +162,20 @@ test("phép quét token: bắt đúng dạng id thật, bỏ qua id test và t�
 ca("mặt hàng phát hành (src/, main.pjs, index.html) không có id dữ liệu chạy", async (bd) => {
   const tep = [];
   for (const m of MODULE_SRC) tep.push("src/" + m);
+  // Tầng giao diện tách riêng (Giai đoạn 6) cũng là mặt hàng phát hành ⇒ cùng luật.
+  const themUi = async (rel) => {
+    let con = [];
+    try {
+      con = await bd.lietKe(rel);
+    } catch (e) {
+      return;
+    }
+    for (const f of con) {
+      if (f.slice(-3) === ".js") tep.push(rel + "/" + f);
+      else await themUi(rel + "/" + f);
+    }
+  };
+  await themUi("src/ui");
   tep.push("src/styles.css");
   tep.push("src/README.md");
   tep.push("main.pjs");

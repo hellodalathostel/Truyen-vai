@@ -26,6 +26,16 @@ gọi `chayTatCa()` — xem `tests/browser/runner.js` để biết cách đăng 
       browser/runner.js         DANH_MUC + bộ chạy + báo cáo
       README.md                 tệp này
 
+`src/ui/` là **thư mục con DUY NHẤT** có thể có của `src/`, và chỉ chứa thân màn hình
+tách ra từ `app.js`:
+
+    src/ui/taoAnh/index.js        vỏ màn "Dựng ảnh cho cảnh này" (≤ 150 dòng, chỉ nối)
+    src/ui/taoAnh/taoAnhFlow.js   logic THUẦN, KHÔNG DOM — có test ở tầng Node
+    src/ui/taoAnh/taoAnhHtml.js   chuỗi HTML từng khối
+    src/ui/taoAnh/taoAnhChon.js   khu "Nhân vật trong khung hình" + dịch ngoại hình
+    src/ui/taoAnh/taoAnhDung.js   "Viết lại" + "Dựng khung hình" (cổng 18+ ở đây)
+    src/ui/taoAnh/taoAnhLuu.js    "Đưa vào truyện"
+
 ## Luật không được vi phạm
 
 1. **Dữ liệu thật của người dùng không bao giờ được ghi vào bất kỳ tệp nào của gói.**
@@ -59,6 +69,23 @@ gọi `chayTatCa()` — xem `tests/browser/runner.js` để biết cách đăng 
    tiên mỗi phiên, nên nó là *luật + bảng tra*, không phải lịch sử: phần chi tiết thuộc về
    `src/README.md` và `tests/README.md`. Có ca kiểm thử đếm byte bằng `TextEncoder` và đòi các mục
    luật còn nguyên — viết chi tiết dài vào `CONTEXT.md` sẽ làm ca đó đỏ.
+10. **DAG một chiều: lõi KHÔNG BAO GIỜ import `src/ui/*`.** `src/ui/*` **được** import lõi; lõi
+   (`store`, `ai`, `schema`, `trangThai`, `thoiGian`, `ngoaiHinh`, `lore`, `dom`) chỉ được import
+   thứ trong lõi. Chỉ `app.js` — tầng ghép — được phép import `src/ui/*`. Vòng ngược lại biến
+   thư mục con thành mê cung và phá thứ tự nạp. `goi-chung.test.mjs` có ca đệ quy ghim luật này
+   (bỏ qua `app.js`).
+11. **Logic THUẦN của mỗi màn hình phải nằm ở `src/ui/<màn>/…Flow.js` — KHÔNG import DOM** —
+   và **phải có test tầng Node**. Quyết định (chọn gì, cổng 18+, trạng thái nút, dựng prompt,
+   bản ghi để lưu) không được trốn trong tệp HTML/DOM, vì như vậy chỉ kiểm được bằng trình duyệt.
+   Prompt gửi máy vẽ còn phải có **ca snapshot byte-for-byte** trong Node.
+12. **Khi tách hàm khỏi `app.js`: KHÔNG ĐỔI HÀNH VI.** Bằng chứng phải là **byte-for-byte**, không
+   phải "trông giống": script **tất định** (id đặt cứng, AI giả, máy vẽ giả) chạy trên bản CŨ rồi
+   bản MỚI và so HTML/`instruction`/prompt gửi máy vẽ; ảnh chụp phần tử phải giống hệt; ảnh chụp
+   cả trang lệch vài pixel jitter khử răng cưa thì chấp nhận (phải soi lại bằng mắt/crop).
+   Hàm **vỏ** ở lại `app.js` phải ≤ 150 dòng và nối qua một bảng `*_DEPS` tường minh — nhưng bảng
+   đó chỉ chứa hàm **còn lại của app**; mọi thứ khác lấy thẳng từ lõi. Đừng biến nó thành túi đồ
+   nghề chung. Luật 150 dòng áp cho **mọi** hàm trong `src/ui/**`, kể cả hàm con bên trong tệp, và
+   `goi-chung.test.mjs` đếm cả chúng.
 
 ## Biết trước (khiếm khuyết đã biết)
 
@@ -144,6 +171,26 @@ không có trường `phienBan` rồi v1…v7; hồ sơ; tin nhắn; ảnh). M�
 trường mà phiên bản đó chưa có — và có ca kiểm thử khẳng định `khongCo` đúng, nên fixture không
 thể "phản ánh sai" hình dạng cũ. **Toàn bộ là dữ liệu tổng hợp** (id ngắn, tên `zz…`), không lấy
 một byte nào từ dữ liệu thật.
+
+### Bộ Giai đoạn 6 (thí điểm tách `openTaoAnh` → `src/ui/taoAnh/`)
+
+Giai đoạn 6 **chỉ** tách màn tạo ảnh; các màn khác chưa đụng. Bộ kiểm thử trình duyệt **không
+thêm ca nào** cho giai đoạn này — đó chính là bằng chứng: `1077/1077 ca · 31 bộ, 0 cảnh báo`,
+y như trước khi tách, trên **cùng** dữ liệu thật không đổi một byte.
+
+| Tệp Node | Phủ gì |
+|---|---|
+| `taoAnhFlow.test.mjs` (66 khẳng định) | Logic thuần của màn tạo ảnh, **không cần DOM**: `chonHoSo`/`nhanDienTrongKhung`/`hoSoHienChip`/`hoSoConLai`/`thaoTacChip` (ai hiện chip, ai bị ẩn, thêm/bỏ tay thắng nhận diện tự động), `nvChuaXacNhanChoTaoAnh` + `loiChanTaoAnh` (**cổng 18+** — nhân vật vị thành niên chưa xác nhận thì chặn, và chặn cả khi dựng LẪN khi lưu), `nutTaoAnh` (trạng thái nút theo `busy`/`coAnh`), `promptGuiMayVe`/`loaiTruGuiMayVe`/`kichThuocNen` (**snapshot byte-for-byte**: prompt mẫu 469 B), `xuLyKetQuaMayVe`, `thongSoBanGhiAnh` |
+
+`goi-chung.test.mjs` thêm **4 ca** (xem luật 10, 11, 12 ở trên — ca thứ tư đếm số dòng của **mọi**
+hàm trong `src/ui/**`, kể cả hàm con); `khong-ro-ri.test.mjs` nay quét **đệ quy** `src/ui/**` để tệp
+mới không lọt lưới soát id/tên thật.
+
+Ghi chú kiểm chứng: `src/ui/` được Perchance phục vụ **đúng byte** (6/6 tệp `fetch` → HTTP 200,
+kể cả đường dẫn lồng `ui/taoAnh/…`) — nhưng tầng phục vụ `src/` của nền tảng **luôn đi qua service
+worker**, nên từ trong editor **không thể** chứng minh "không qua SW" (gọi vòng qua SW trả 404
+`"No src manifest available for this page"` dù generator đã lưu). Cái kiểm được là resolver xử lý
+đúng đường dẫn lồng và trả đúng byte.
 
 ## Thêm một bộ kiểm thử
 

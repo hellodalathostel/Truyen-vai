@@ -1081,8 +1081,9 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 **NGUỒN SỰ THẬT: repo GitHub `https://github.com/hellodalathostel/Truyen-vai`.** Tải repo là
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
-**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):**
-`https://user.uploads.dev/file/29c20b8b44adbddd616bca6b2fbef024.zip`
+**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Giai đoạn 5**
+`https://user.uploads.dev/file/6d32cb23b2b5d3fdb6c28bea8b310f16.zip` (Giai đoạn 4:
+`https://user.uploads.dev/file/29c20b8b44adbddd616bca6b2fbef024.zip`).
 
 - Tầng Node: `npm test` (không cần trình duyệt, không tốn quota, chạy trên CI).
 - Tầng trình duyệt: mở generator rồi nạp `tests/browser/runner.js` và gọi `chayTatCa()`.
@@ -1308,6 +1309,85 @@ liệu thật không đổi một byte** và `localStorage["truyenVai.caiDat"]` 
 `set_viewport_size({ width: 1100, height: 820 })` trước khi chạy tầng trình duyệt. Bộ `phu` (ca AI
 THẬT, soi bố cục, dò lỗi) **không** chạy mặc định nên đừng lấy làm tiêu chuẩn nghiệm thu. Nguồn
 các bộ kiểm thử được **tiêm sẵn** vào `window.__tvNguon[<tên>]` (vì `tests/` không nằm trong `src/`).
+
+### Giai đoạn 6 — thí điểm tách `openTaoAnh` (tháng 9/2026)
+
+Kế hoạch 7 giai đoạn đòi **không hàm nào > 150 dòng**. Giai đoạn 5 đã kéo `openTaoAnh`
+lên **566 dòng** — đó là hàm dài nhất app. Giai đoạn 6 làm **một thí điểm duy nhất** (chỉ
+`openTaoAnh`, không đụng màn nào khác) để chủ dự án duyệt *cách làm* trước khi tách tiếp.
+
+1. **`src/ui/taoAnh/` — 6 tệp, mỗi tệp một việc.** `index.js` (140 dòng) là **vỏ**: nhận
+   `(opts, D)`, dựng khung/modal, gom state `S`, rồi gọi `lapChon`/`lapDung`/`lapLuu`. Đây là
+   điểm vào duy nhất — `app.js` chỉ giữ một hàm 3 dòng gọi lại nó.
+   - `taoAnhFlow.js` (**logic THUẦN, KHÔNG import DOM**, chạy được bằng Node): chọn/nhận diện
+     hồ sơ theo khung (`chonHoSo`, `nhanDienTrongKhung`, `hoSoHienChip`, `hoSoConLai`,
+     `thaoTacChip`, `nvChuaXacNhanChoTaoAnh`), **cổng 18+ cho ảnh** (`loiChanTaoAnh`), trạng thái
+     nút (`nutTaoAnh`), **dựng prompt gửi máy vẽ** (`promptGuiMayVe` → `{nen, gui}`,
+     `loaiTruGuiMayVe`, `kichThuocNen`), xử lý kết quả máy vẽ (`xuLyKetQuaMayVe`), và bản ghi ảnh
+     để lưu (`thongSoBanGhiAnh`). Mọi thứ "quyết định" nằm ở đây nên kiểm được không cần trình duyệt.
+   - `taoAnhHtml.js`: chuỗi HTML của từng khối (`htmlThan`, `htmlChip`, `htmlKhuChon`,
+     `htmlKhoiNgoaiHinh`, `htmlChonThem`, `htmlNut`).
+   - `taoAnhChon.js` (`lapChon` + ba hàm con cùng tệp: `damBaoNgoaiHinhEn`, `moChonThem`,
+     `ganSuKienChon`): khu "Nhân vật trong khung hình" + dịch ngoại hình (gọi AI, có nhớ đệm
+     `dangDich`/`daThuDich`/`dichHong`). `lapChon` chỉ còn là chỗ **lắp** (gắn hàm con lên `S`
+     rồi nối sự kiện) — không hàm nào > 150 dòng.
+   - `taoAnhDung.js` (`lapDung`): "Viết lại" (`vietLai`) + "Dựng khung hình" (`dungAnh`, có cổng 18+).
+   - `taoAnhLuu.js` (`lapLuu`): "Đưa vào truyện" (`luuVaoHoiThoai`).
+2. **`TAO_ANH_DEPS` — cầu nối có ý thức.** `app.js` truyền 16 hàm **còn lại của app** (điều hướng,
+   ghi dữ liệu, tiện ích ảnh: `currentStory`, `currentConv`, `render`, `luuTinNhan`, `ganAnhVao`…).
+   Mọi thứ khác `src/ui/taoAnh/*` **lấy thẳng từ lõi** (`store/ai/ngoaiHinh/dom`) — nên `deps`
+   không phình thành túi đồ nghề chung. Có ca kiểm thử đòi đúng dạng `moTaoAnh(opts, TAO_ANH_DEPS)`
+   + `const TAO_ANH_DEPS = {` trong `app.js`.
+3. **DAG một chiều — luật mới, có ca ghim.** `src/ui/*` **được** import lõi; lõi (`store`, `ai`,
+   `schema`, `trangThai`, `thoiGian`, `ngoaiHinh`, `lore`, `dom`) **KHÔNG BAO GIỜ** import
+   `src/ui/*`. Chỉ mỗi `app.js` được phép (nó là tầng ghép). `tests/node/goi-chung.test.mjs` có
+   **bốn** ca mới: (a) *"DAG: lõi KHÔNG BAO GIỜ import src/ui"* — quét từng tệp lõi, bỏ qua
+   `app.js`; (b) *"import trong src/ui/ đều tương đối và trỏ đúng tệp có thật"*; (c) *"màn tạo ảnh:
+   logic thuần nằm ở src/ui, KHÔNG ở app.js"* — đòi `openTaoAnh` ≤ 150 dòng và đòi cầu
+   `moTaoAnh(opts, TAO_ANH_DEPS)`; (d) *"không hàm nào trong src/ui/ dài quá 150 dòng"* — quét
+   **mọi** tệp `src/ui/**`, kể cả hàm con (đây là ca bắt được `lapChon` 178 dòng lúc đầu, phải
+   tách thêm).
+   `tests/node/khong-ro-ri.test.mjs` cũng đã đi **đệ quy** `src/ui/**` (nếu không thì tệp mới
+   lọt lưới quét id/tên thật).
+4. **KHÔNG ĐỔI HÀNH VI — chứng minh byte-for-byte, không phải "cảm giác giống".** Một script
+   **tất định** (id đặt cứng, AI giả trả lời theo nội dung câu hỏi, máy vẽ giả ghi lại prompt) chạy
+   trên `app.js` **CŨ** rồi trên **MỚI**, cùng dữ liệu giả:
+   - HTML modal (`outerHTML`), khối ngoại hình, chuỗi chip, dòng trạng thái, **`instruction` gửi
+     AI**, và **prompt gửi máy vẽ** (`nen`/`gui`/`loaiTru`/kích thước) — **giống hệt**.
+   - **Ảnh chụp giống hệt TỪNG BYTE**: ảnh chụp **phần tử modal** 268 764 B (0 pixel khác) và ảnh
+     chụp **cả trang** 455 131 B (2 313 × 1 721 = 3 980 673 pixel, **0 pixel khác**) — không phải
+     jitter khử răng cưa mà đúng từng pixel. Vision soi lại cũng khớp (khối "Ngoại hình cố định",
+     hai ô chọn, khu "Nâng cao", hàng nút — xem ghi chú cuộn ở dưới).
+   - **Ca snapshot prompt trong Node**: `tests/node/taoAnhFlow.test.mjs` (66 khẳng định) chép
+     nguyên một prompt mẫu **469 B** và đòi `promptGuiMayVe` trả **đúng từng byte** cho cùng đầu vào.
+5. **`src/ui/` con được Perchance phục vụ đúng.** Kiểm trên trang thật: cả **6/6 tệp `fetch` →
+   HTTP 200 + giống hệt từng byte** so với workspace (kể cả đường dẫn lồng `ui/taoAnh/…`). Ghi chú
+   quan trọng: tầng phục vụ `src/` của nền tảng **luôn đi qua service worker** (gọi vòng qua SW trả
+   404 `"No src manifest available for this page"` dù generator đã lưu), nên từ trong editor
+   **không thể** chứng minh "không qua SW" — cái kiểm được là resolver xử lý đúng **đường dẫn lồng**
+   và trả **đúng byte**.
+
+**Kiểm chứng Giai đoạn 6:** tầng Node **12 tệp, 2 012 khẳng định, 0 không đạt** (thêm
+`tests/node/taoAnhFlow.test.mjs` — 66 khẳng định — và 4 ca DAG/hạn-dòng trong `goi-chung.test.mjs`,
+399 → 426 khẳng định); tầng trình duyệt **1 077/1 077 ca · 31 bộ, 0 cảnh báo** — **y như trước khi
+tách**. Bộ chạy xác nhận **dữ liệu thật không đổi một byte** (1 truyện · 3 hồ sơ · 2 nhóm tin nhắn ·
+4 ảnh) và `localStorage["truyenVai.caiDat"]` **đã trả nguyên trạng**. Gói zip được tải lại chính URL
+đó, giải nén, `git init`, rồi chạy lại tầng Node để khớp môi trường CI.
+
+**Cách đo "không đổi hành vi" (đừng bỏ bước này khi tách hàm sau).** Script tất định
+(`window.__tv_test.openTaoAnh` + AI giả trả lời theo NỘI DUNG câu hỏi + máy vẽ giả ghi lại prompt)
+chạy trên bản CŨ rồi bản MỚI, rồi so **8 khoá** của kết quả: `html` (5 356 ký tự), `khoi`, `chip`,
+`status`, `ai`, `ve` (prompt 552 ký tự), `sau`, `chipSau` — **giống hệt từng ký tự**; ảnh chụp phần
+tử modal và cả trang **giống hệt từng byte** (PNG giải ra rồi so pixel: 0 pixel khác). Lưu ý khi soi
+ảnh chụp: modal cao hơn khung nhìn (thân modal `scrollHeight` 940 > `clientHeight` 612), nên ảnh
+chụp **phần đầu** modal không thấy khối "Ngoại hình cố định"/hai ô chọn/"Nâng cao" — phải **cuộn
+xuống đáy** rồi chụp lại mới thấy đủ; kiểm bằng DOM (`[data-nh-khoi]` không `hidden`,
+`[data-f="phongCach"]` = `dien-anh`, `[data-f="kichThuoc"]` = `512x768`) là chắc nhất.
+(Cách so pixel: `createImageBitmap` + `OffscreenCanvas.getImageData` ngay trong `execute_js` — không
+cần thư viện giải PNG nào.)
+
+**Còn lại sau thí điểm này:** `openCharacterEditor` (**537 dòng**) vẫn quá dài và **chưa** tách —
+chờ chủ dự án duyệt *cách làm* của Giai đoạn 6 rồi mới làm tiếp.
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 
