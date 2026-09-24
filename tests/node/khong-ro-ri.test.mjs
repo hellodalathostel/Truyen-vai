@@ -112,7 +112,7 @@ function tokenDai(text) {
   return quetToken(text).filter((x) => x.than.length >= NGUONG_THAN);
 }
 
-const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "schema.js", "store.js", "thoiGian.js", "trangThai.js"];
+const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "nhap.js", "schema.js", "store.js", "thoiGian.js", "trangThai.js"];
 
 function ca(ten, fn) {
   test(ten, async () => {
@@ -129,7 +129,9 @@ function ca(ten, fn) {
 test("phép quét token: bắt đúng dạng id thật, bỏ qua id test và từ thường", () => {
   // Bắt được: id thật = tiền tố + thân dài. Thân được để RỜI rồi ghép tại chỗ, vì nếu
   // viết liền thì chính tệp này cũng thành một tệp chứa token dài và luật bên dưới sẽ bắt nó.
-  const thanDai = ["mub4swfvxidgmv", "mub55ik0djc9k1"];
+  // Thân ở đây là HƯ CẤU, chỉ cố ý dài đúng cỡ id thật (14 ký tự) — đợt 6d: ca quét ngược của
+  // tầng trình duyệt (tests/browser/rr-ten-that.js) bắt được hai thân THẬT từng nằm đúng chỗ này.
+  const thanDai = ["abcd1234efghjk", "qrst5678uvwxyz"];
   for (const tien of ["ct", "ht", "nh", "nv", "anh", "vg", "nhz", "tn"]) {
     for (const than of thanDai) {
       const s = tien + "_" + than;

@@ -25,6 +25,11 @@ const DUONG = "/src/tests/";
 //       "bo"   = bộ kiểm thử (đếm được/không đạt)
 //       "phu"  = phụ trợ (KHÔNG chạy mặc định: ca AI THẬT, công cụ soi bố cục, dò lỗi)
 export const DANH_MUC = [
+  // CHẠY ĐẦU TIÊN: quét ngược tên/id THẬT trong mọi tệp của gói. Phải đứng trước các bộ khác để
+  // kv chỉ còn dữ liệu thật của chủ dự án (các bộ sau mới dựng dữ liệu test). BẮT BUỘC chạy
+  // trước mỗi lần đóng gói, cùng với việc tiêm `window.__tvGoi` (xem tests/README.md).
+  { ten: "rr-ten-that", loai: "bo", ghiChu: "quét ngược: tên/id thật không được lọt vào gói" },
+
   { ten: "audit-base", loai: "nen", ghiChu: "điểm neo __A + dựng/dọn truyện test" },
 
   { ten: "nh-fake-ai", loai: "dung", ghiChu: "AI giả + máy vẽ giả (thư viện ngoại hình)" },

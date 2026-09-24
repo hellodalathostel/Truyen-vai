@@ -59,7 +59,11 @@ kiểm được ở tầng Node. `cong18.js` là cửa 18+ dùng chung cho mọi
    Bộ kiểm thử muốn kiểm tra trên truyện thật thì phải đọc chúng **trong bộ nhớ** lúc
    chạy (qua `root.kv.cotTruyen.entries()` và lọc bỏ id có tiền tố test), đối chiếu,
    rồi bỏ đi. Không chụp lại, không lưu lại, không đưa vào zip. Mọi tên/id trong
-   `fixtures/` phải là hư cấu và trung tính.
+   `fixtures/` phải là hư cấu và trung tính. Luật tự động chỉ bắt được **dạng id** (token dài),
+   nên còn một chốt chặn thứ hai: bộ `rr-ten-that` (tầng trình duyệt, chạy **ĐẦU TIÊN**) lấy mẫu
+   tên/id THẬT trong kv **chỉ trong bộ nhớ** rồi quét **mọi tệp sẽ vào gói** (tiêm qua
+   `window.__tvGoi`) — khớp thì ĐỎ, chỉ báo **tệp + số dòng**, **TUYỆT ĐỐI KHÔNG in chuỗi khớp**.
+   **BẮT BUỘC chạy trước MỖI lần đóng gói**; thiếu `window.__tvGoi` thì bộ này ĐỎ có chủ ý.
 2. **Không đặt tệp kiểm thử, dữ liệu mẫu, bản nháp hay bản zip nào trong `src/`.**
    `src/` là mã công khai, tốn quota lưu trữ, và là thứ người dùng đọc.
    `goi-chung.test.mjs` canh điều này (cả gốc gói lẫn `src/`).
@@ -110,7 +114,7 @@ kiểm được ở tầng Node. `cong18.js` là cửa 18+ dùng chung cho mọi
    cả hai chiều; đừng thêm `addEventListener("click")` ở chỗ khác.
 14. **Bảng `*_DEPS` khớp HAI CHIỀU.** Mọi `D.<tên>` mà tệp của màn gọi phải có trong bảng, VÀ mọi
    tên trong bảng phải được dùng ít nhất một lần; khai thừa là lỗi, khoá có giá trị chỉ được là
-   HÀM. `goi-chung.test.mjs` soát tự động cho **cả sáu** màn — đừng khai thêm cho "chắc ăn".
+   HÀM. `goi-chung.test.mjs` soát tự động cho **cả tám** màn — đừng khai thêm cho "chắc ăn".
 
 ## Không đổi hành vi — cách đo (bắt buộc mỗi lần tách hàm khỏi `app.js`)
 
@@ -312,6 +316,40 @@ hai lần gọi liên tiếp ra hai ảnh khác nhau (đã gặp thật ở đ�
 trước khi chụp vì modal cao hơn khung nhìn (`GIAN` trong kịch bản). Ghi chú 6b "ảnh cả trang lệch
 206/3 980 673 pixel" vì vậy **không** còn được coi là bằng chứng; đừng dựa vào ảnh cả trang.
 
+### Đợt 6d (tách `openSuaNgoaiHinh` + `renderDashboard` + `capIdMoi` + `openDaoDien`)
+
+Bốn hàm cuối trên 150 dòng của `app.js` (`openSuaNgoaiHinh` 223 · `renderDashboard` 218 ·
+`capIdMoi` 172 · `openDaoDien` 153) nay đều là **vỏ ngắn**; `app.js` **7 578 → 6 839 dòng**.
+Từ đây **toàn bộ `src/` không còn hàm nào > 150 dòng** — luật 150 dòng được nâng từ `src/ui/**`
+lên **TOÀN `src/**`** (quét cả `app.js` và các tệp lõi; hiện đếm **764 hàm**, 0 quá hạn).
+
+| Tệp Node | Phủ gì |
+|---|---|
+| `nhap.test.mjs` (87 khẳng định) | `src/nhap.js` — `capIdMoi`: bản gốc KHÔNG bị đụng, mọi id mới và duy nhất, dịch **mọi** tham chiếu chéo (hội thoại, chương, nhân vật, tin nhắn, ảnh, hồ sơ, sổ hé lộ, sự kiện vắng mặt, phiên), **ảnh** chỉ nhận nguồn hợp lệ + thuộc truyện, **hồ sơ** chỉ đi kèm khi được tham chiếu (liên kết trỏ hồ sơ thiếu thì bị BỎ), qua `kiemTraTruyen`/`kiemTraTinNhan` (Giai đoạn 5) và `chuanHoaTruyen` idempotent |
+| `daoDienFlow.test.mjs` | Câu chữ + trạng thái của bốn nút hướng (nguyên văn), hộp xác nhận hoàn tất/huỷ, `mucGocSau`, `trangThaiKhoiPhuc`; và **mọi `data-act` của màn Đạo diễn phát ra đều có hàm trong `BANG_NUT`** (khoá bảng `"act": hàm` tính là "có xử lý") |
+| `bangDieuKhienFlow.test.mjs` | Logic THUẦN của Bảng điều khiển: nhãn chế độ, nhãn vai giao kèo, khung quan hệ mặc định (không hiện), câu gộp nhịp/ngôn ngữ, gộp vai nhân vật/sở thích, đếm chương xong, câu mẹo — câu chữ ghim **nguyên văn** |
+| `suaNgoaiHinhFlow.test.mjs` | Câu chữ + quyết định THUẦN của màn Sửa hồ sơ ngoại hình: hằng `NH_MAX_ANH`, nhãn nút theo trạng thái ảnh, ghi chú "hồ sơ dùng chung" theo số liên kết, câu báo sau khi AI điền nháp, câu lỗi AI, hộp hỏi ghi đè mô tả, `giaTriDienThem` (AI chỉ điền vào ô TRỐNG) |
+
+`goi-chung.test.mjs` 1 793 → **2 937 khẳng định**: thêm hai bảng DEPS (`BANG_DIEU_KHIEN_DEPS` 6 ·
+`SUA_NGOAI_HINH_DEPS` 3) và hai màn mới trong `MAN_HINH` (vỏ ≤ 150 dòng + nạp điểm vào), và ca
+150 dòng quét toàn `src/`. Tổng tầng Node sau Đợt 6d: **22 tệp, 5 233 khẳng định, 0 không đạt**
+(mốc 6c: 18 tệp, 4 071). Danh sách bộ Node trong `tv-chay-node.mjs` nay **suy từ thư mục**
+(`tests/node/*.test.mjs`) nên thêm tệp mới là tự chạy.
+
+Tầng trình duyệt **1 082/1 082 ca · 32 bộ · 0 cảnh báo** (thêm bộ `rr-ten-that` — 5 ca, **0 tệp
+rò rỉ**). Bằng chứng "không đổi hành vi": kịch bản tất định phủ **cả bốn vùng** cho ra JSON
+**144 984 ký tự GIỐNG TỪNG BYTE** giữa `app.js` CŨ (6c) và MỚI (6d).
+
+**Hai bẫy mới:**
+
+- **Bảng `*_DEPS` phải viết NHIỀU DÒNG.** Phép đọc bảng của ca DEPS-hai-chiều cắt tới dòng `};`
+  **đầu tiên ở cột 0**; bảng viết gọn một dòng làm phép cắt chạy tuốt sang bảng/cấu trúc sau và
+  ca báo hàng loạt khoá lạ. Bảng mới luôn viết `const X = {` … `};` nhiều dòng.
+- **Ca tự-kiểm-tra của phép quét phải đúng cơ chế.** Bản đầu của `rr-ten-that.js` kiểm "bỏ qua
+  chuỗi ngắn" bằng cách dò `"ab"` trong `x "ab"` — nhưng hàm khớp đòi **ranh giới từ**, nên
+  `ab` giữa hai nháy vẫn khớp; ca tự kiểm sai và luôn ĐỎ. Nay nó khẳng định trên **chính bộ
+  mẫu** (mọi mẫu ≥ 4 ký tự, không mẫu nào là từ thông dụng) + một ca riêng cho ranh giới từ.
+
 ## Thêm một bộ kiểm thử
 
 1. Viết `tests/browser/<tên>.js`, dùng `import { test, ok, eq, eqSau } from "../lib/h.js"`.
@@ -329,7 +367,13 @@ trước khi chụp vì modal cao hơn khung nhìn (`GIAN` trong kịch bản). 
   `node --test tests/node/*.test.mjs`: dạng **thư mục** (`node --test tests/node/`) hỏng trên
   Node ≥21.
 - Test cấu trúc gói (`goi-chung.test.mjs`) phải chạy được **cả** trong bản zip giải nén **lẫn**
-  trong repo git thật — danh sách "gốc gói" phải cho phép `.git`.
+  trong repo git thật — danh sách "gốc gói" cho phép `.git` khi chạy trong repo. **Nhưng gói
+  PHÁT HÀNH thì KHÔNG được chứa `.git`** (bước đóng gói phải lọc bỏ thư mục đó).
+- **Bước kiểm SAU khi tải lại URL (bắt buộc):** tải chính URL vừa upload, giải nén vào một thư
+  mục tạm, rồi khẳng định (a) gói giải nén **không có `.git`**, và (b) chạy lại `npm test` trên
+  bản giải nén cho **0 không đạt** (đặt `ROOT_OVERRIDE` trỏ vào thư mục đó). So byte `src/**`
+  giữa gói và workspace: chỉ được khác **khối URL** trong `src/README.md` (bản trong gói trỏ lần
+  đóng TRƯỚC), còn lại phải giống hệt từng byte.
 - Node ≥23 in kết quả kiểu `ℹ pass N` thay cho `# pass N`: đừng grep theo định dạng in, hãy dựa
   vào **mã thoát** của `npm test`.
 - Gói zip **không thể** chứa URL của chính nó, nên `src/README.md` *bên trong* gói luôn trỏ tới

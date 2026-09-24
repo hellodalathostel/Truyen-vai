@@ -1084,14 +1084,16 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 **NGUỒN SỰ THẬT: repo GitHub `https://github.com/hellodalathostel/Truyen-vai`.** Tải repo là
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
-**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Đợt 6b**
-`https://user.uploads.dev/file/1da7f265676235f0bec0b2f49915d55a.zip` (Giai đoạn 6:
+**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Đợt 6c**
+`https://user.uploads.dev/file/5b6804aec274c1a3c22f9df24be6af39.zip` (Đợt 6b:
+`https://user.uploads.dev/file/1da7f265676235f0bec0b2f49915d55a.zip` — mốc tách
+`openCharacterEditor` + `openNewStoryModal`; Giai đoạn 6:
 `https://user.uploads.dev/file/c5eb29483e0383f59ced780c56a74d2a.zip` — mốc tách `openTaoAnh`;
 Giai đoạn 5: `https://user.uploads.dev/file/6d32cb23b2b5d3fdb6c28bea8b310f16.zip`; Giai đoạn 4:
 `https://user.uploads.dev/file/29c20b8b44adbddd616bca6b2fbef024.zip`).
 
 *Lưu ý quy trình:* gói zip **không thể** chứa URL của chính nó, nên `src/README.md` **bên trong
-gói** vẫn trỏ tới **Giai đoạn 6**; dòng vừa cập nhật ở trên chỉ có ở workspace (và ở repo sau khi
+gói** vẫn trỏ tới **Đợt 6c**; dòng vừa cập nhật ở trên chỉ có ở workspace (và ở repo sau khi
 chủ dự án đẩy lên).
 
 - Tầng Node: `npm test` (không cần trình duyệt, không tốn quota, chạy trên CI).
@@ -1514,6 +1516,77 @@ DEPS-hai-chiều mới), `khong-ro-ri.test.mjs` 195 → 198. Tầng trình duy�
 0 cảnh báo — giống hệt** khi chạy trên `app.js` **CŨ** lẫn **MỚI** (`gd1-tuoi` **94/94** trên cả
 hai). Dữ liệu thật **nguyên trạng** (1 truyện · 3 hồ sơ · 2 nhóm tin nhắn · 4 ảnh; `khoaMat: []`)
 và mọi khoá test đã dọn sạch. `src/CONTEXT.md` = **10 232 byte** (≤ 10 240).
+
+### Đợt 6d — tách nốt bốn hàm cuối: `openSuaNgoaiHinh` + `renderDashboard` + `capIdMoi` + `openDaoDien` (tháng 9/2026)
+
+Bốn hàm còn lại trên 150 dòng của `app.js` (`openSuaNgoaiHinh` **223**, `renderDashboard` **218**,
+`capIdMoi` **172**, `openDaoDien` **153**) nay đã tách xong, cùng khuôn Giai đoạn 6/6b/6c —
+`app.js` **7 578 → 6 839 dòng**. **Từ đây TOÀN BỘ `src/` không còn hàm nào quá 150 dòng**, và luật
+đó được ghim bằng ca tĩnh (xem mục 6).
+
+1. **`src/nhap.js` — đường NHẬP bản sao.** `capIdMoi` là **logic THUẦN** (không DOM, không kv)
+   nên tách hẳn ra khỏi `app.js`: 6 hàm con — `capIdMoi` (điều phối) + `gomId` / `dichThamChieu` /
+   `dichTinNhan` / `dichAnh` / `dichHoSo`. **Luồng nhập KHÔNG đổi:** `app.js` vẫn dựng dữ liệu thô
+   → `napBanGhi(raw, "truyen", "", { choNhap: true, dongY18 })` (cửa vào Giai đoạn 5: kiểm hình
+   dạng + nâng phiên bản) → rồi mới tới `capIdMoi`. Hai luật riêng giữ nguyên: **ảnh** chỉ lấy ảnh
+   thuộc truyện này, **hồ sơ ngoại hình** chỉ lấy hồ sơ truyện tham chiếu (liên kết trỏ hồ sơ
+   không đi kèm thì bị BỎ). Ca Node mới `tests/node/nhap.test.mjs` — 87 khẳng định.
+2. **`src/ui/daoDien/` — 3 tệp** (màn "Chế độ Đạo diễn", trước là `openDaoDien` 153 dòng).
+   `index.js` là vỏ (`openDaoDien(D)`); `daoDienFlow.js` **thuần, 0 import** (câu chữ + trạng thái
+   của bốn nút, có ca Node riêng); `daoDienNut.js` là **bảng hành động cục bộ** `"data-act" ⇒ hàm`
+   theo đúng khuôn `src/ui/suKien/*`, dùng chung `doiTrangThai()` cho bốn nút. **Hai điểm không
+   được đổi:** cờ chống mở hai lần `D.app.daoDienDangMo` **chỉ** được xoá trong `onClose` (gỡ
+   node modal trực tiếp sẽ để lại cờ bật ⇒ lần mở sau bị chặn IM LẶNG), và sự kiện gắn vào **thân
+   modal** chứ không gắn `document` — điểm đăng ký toàn cục duy nhất vẫn là `bindGlobalEvents`.
+3. **`src/ui/bangDieuKhien/` — 3 tệp** (màn "Bảng điều khiển", trước là `renderDashboard` 218
+   dòng). `index.js` là vỏ; `bangDieuKhienFlow.js` **thuần** (nhãn chế độ, nhãn vai giao kèo, câu
+   gộp "nhịp & ngôn ngữ", câu mẹo — có ca Node); `bangDieuKhienHtml.js` giữ **chuỗi HTML từng
+   khối** (hero · nhân vật · hành trình · rơi chương · tổng quan · giao kèo · sổ tri thức · đạo
+   diễn · thư viện ảnh · biên niên). Thứ tự cột trái/phải giữ NGUYÊN.
+4. **`src/ui/suaNgoaiHinh/` — 3 tệp** (màn "Sửa hồ sơ ngoại hình", trước là `openSuaNgoaiHinh`
+   223 dòng). `suaNgoaiHinhFlow.js` **thuần** — câu chữ người dùng đọc + hằng `NH_MAX_ANH = 1024`
+   (trước nằm trong `app.js`, nay về đúng tệp dùng nó) — có ca Node; `suaNgoaiHinhHtml.js` giữ
+   chuỗi form; `index.js` giữ luồng (modal, ảnh tạm `anhTam`, lưu, nháp AI). **Ba điểm không được
+   đổi:** ảnh trong form CHƯA phải ảnh đã lưu; **lưu hỏng ⇒ GIỮ NGUYÊN form**; **lỗi AI ⇒ KHÔNG
+   mất bản nháp** người dùng đang có.
+5. **Kiểm chứng "không đổi hành vi".** Kịch bản tất định phủ CẢ BỐN vùng (bảng điều khiển hai
+   chế độ · màn Đạo diễn + đổi hội thoại + modal con · sửa hồ sơ (tạo mới / có liên kết + có ảnh
+   / không liên kết / thiếu mô tả / thiếu tên / LƯU / HUỶ / `focusYeuCau` / `focusAnh`) · nhập bản
+   sao qua `napBanGhi` + `capIdMoi`) cho ra JSON **144 984 ký tự GIỐNG TỪNG BYTE** giữa `app.js`
+   **CŨ** (6c) và **MỚI** (6d) — cùng một hash. Kịch bản chạy trên bản CŨ bằng cách hoán `src/**`
+   sang bản 6c (đã sao lưu), chạy lại, so byte, rồi khôi phục.
+6. **Luật 150 dòng nay áp TOÀN `src/`.** Ca tĩnh trong `tests/node/goi-chung.test.mjs` đổi từ
+   "mọi hàm trong `src/ui/`" thành "mọi hàm trong `src/**`" — quét **cả `app.js` và các tệp lõi**
+   (đếm dòng khai báo cột 0 tới dòng `}` cột 0, không dùng regex). Hiện đếm được **764 hàm** và
+   không hàm nào quá 150 dòng.
+7. **Quét ngược tên/id thật (chốt chặn trước khi đóng gói).** Bộ `tests/browser/rr-ten-that.js`
+   đọc **dữ liệu THẬT trong kv (chỉ trong bộ nhớ)** — tên truyện, tên nhân vật, tiêu đề hội thoại,
+   tên hồ sơ, mọi id + **thân id ≥ 6 ký tự** — rồi quét **mọi tệp sẽ vào gói** (tiêm qua
+   `window.__tvGoi`) để tìm chúng; khớp ⇒ bộ test ĐỎ, chỉ báo **tệp + số dòng**, **TUYỆT ĐỐI
+   KHÔNG in chuỗi khớp**. Bỏ qua chuỗi < 4 ký tự và từ/cụm thông dụng, so ở **ranh giới từ**. Bộ
+   này chạy **ĐẦU TIÊN** trong `DANH_MUC` (lúc đó kv chỉ còn dữ liệu thật) và **BẮT BUỘC chạy
+   trước mỗi lần đóng gói**.
+
+**Kiểm chứng Đợt 6d:** tầng Node **22 tệp, 5 233 khẳng định, 0 không đạt** (mốc 6c: 18 tệp,
+4 071) — thêm `nhap.test.mjs` **87**, `daoDienFlow.test.mjs`, `bangDieuKhienFlow.test.mjs`,
+`suaNgoaiHinhFlow.test.mjs`; `goi-chung.test.mjs` 1 793 → **2 937** (thêm hai bảng DEPS, hai màn
+mới trong `MAN_HINH`, và ca 150 dòng quét toàn `src/`). Tầng trình duyệt **1 082/1 082 ca ·
+32 bộ · 0 cảnh báo**, trong đó ca quét ngược **5/5** và **0 tệp rò rỉ**. Dữ liệu thật nguyên
+trạng, mọi khoá test đã dọn. `src/CONTEXT.md` = **10 198 byte** (≤ 10 240).
+
+**Hai bẫy mới của Đợt 6d:**
+
+- **Bảng DEPS PHẢI viết nhiều dòng.** Phép đọc bảng của ca "DEPS hai chiều" cắt từ `const X = {`
+  tới dòng `};` **đầu tiên ở cột 0**. Một bảng viết gọn một dòng (`const X = { a, b };`) làm phép
+  cắt chạy tuốt sang tận bảng/cấu trúc sau ⇒ ca báo hàng loạt khoá lạ (`title`, `actions`…). Đây
+  là bẫy của **công cụ kiểm**, không phải của mã — nhưng nó chỉ lộ ra khi bảng mới viết một dòng.
+- **Ca tự-kiểm-tra của phép quét cũng phải đúng cơ chế.** Bản đầu của `rr-ten-that.js` kiểm "bỏ
+  qua chuỗi ngắn" bằng cách dò `"ab"` trong `x "ab"` — nhưng hàm khớp đòi **ranh giới từ**, nên
+  `ab` giữa hai dấu nháy VẪN khớp; ca tự kiểm sai và luôn ĐỎ. Đã sửa thành khẳng định trên **chính
+  bộ mẫu** (mọi mẫu ≥ 4 ký tự và không mẫu nào là từ thông dụng) + một ca riêng cho ranh giới từ.
+
+**Luật đóng gói mới:** gói phát hành **KHÔNG** chứa thư mục `.git`; bước kiểm sau khi tải lại URL
+phải khẳng định gói giải nén **không có `.git`**.
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

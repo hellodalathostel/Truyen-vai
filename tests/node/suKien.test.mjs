@@ -138,8 +138,24 @@ function dsDataAct(text) {
 // có thật trong mã dự án, để một cái tên chỉ nằm trong HTML thôi thì KHÔNG được coi là có xử lý.
 const DAU_HIEU = ["=== ", "!== ", "closest(", "querySelector(", "querySelectorAll(", "matches(", "case "];
 
+// Dấu hiệu thứ hai: KHOÁ BẢNG — `"data-act": hàm`. Đợt 6d tách màn Đạo diễn thành bảng hành động
+// cục bộ (`src/ui/daoDien/daoDienNut.js`) theo đúng khuôn `src/ui/suKien/*`, nên dạng khoá bảng
+// cũng phải được tính là "có hàm xử lý". Chỉ nhận khi ngay sau tên hành động là dấu hai chấm.
+function laKhoaBang(text, act) {
+  const q = NH + act + NH;
+  let i = text.indexOf(q);
+  while (i >= 0) {
+    let j = i + q.length;
+    while (j < text.length && (text[j] === " " || text[j] === "\t")) j += 1;
+    if (text[j] === ":") return true;
+    i = text.indexOf(q, i + 1);
+  }
+  return false;
+}
+
 // Hành động này có được XỬ LÝ ở đâu đó (không chỉ được vẽ ra trong HTML) không?
 function coXuLy(text, act) {
+  if (laKhoaBang(text, act)) return true;
   for (const q of [NH + act + NH, NHAY + act + NHAY]) {
     let i = text.indexOf(q);
     while (i >= 0) {

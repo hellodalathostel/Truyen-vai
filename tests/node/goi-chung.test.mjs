@@ -94,14 +94,17 @@ function giaTriTruong(text, truong) {
   return ra;
 }
 
-const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "schema.js", "store.js", "thoiGian.js", "trangThai.js"];
+const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "nhap.js", "schema.js", "store.js", "thoiGian.js", "trangThai.js"];
 // Tầng giao diện tách riêng (Giai đoạn 6): `src/ui/**`. Lõi KHÔNG bao giờ import ngược
 // vào đây — có ca "DAG" ở cuối tệp ghim luật đó.
 const MODULE_UI_GOC = "src/ui";
 const TEP_NODE = [
-  "ai-parse.test.mjs", "cong18.test.mjs", "dom.test.mjs", "gd4.test.mjs", "goi-chung.test.mjs",
+  "ai-parse.test.mjs", "bangDieuKhienFlow.test.mjs", "cong18.test.mjs", "daoDienFlow.test.mjs", "dom.test.mjs",
+  "gd4.test.mjs", "goi-chung.test.mjs",
   "khong-ro-ri.test.mjs", "lore.test.mjs", "lorebookFlow.test.mjs", "ngoaiHinh.test.mjs", "nhanVatForm.test.mjs",
-  "schema.test.mjs", "store.test.mjs", "suKien.test.mjs", "taoAnhFlow.test.mjs", "taoTruyenFlow.test.mjs",
+  "nhap.test.mjs",
+  "schema.test.mjs", "store.test.mjs", "suaNgoaiHinhFlow.test.mjs", "suKien.test.mjs", "taoAnhFlow.test.mjs",
+  "taoTruyenFlow.test.mjs",
   "thoiGian.test.mjs", "trangThai.test.mjs", "tuyChonTruyenFlow.test.mjs",
 ];
 const TEP_FIXTURE = ["ke-hoach.mjs", "phien-ban-cu.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
@@ -394,6 +397,25 @@ async function dsTepUi(bd) {
   return ra.sort();
 }
 
+// Mọi tệp .js trong TOÀN BỘ src/ (đi đệ quy) — dùng cho luật 150 dòng áp cả lõi LẪN app.js.
+async function dsTepSrc(bd) {
+  const ra = [];
+  const di = async (rel) => {
+    let con = [];
+    try {
+      con = await bd.lietKe(rel);
+    } catch (e) {
+      return;
+    }
+    for (const f of con) {
+      if (f.slice(-3) === ".js") ra.push(rel + "/" + f);
+      else await di(rel + "/" + f);
+    }
+  };
+  await di("src");
+  return ra.sort();
+}
+
 // `./x.js` / `../../y.js` tính từ một tệp nguồn ⇒ đường dẫn tính từ gốc gói.
 function giaiTu(bd, tuTep, spec) {
   const phan = String(tuTep).split("/");
@@ -495,6 +517,9 @@ const MAN_HINH = [
   { ten: "Sửa nhân vật", khaiBao: "function openCharacterEditor(charId, opts = {}) {", goi: "moNhanVat(charId, opts, NHAN_VAT_DEPS)", bang: "NHAN_VAT_DEPS", nhap: 'from "./ui/nhanVat/index.js"', tep: ["src/ui/nhanVat"] },
   { ten: "Tuỳ chọn truyện", khaiBao: "function openStoryMenu() {", goi: "moTuyChon(TUY_CHON_TRUYEN_DEPS)", bang: "TUY_CHON_TRUYEN_DEPS", nhap: 'from "./ui/tuyChonTruyen/index.js"', tep: ["src/ui/tuyChonTruyen"] },
   { ten: "Sổ tri thức", khaiBao: "function openLorebook() {", goi: "moLorebook(LOREBOOK_DEPS)", bang: "LOREBOOK_DEPS", nhap: 'from "./ui/lorebook/index.js"', tep: ["src/ui/lorebook"] },
+  { ten: "Chế độ Đạo diễn", khaiBao: "function openDaoDien() {", goi: "moDaoDien(DAO_DIEN_DEPS)", bang: "DAO_DIEN_DEPS", nhap: 'from "./ui/daoDien/index.js"', tep: ["src/ui/daoDien"] },
+  { ten: "Bảng điều khiển", khaiBao: "function renderDashboard(story) {", goi: "moBangDieuKhien(story, BANG_DIEU_KHIEN_DEPS)", bang: "BANG_DIEU_KHIEN_DEPS", nhap: 'from "./ui/bangDieuKhien/index.js"', tep: ["src/ui/bangDieuKhien"] },
+  { ten: "Sửa hồ sơ ngoại hình", khaiBao: "function openSuaNgoaiHinh(id, onXong, opts = {}) {", goi: "moSuaNgoaiHinh(id, onXong, opts, SUA_NGOAI_HINH_DEPS)", bang: "SUA_NGOAI_HINH_DEPS", nhap: 'from "./ui/suaNgoaiHinh/index.js"', tep: ["src/ui/suaNgoaiHinh"] },
 ];
 
 // Bảng phụ thuộc của SỰ KIỆN TOÀN CỤC (Đợt 6c): không phải một "màn" mà là bảy bảng con ở
@@ -526,7 +551,7 @@ ca("bảng phụ thuộc (DEPS) chỉ chứa thứ KHÔNG import được từ l
   // thành một túi đồ nghề chung và tầng giao diện không còn tách ra được.
   const ten = [];
   for (const x of ["export function ", "export async function ", "export const ", "export let "]) ten.push(x);
-  const lõi = ["dom.js", "store.js", "ai.js", "ngoaiHinh.js", "schema.js", "thoiGian.js", "lore.js", "trangThai.js"];
+  const lõi = ["dom.js", "store.js", "ai.js", "ngoaiHinh.js", "schema.js", "thoiGian.js", "lore.js", "trangThai.js", "nhap.js"];
   const xuat = [];
   for (const m of lõi) {
     for (const dong of String(await bd.doc("src/" + m)).split(NL)) {
@@ -653,13 +678,16 @@ ca("bảng phụ thuộc (DEPS) khớp HAI CHIỀU với đúng những tệp d�
   ok(soBang >= 6, "có ≥ 6 bảng phụ thuộc (đang " + soBang + ")");
 });
 
-ca("không hàm nào trong src/ui/ dài quá 150 dòng", async (bd) => {
-  // Cùng luật 150 dòng với `openTaoAnh`, nhưng áp cho MỌI hàm của tầng giao diện — kể cả
-  // hàm con bên trong từng tệp. Không dùng regex: chỉ tìm dòng khai báo ở cột 0 và dòng
-  // đóng `}` ở cột 0, đúng quy ước trình bày của dự án.
-  const ui = await dsTepUi(bd);
+ca("không hàm nào trong src/ dài quá 150 dòng", async (bd) => {
+  // Đợt 6d nâng luật 150 dòng từ riêng `src/ui/` lên TOÀN BỘ `src/` — kể cả `app.js` và các tệp
+  // lõi. Không dùng regex: chỉ tìm dòng khai báo ở cột 0 và dòng đóng `}` ở cột 0, đúng quy ước
+  // trình bày của dự án.
+  const tep = await dsTepSrc(bd);
+  ok(tep.length >= 40, "đọc được tệp .js của src/ (" + tep.length + " tệp)");
+  ok(tep.indexOf("src/app.js") >= 0, "có quét app.js");
+  ok(tep.indexOf("src/store.js") >= 0, "có quét tệp lõi");
   let soHam = 0;
-  for (const f of ui) {
+  for (const f of tep) {
     const dong = String(await bd.doc(f)).split(NL);
     for (let i = 0; i < dong.length; i++) {
       const t = dong[i];
@@ -676,5 +704,5 @@ ca("không hàm nào trong src/ui/ dài quá 150 dòng", async (bd) => {
       ok(soDong <= 150, f + " · " + t.slice(0, 56) + " · " + soDong + " dòng");
     }
   }
-  ok(soHam >= 6, "đếm được hàm trong src/ui/ (" + soHam + " hàm)");
+  ok(soHam >= 300, "đếm được hàm trong src/ (" + soHam + " hàm)");
 });
