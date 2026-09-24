@@ -931,6 +931,7 @@ export async function createStory(data) {
     anh: [], // chỉ mục ảnh cảnh (không chứa dữ liệu ảnh — ảnh nằm ở kv.thuVienAnh)
     nhip: "cham", // nhịp phát triển nội tâm & quan hệ (xem src/trangThai.js)
     canhDaKhep: [], // nhật ký cảnh đã duyệt — nguồn sự thật duy nhất của trạng thái
+    truyenVietRa: [], // bản văn xuôi dẫn xuất từ hội thoại (không ghi ngược dữ liệu nhập vai)
     daoDien: daoDienMacDinh(), // Chế độ Đạo diễn: đính chính (lớp phủ) + hướng tương lai
     thoiGian: thoiGianMacDinh(), // thời gian vắng mặt (xem src/thoiGian.js)
     ngoaiManHinh: [], // sổ chỉ-nối-thêm: sự kiện xảy ra khi người chơi vắng mặt
@@ -1316,7 +1317,10 @@ export function isGroupConv(story, conv) {
 // v6: truyện có `thoiGian` (chế độ/ngưỡng thời gian vắng mặt + phiên gần nhất) và
 // `ngoaiManHinh` (sổ chỉ-nối-thêm sự kiện xảy ra khi người chơi vắng mặt, kèm ai biết
 // và mức hé lộ — xem `src/thoiGian.js`). Mặc định: Tạm dừng, tắt mô phỏng.
-export const PHIEN_BAN_TRUYEN = 7;
+// v8: truyện có `truyenVietRa` (các bản VĂN XUÔI dẫn xuất từ một hội thoại — xem
+// `src/ui/vietTruyen/vietTruyenFlow.js`). Đây là dữ liệu dẫn xuất MỚI, hoàn toàn tách
+// khỏi dữ liệu nhập vai: tính năng này KHÔNG BAO GIỜ sửa `canhDaKhep`/`hoiThoais`.
+export const PHIEN_BAN_TRUYEN = 8;
 
 export function chuanHoaTinNhan(arr) {
   if (!Array.isArray(arr)) return [];
@@ -1511,6 +1515,23 @@ export function chuanHoaTruyen(raw, tuyChon) {
     // Cảnh không gắn được với hội thoại nào là dữ liệu rác: nếu giữ lại, nó sẽ được
     // tính cho MỌI hội thoại. Bỏ hẳn.
     .filter((x) => x.htId);
+  // Bản "viết thành truyện": văn xuôi DẪN XUẤT từ một hội thoại (log thô hoặc tóm tắt cảnh đã
+  // khép) — xem `src/ui/vietTruyen/`. Đây là dữ liệu của NGƯỜI DÙNG nên bù mặc định chứ KHÔNG
+  // bao giờ xoá: bản ghi thiếu trường vẫn được giữ (chỉ màn Tự kiểm tra báo). Khác `canhDaKhep`,
+  // tham chiếu tới hội thoại đã mất cũng được giữ nguyên — nội dung văn xuôi không thể sinh lại.
+  s.truyenVietRa = (Array.isArray(s.truyenVietRa) ? s.truyenVietRa : [])
+    .filter((v) => v && typeof v === "object")
+    .map((v) =>
+      Object.assign({}, v, {
+        id: v.id || uid("vt"),
+        hoiThoaiId: String(v.hoiThoaiId || ""),
+        loaiNguon: ["tho", "canhKhep"].indexOf(v.loaiNguon) >= 0 ? v.loaiNguon : "tho",
+        taoLuc: Number(v.taoLuc) || Date.now(),
+        trangThai: ["dangChay", "xong", "loi"].indexOf(v.trangThai) >= 0 ? v.trangThai : "loi",
+        noiDung: String(v.noiDung === undefined || v.noiDung === null ? "" : v.noiDung),
+        loiNeu: String(v.loiNeu === undefined || v.loiNeu === null ? "" : v.loiNeu),
+      })
+    );
   s.bienNienSu = (Array.isArray(s.bienNienSu) ? s.bienNienSu : []).filter(Boolean).map((b) =>
     typeof b === "string"
       ? { id: uid("bn"), noiDung: b, nguon: "", luc: Date.now() }

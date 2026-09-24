@@ -51,6 +51,7 @@ export const MO_TA_TRUYEN = {
   chuongs: { kieu: KIEU.MANG },
   hoiThoais: { kieu: KIEU.MANG },
   canhDaKhep: { kieu: KIEU.MANG },
+  truyenVietRa: { kieu: KIEU.MANG },
   bienNienSu: { kieu: KIEU.MANG },
   anh: { kieu: KIEU.MANG },
   lorebook: { kieu: KIEU.DOI_TUONG },
@@ -187,6 +188,7 @@ export function kiemTraTruyen(raw) {
     if (truong === "hoiThoais") v.forEach((c, i) => kiemTheoMo(MO_TA_HOI_THOAI, c, d + "[" + i + "]", out));
     if (truong === "ngoaiManHinh") v.forEach((e, i) => { if (!laDoiTuong(e)) out.push({ duong: d + "[" + i + "]", moTa: "sự kiện phải là đối tượng" }); });
     if (truong === "canhDaKhep") v.forEach((k, i) => { if (!laDoiTuong(k)) out.push({ duong: d + "[" + i + "]", moTa: "cảnh đã khép phải là đối tượng" }); });
+    if (truong === "truyenVietRa") v.forEach((k, i) => { if (!laDoiTuong(k)) out.push({ duong: d + "[" + i + "]", moTa: "bản viết thành truyện phải là đối tượng" }); });
     if (truong === "anh") v.forEach((a, i) => kiemTheoMo(MO_TA_ANH, a, d + "[" + i + "]", out));
   });
   return ket(ra);
@@ -246,6 +248,7 @@ export const MIGRATION_TRUYEN = [
   { phienBan: 5, ten: "Chế độ Đạo diễn", moTa: "Truyện có `daoDien` (`dinhChinh` = lớp phủ đính chính đảo ngược được, `huong` = hướng phát triển kèm tiến độ)." },
   { phienBan: 6, ten: "Thời gian vắng mặt", moTa: "Truyện có `thoiGian` (chế độ/ngưỡng vắng mặt + phiên gần nhất) và `ngoaiManHinh` (sự kiện xảy ra khi người chơi vắng mặt, kèm ai biết và mức hé lộ)." },
   { phienBan: 7, ten: "Liên kết hồ sơ ngoại hình", moTa: "Nhân vật và người chơi có `ngoaiHinhId` + `bietDanh`; ảnh cảnh có `hoSoIds`. Liên kết chỉ theo id, không bao giờ tự suy theo tên." },
+  { phienBan: 8, ten: "Bản viết thành truyện", moTa: "Truyện có `truyenVietRa`: các bản văn xuôi dẫn xuất từ một hội thoại (từ log thô hoặc từ cảnh đã khép), lưu riêng và KHÔNG ghi ngược vào dữ liệu nhập vai." },
 ];
 
 export const MIGRATION_HO_SO = [

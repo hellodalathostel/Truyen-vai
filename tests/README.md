@@ -140,6 +140,16 @@ kiểm được ở tầng Node. `cong18.js` là cửa 18+ dùng chung cho mọi
    để lại rác mang id app sinh — cách xử lý: tìm hồ sơ đó và xoá qua giao diện app, rồi chạy lại
    lượt đầy đủ trước khi đóng gói.
 
+18. **Lượt mới chỉ được NỐI THÊM vào cuối khối DIỄN BIẾN** (ca CẤU TRÚC trong
+   `tests/node/prompt.test.mjs`, hàm thuần `doCotPrompt` trong `tests/lib/prompt.mjs`). Điểm lệch
+   đầu tiên giữa hai lượt liền nhau phải nằm ở hoặc sau chỗ tin nhắn cũ cuối cùng kết thúc trong
+   khối DIỄN BIẾN; riêng lượt trước có nhật ký RỖNG thì mốc là ĐẦU khối. Ca này đo **đúng chỗ**
+   nên không phụ thuộc độ dài truyện mẫu (tỉ lệ phần trăm thì phụ thuộc — xem luật 16). Cặp lượt có
+   sự kiện đổi SỚM trong CỐT TRUYỆN là chủ đích (Khép cảnh, vào/rời cảnh) phải khai
+   `ngoaiLe` trong `moc.json` **kèm `lyDo`**; ca kiểm còn khẳng định ngoại lệ đó vẫn là vi phạm
+   THẬT — ngoại lệ cũ không được âm thầm che hồi quy. Đối chứng âm bắt buộc:
+   `dungDoiChungAm()` (chèn chuỗi động vào khối CỐT TRUYỆN) phải làm ca cấu trúc ĐỎ.
+
 ## Không đổi hành vi — cách đo (bắt buộc mỗi lần tách hàm khỏi `app.js`)
 
 Mọi lần tách hàm phải chứng minh **hành vi không đổi**. "Trông giống" không tính; bằng chứng
@@ -393,21 +403,31 @@ mang dấu `rieng`), và mẫu Đạo diễn có **một lần duyệt Khép c�
 Đo bằng **byte UTF-8**; tỉ lệ = tiền tố chung / độ dài prompt SAU (prompt thật sự gửi đi). Ca Node
 ĐỎ nếu nhỏ nhất HOẶC trung bình của mẫu nào giảm quá **5 điểm phần trăm** so với `moc.json`.
 
-**Phát hiện (chỉ BÁO, chưa sửa — đúng phạm vi 7a):** tỉ lệ leo dần theo lượt ở hai mẫu đầu là
+**Ca CẤU TRÚC (không phụ thuộc độ dài)** — xem luật 18: `doCotPrompt` trong `tests/lib/prompt.mjs`
+khẳng định điểm lệch đầu tiên giữa hai lượt liền nhau nằm ở hoặc sau **cuối khối DIỄN BIẾN** của
+lượt trước (lượt mới chỉ được NỐI THÊM). Cặp có sự kiện đổi sớm trong CỐT TRUYỆN là chủ đích khai
+trong `moc.json` → `mau.<mẫu>.ngoaiLe` kèm `lyDo`; ca kiểm còn khẳng định ngoại lệ đó **vẫn là vi
+phạm thật**. Đối chứng âm: `dungDoiChungAm()` (chuỗi động chèn vào khối CỐT TRUYỆN) phải làm **cả
+4/4 cặp** bị bắt.
+
+**Phát hiện (đã đo, đã cân nhắc — và đã QUYẾT ĐỊNH):** tỉ lệ leo dần theo lượt ở hai mẫu đầu là
 đúng thiết kế: `buildPrompt` đặt tiền tố tĩnh → nhật ký chỉ-nối-thêm → sổ tri thức → `TASK`, nên
 phần dùng chung lớn dần; mẫu nhóm thấp hơn vì prompt ngắn (5,9 → 8,5 KB) nên nhật ký chiếm tỉ lệ
-nhỏ, và lượt 1 có nhật ký RỖNG (`(chưa có tin nhắn nào)`). **Bất thường thật là cặp 3-4 của mẫu
-Đạo diễn (19,3%)**: một lần duyệt Khép cảnh đổi *hai khối nằm SỚM trong `buildContext`* — khối
-NỘI TÂM & QUAN HỆ (`buildTrangThai`) và khối ĐÍNH CHÍNH/HƯỚNG PHÁT TRIỂN (`buildDaoDien`) — nên
-toàn bộ ~12,9 KB còn lại bị tính lại từ chỗ đó thay vì dùng cache. Cùng cơ chế đó, một nhân vật
-bước vào/rời cảnh sẽ làm khối HIỆN DIỆN TRONG CẢNH (cũng trong `buildContext`) đổi theo. **Đề
-xuất cho đợt sau (không làm ở 7a):** chuyển hai khối động xuống NGAY TRƯỚC `TASK` (sau nhật ký),
-hoặc chỉ gửi phần ĐỔI so với lượt trước; khi đó phải đo lại mốc và cập nhật fixture theo luật
-15/16.
+nhỏ, và lượt 1 có nhật ký RỖNG (`(chưa có tin nhắn nào)`). **Cặp 3-4 của mẫu Đạo diễn rơi còn
+19,3%**: một lần duyệt Khép cảnh đổi *hai khối nằm SỚM trong `buildContext`* — khối NỘI TÂM & QUAN
+HỆ (`buildTrangThai`) và khối ĐÍNH CHÍNH/HƯỚNG PHÁT TRIỂN (`buildDaoDien`) — nên toàn bộ ~12,9 KB
+còn lại bị tính lại từ chỗ đó thay vì dùng cache. Cùng cơ chế đó, một nhân vật bước vào/rời cảnh sẽ
+làm khối HIỆN DIỆN TRONG CẢNH (cũng trong `buildContext`) đổi theo. **QUYẾT ĐỊNH: KHÔNG sửa prompt**
+(chốt với chủ dự án): ở đường thường điểm lệch đầu tiên đã nằm đúng chỗ tin nhắn mới nối vào cuối
+DIỄN BIẾN nên cấu trúc đã tối ưu, tỉ lệ 56–75% chỉ thấp vì truyện mẫu NGẮN; cú rơi chỉ xảy ra một
+lượt mỗi lần Khép cảnh; và dời NỘI TÂM & QUAN HỆ xuống cuối prompt sẽ **đổi trọng số chú ý của
+model** → rủi ro chất lượng truyện lớn hơn lợi ích cache. Ghi lại để **lần sau không đề xuất lại**;
+muốn đảo ngược thì phải có bằng chứng về chất lượng truyện thật, không chỉ bằng con số cache.
 
-**Kiểm chứng 7a:** tầng Node **23 tệp · 5 415 khẳng định · 0 không đạt** (mốc 6d: 22 tệp ·
-5 233); riêng `prompt.test.mjs` **75 khẳng định** (so từng byte, mốc prefix-cache, chạy-lại-giống-
-hệt, kiểm kê fixture). Tầng trình duyệt **1 082/1 082 ca · 32 bộ · 0 cảnh báo**; ca quét ngược
+**Kiểm chứng 7a:** tầng Node **23 tệp · 5 437 khẳng định · 0 không đạt** (mốc 6d: 22 tệp ·
+5 233); riêng `prompt.test.mjs` **97 khẳng định** (6 việc: so từng byte, mốc prefix-cache, cấu trúc,
+đối chứng âm cấu trúc, chạy-lại-giống-hệt, kiểm kê fixture). Tầng trình duyệt **1 082/1 082 ca ·
+32 bộ · 0 cảnh báo**; ca quét ngược
 **5/5** và **0 tệp rò rỉ** trên **165 tệp của gói** (đã gồm 15 fixture `.txt` mới). Dữ liệu thật
 của người dùng **giống từng byte** trước/sau lượt chạy — so cả thư viện ngoại hình, không chỉ tập
 khoá. Đối chứng âm (bản sao tạm của cây gói, dựng trong phiên rồi xoá): sửa một ký tự trong một
@@ -429,6 +449,37 @@ dọn dẹp chỉ xoá theo id; hồ sơ do form tạo ở `nh-lib` mục 3 đư
 `nh-visual-setup` và `nh-fix5` cũng bỏ lọc theo tên. Sau khi sửa: chạy đầy đủ **1 082/1 082**,
 **0 cảnh báo**, thư viện ngoại hình của người dùng **không đổi một byte**. Ghi lại đây để lần sau
 không ai "dọn cho sạch" bằng cách lọc theo tên lần nữa.
+
+### Giai đoạn 8 — "Viết thành truyện" (`vietTruyen`)
+
+**Luật riêng của giai đoạn này (áp ngay từ Đợt 1):**
+
+- `story.truyenVietRa` là dữ liệu **DẪN XUẤT, chỉ-ghi-thêm**: tính năng `vietTruyen` **không bao giờ**
+  sửa `canhDaKhep`, `hoiThoais` hay bất kỳ trường nhập vai nào. Ca kiểm của các đợt sau phải chứng
+  minh phần nhập vai **giống từng byte** trước/sau khi sinh văn xuôi.
+- Bản ghi thiếu trường ⇒ **bù mặc định**, không xoá (bất biến #4). Điểm khác `canhDaKhep`: tham
+  chiếu tới hội thoại đã mất vẫn được **GIỮ**, vì văn xuôi của người dùng không sinh lại được.
+- `trangThai` lạ ⇒ `loi` (không được rơi về `dangChay`: giao diện sẽ quay vô hạn).
+- Fixture hình dạng cũ phải có mục cho **mọi** phiên bản 0..`PHIEN_BAN_TRUYEN`; thêm phiên bản mới
+  thì thêm mục + đưa tên trường mới vào `khongCo` của mọi mục cũ.
+
+**Đợt 1 — schema + chuẩn hoá + migration (đã xong, đã kiểm chứng):**
+
+| Việc | Ở đâu |
+|---|---|
+| `truyenVietRa` trong mô tả truyện + báo mục không phải đối tượng | `src/schema.js` (`MO_TA_TRUYEN`, `kiemTraTruyen`) |
+| Mục **v8** trong sổ migration | `src/schema.js` (`MIGRATION_TRUYEN`) |
+| `PHIEN_BAN_TRUYEN` 7 → 8, `s.truyenVietRa` bù mặc định, `createStory` khởi tạo mảng | `src/store.js` |
+| Id mới (`vt`) + dịch `hoiThoaiId` khi nhập bản sao | `src/nhap.js` (`gomId`, `dichThamChieu`) |
+| Fixture **v8** + `khongCo` của v0..v7 | `tests/fixtures/phien-ban-cu.mjs` |
+| Ca Node: chuẩn hoá, sổ migration, báo hình dạng, nhập bản sao, mốc phiên bản | `store.test.mjs` · `schema.test.mjs` · `nhap.test.mjs` · `gd4.test.mjs` |
+
+Ca đáng chú ý: `gd4.test.mjs` từng **ghim cứng `PHIEN_BAN_TRUYEN === 7`** với hàm ý "Giai đoạn 4 không
+đổi hình dạng". Từ v8, ca đó đổi tên + ghim **8** kèm ghi chú: con số là mốc của TOÀN dự án, chỉ được
+tăng khi có mục `MIGRATION_TRUYEN` + đường chuẩn hoá (ràng buộc ghim ở `schema.test.mjs`).
+
+**Kiểm chứng Đợt 1:** tầng Node **23 tệp · 5 500 khẳng định · 0 không đạt** (mốc 7a: 5 437). Tầng
+trình duyệt: xem mục "Kiểm chứng Giai đoạn 8" bên dưới (chạy lại đầy đủ trước khi đóng gói).
 
 ## Thêm một bộ kiểm thử
 

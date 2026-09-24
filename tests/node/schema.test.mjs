@@ -43,11 +43,11 @@ function moDong() {
 
 // Bản ghi "đã đúng phiên bản hiện tại" để làm mốc so — dựng từ fixture hiện có, không dùng hàm
 // sinh id của app cho id chính (id đã có sẵn trong fixture).
-const TRUYEN_V7 = TRUYEN_CU[TRUYEN_CU.length - 1].raw;
+const TRUYEN_MOI = TRUYEN_CU[TRUYEN_CU.length - 1].raw;
 
 test("sổ đăng ký migration: tăng dần, không lỗ, phủ tới phiên bản hiện tại", () => {
   const so = S.MIGRATION_TRUYEN;
-  ok(Array.isArray(so) && so.length >= 7, "sổ đăng ký truyện có ít nhất 7 mục (" + so.length + ")");
+  ok(Array.isArray(so) && so.length >= 8, "sổ đăng ký truyện có ít nhất 8 mục (" + so.length + ")");
   eq(so[0].phienBan, 1, "sổ bắt đầu từ phiên bản 1");
   for (let i = 1; i < so.length; i++) {
     ok(so[i].phienBan > so[i - 1].phienBan, "phiên bản tăng dần: " + so[i - 1].phienBan + " → " + so[i].phienBan);
@@ -79,10 +79,10 @@ test("soPhienBan + buocCanChay: bản không rõ phiên bản coi như 0", () =>
   eq(S.soPhienBan({ phienBan: "abc" }), 0, "chuỗi không phải số ⇒ 0");
   eq(S.soPhienBan({ phienBan: -3 }), 0, "số âm ⇒ 0");
   eq(S.soPhienBan({ phienBan: 6.9 }), 6, "lấy phần nguyên");
-  eq(S.buocCanChay(S.MIGRATION_TRUYEN, 6).length, 1, "từ v6 còn đúng một bước");
+  eq(S.buocCanChay(S.MIGRATION_TRUYEN, 6).length, 2, "từ v6 còn đúng hai bước (v7, v8)");
   eq(S.buocCanChay(S.MIGRATION_TRUYEN, PHIEN_BAN_TRUYEN).length, 0, "đã mới nhất ⇒ không bước nào");
   eq(S.buocCanChay(S.MIGRATION_TRUYEN, 0).length, S.MIGRATION_TRUYEN.length, "không rõ phiên bản ⇒ đi hết");
-  eqSau(S.buocCanChay(S.MIGRATION_TRUYEN, 3).map((b) => b.phienBan), [4, 5, 6, 7], "đúng các bước còn thiếu");
+  eqSau(S.buocCanChay(S.MIGRATION_TRUYEN, 3).map((b) => b.phienBan), [4, 5, 6, 7, 8], "đúng các bước còn thiếu");
 });
 
 test("mô tả hình dạng phủ ĐÚNG bản ghi đã chuẩn hoá (không thừa, không thiếu)", () => {
@@ -258,6 +258,7 @@ test("mọi hình dạng cũ nâng lên được hình dạng HIỆN TẠI và q
     eqSau(v1.anh, [], "bản cũ: chưa có ảnh cảnh");
     eq(v1.nhip, "cham", "bản cũ: nhịp mặc định là chậm");
     eqSau(v1.canhDaKhep, [], "bản cũ: chưa có cảnh đã khép");
+    eqSau(v1.truyenVietRa, [], "bản cũ: chưa có bản viết thành truyện");
     eq(v1.daoDien.bat, false, "bản cũ: chế độ Đạo diễn tắt");
     eq(v1.thoiGian.cheDo, "tamDung", "bản cũ: vắng mặt tạm dừng");
     eqSau(v1.ngoaiManHinh, [], "bản cũ: chưa có sự kiện ngoài màn hình");
@@ -284,10 +285,10 @@ test("nạp bản ghi: đã đúng phiên bản thì giữ NGUYÊN đối tượ
     eq(nk.ds[0].tu, 1, "nhật ký ghi đúng phiên bản đầu vào");
     eq(nk.ds[0].den, PHIEN_BAN_TRUYEN, "nhật ký ghi đúng phiên bản đích");
     eq(nk.ds[0].vuotPhienBan, false, "không phải dữ liệu từ tương lai");
-    eq(tomTatMigrate().indexOf("v1→v7") >= 0, true, "tóm tắt: " + tomTatMigrate());
+    eq(tomTatMigrate().indexOf("v1→v8") >= 0, true, "tóm tắt: " + tomTatMigrate());
     // Bản ghi ĐÚNG phiên bản nhưng CHƯA ở dạng chuẩn (cảnh đã khép trỏ hội thoại không còn) vẫn
     // được giữ NGUYÊN: dọn nó là việc của màn Tự kiểm tra (BÁO), không phải của đường nạp.
-    const lech = banSao(TRUYEN_V7);
+    const lech = banSao(TRUYEN_MOI);
     lech.canhDaKhep = [{ id: "canh_zzlech", htId: "ht_zzkhongco", htIds: ["ht_zzkhongco"], tomTat: "x", luc: 1000 }];
     const raLech = napBanGhi(lech, "truyen", "ct_zzlech");
     eq(raLech, lech, "bản ghi đúng phiên bản: giữ nguyên đối tượng (không tự dọn tham chiếu mồ côi)");
@@ -295,7 +296,7 @@ test("nạp bản ghi: đã đúng phiên bản thì giữ NGUYÊN đối tượ
     // Dữ liệu từ TƯƠNG LAI: giữ nguyên (không hạ phiên bản, không cắt trường lạ) nhưng phải được
     // ĐÁNH DẤU để người dùng biết mà cập nhật app.
     xoaNhatKyMigrate();
-    const tuongLai = banSao(TRUYEN_V7);
+    const tuongLai = banSao(TRUYEN_MOI);
     tuongLai.phienBan = PHIEN_BAN_TRUYEN + 5;
     const raTuongLai = napBanGhi(tuongLai, "truyen", "ct_zzv9");
     eq(raTuongLai, tuongLai, "dữ liệu từ tương lai: giữ nguyên đối tượng");
@@ -398,7 +399,7 @@ test("nhật ký nâng cấp & lỗi hình dạng: chỉ trong BỘ NHỚ, có t
 });
 
 test("fixture hình dạng cũ: đúng phiên bản, không lẫn trường của bản sau, id là hư cấu", () => {
-  ok(TRUYEN_CU.length >= 8, "có fixture cho cả bản không rõ phiên bản lẫn v1..v7 (" + TRUYEN_CU.length + ")");
+  ok(TRUYEN_CU.length >= 9, "có fixture cho cả bản không rõ phiên bản lẫn v1..v8 (" + TRUYEN_CU.length + ")");
   for (let v = 0; v <= PHIEN_BAN_TRUYEN; v++) {
     ok(TRUYEN_CU.some((x) => x.phienBan === v), "có fixture cho phiên bản v" + v);
   }
@@ -418,9 +419,12 @@ test("fixture hình dạng cũ: đúng phiên bản, không lẫn trường củ
     const chuoi = JSON.stringify(h.raw);
     for (const k of h.khongCo) eq(chuoi.indexOf('"' + k + '"') < 0, true, "hồ sơ v" + h.phienBan + " không được chứa: " + k);
   }
-  // Hình dạng hiện tại (v7) dùng làm mốc so: phải có đúng các trường mới.
-  eq(TRUYEN_V7.phienBan, PHIEN_BAN_TRUYEN, "fixture mốc mang phiên bản hiện tại");
-  ok(TRUYEN_V7.nguoiChoi.ngoaiHinhId.length > 0 && TRUYEN_V7.nhanVats[0].bietDanh.length > 0, "fixture mốc có liên kết hồ sơ + biệt danh");
+  // Hình dạng hiện tại dùng làm mốc so: phải có đúng các trường mới nhất.
+  eq(TRUYEN_MOI.phienBan, PHIEN_BAN_TRUYEN, "fixture mốc mang phiên bản hiện tại");
+  ok(TRUYEN_MOI.nguoiChoi.ngoaiHinhId.length > 0 && TRUYEN_MOI.nhanVats[0].bietDanh.length > 0, "fixture mốc có liên kết hồ sơ + biệt danh");
+  ok(Array.isArray(TRUYEN_MOI.truyenVietRa) && TRUYEN_MOI.truyenVietRa.length > 0, "fixture mốc có bản viết thành truyện");
+  eq(TRUYEN_MOI.truyenVietRa[0].trangThai, "xong", "fixture mốc: bản viết đã xong");
+  ok(String(TRUYEN_MOI.truyenVietRa[0].noiDung).indexOf("Chương 1") >= 0, "fixture mốc: prose có heading chương tự chèn");
   // Hình dạng cũ: các mẫu nhỏ (tin nhắn, ảnh) cũng phải mang dấu hiệu test.
   for (const t of TIN_NHAN_CU) eq(JSON.stringify(t.raw).indexOf("zz") >= 0, true, "tin nhắn test có dấu hiệu zz: " + t.ten);
   eq(JSON.stringify(ANH_CU.raw).indexOf("zz") >= 0, true, "ảnh test có dấu hiệu zz");
@@ -433,6 +437,15 @@ test("mô tả hình dạng & bảng tra loại bản ghi", () => {
   }
   ok(m.truyen.indexOf("phienBan") >= 0, "mô tả truyện có trường phienBan");
   ok(m.truyen.indexOf("canhDaKhep") >= 0, "mô tả truyện có canhDaKhep");
+  ok(m.truyen.indexOf("truyenVietRa") >= 0, "mô tả truyện có truyenVietRa");
+  // Bản viết thành truyện: mục KHÔNG phải đối tượng bị BÁO (chỉ báo, không xoá dữ liệu).
+  const rawXau = { id: "ct_zzvt", ten: "ZZ xấu", truyenVietRa: [null, { hoiThoaiId: "ht_z" }] };
+  const kqVt = S.kiemTraTruyen(rawXau);
+  eq(kqVt.ok, false, "mục truyenVietRa không phải đối tượng ⇒ báo lỗi hình dạng");
+  ok(String(kqVt.loi[0].duong).indexOf("truyenVietRa") >= 0, "chỉ đúng đường dẫn: " + kqVt.loi[0].duong);
+  // Và bản ghi thiếu trường (nhưng đúng đối tượng) KHÔNG bị coi là hỏng hình dạng — đó là việc
+  // của chuẩn hoá.
+  eq(S.kiemTraTruyen(chuanHoaTruyen({ id: "ct_zzvt2", truyenVietRa: [{ hoiThoaiId: "ht_z" }] })).ok, true, "bản ghi thiếu trường được chuẩn hoá rồi mới kiểm");
   ok(m["ho-so"].indexOf("moTaEn") >= 0, "mô tả hồ sơ có bản dịch EN");
   eq(S.nhanLoaiBanGhi("truyen"), "truyện", "nhãn tiếng Việt của truyện");
   eq(S.nhanLoaiBanGhi("tin-nhan"), "tin nhắn", "nhãn tiếng Việt của tin nhắn");

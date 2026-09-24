@@ -12,6 +12,12 @@
 // mặt, chọn nhân vật lên tiếng… Gọi thẳng `buildPrompt` là tự chế lại đường đó, nên snapshot
 // sẽ đúng với bản chế tay chứ không đúng với thứ app thật sự gửi đi.
 //
+// Tỉ lệ phần trăm một mình KHÔNG đủ: nó phụ thuộc độ dài truyện mẫu, nên truyện mẫu ngắn làm
+// tỉ lệ trông thấp dù cấu trúc đã đúng. Vì vậy tệp này còn đo CẤU TRÚC (`doCotPrompt` ở dưới):
+// mọi thứ trước cuối khối DIỄN BIẾN của lượt trước phải giống hệt — lượt mới chỉ được NỐI THÊM.
+// Cặp lượt có sự kiện đổi sớm trong CỐT TRUYỆN là chủ đích (Khép cảnh / vào-rời cảnh) phải
+// khai trong `NGOAI_LE_COT` (bơm vào moc.json) kèm lý do.
+//
 // LUẬT CỦA TỆP NÀY
 //   • KHÔNG dùng dấu gạch chéo ngược (xem tests/README.md).
 //   • Mọi tên/id là HƯ CẤU: id test có tiền tố riêng, tên truyện/hội thoại bắt đầu bằng "ZZ"
@@ -468,10 +474,96 @@ export function dungTatCa() {
   return [dungNhom(), dungRieng(), dungDaoDien()];
 }
 
+// ĐỐI CHỨNG ÂM cho ca CẤU TRÚC: đúng mẫu "nhóm thường" nhưng mỗi lượt ghi thêm một chuỗi ĐỘNG
+// vào khối CỐT TRUYỆN — chỗ mà suốt hội thoại phải đứng yên. Ca cấu trúc PHẢI báo vi phạm; nếu
+// không báo thì ca cấu trúc chỉ là ca trang trí, không bắt được hồi quy thật.
+export function dungDoiChungAm() {
+  const mau = dungNhom();
+  mau.key = "doichungam";
+  mau.ten = "đối chứng âm (chuỗi động trong khối CỐT TRUYỆN)";
+  for (let i = 0; i < mau.luot.length; i++) {
+    mau.luot[i].truoc = () => {
+      mau.story.moTa = "Ba người quen cũ gặp lại nhau ở một bến tàu nhỏ. [thay đổi ở lượt " + (i + 1) + "]";
+    };
+  }
+  return mau;
+}
+
+// ---------------------------------------------------------------- CẤU TRÚC prompt
+// Ca CẤU TRÚC (tests/node/prompt.test.mjs) KHÔNG đo tỉ lệ phần trăm — tỉ lệ phụ thuộc ĐỘ DÀI
+// truyện mẫu — mà đo ĐÚNG CHỖ: mọi thứ trước mốc neo phải giống hệt nhau giữa hai lượt liền
+// nhau, nghĩa là lượt mới chỉ được NỐI THÊM vào cuối nhật ký.
+//
+// `buildPrompt` (src/ai.js) ghép: CỐT TRUYỆN + DIỄN BIẾN + [SỔ TRI THỨC] + TASK. Mốc neo:
+//   • nhật ký đã có tin nhắn: CUỐI khối DIỄN BIẾN (chỗ tin nhắn cũ cuối cùng kết thúc);
+//   • nhật ký còn RỖNG (lượt đầu): ĐẦU khối DIỄN BIẾN, vì chỗ giữ ô "(chưa có tin nhắn nào)"
+//     đổi thành danh sách tin nhắn là chuyện bình thường.
+// Cặp lượt có sự kiện đổi SỚM trong CỐT TRUYỆN là chủ đích (Khép cảnh, vào/rời cảnh) được khai
+// là NGOẠI LỆ trong moc.json kèm lý do — và ca kiểm còn khẳng định ngoại lệ đó vẫn là vi phạm
+// THẬT, để một ngoại lệ cũ không âm thầm che hồi quy.
+const NL2 = String.fromCharCode(10, 10);
+export const DAU_DIEN_BIEN = "# DIỄN BIẾN (tin nhắn gần đây, cũ nhất ở trên)";
+export const DAU_SO_TRI_THUC = "# SỔ TRI THỨC — thông tin nền đã định trước";
+const DUOI_TASK = NL2 + "TASK: ";
+const NHAT_KY_RONG = "(chưa có tin nhắn nào)";
+
+export function viTriKhacDau(a, b) {
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) if (a[i] !== b[i]) return i;
+  return n;
+}
+
+export function neoDienBien(prompt) {
+  const iDau = prompt.indexOf(DAU_DIEN_BIEN);
+  if (iDau < 0) return null;
+  const iNd = iDau + DAU_DIEN_BIEN.length + NL2.length;
+  const iLore = prompt.indexOf(NL2 + DAU_SO_TRI_THUC, iNd);
+  const iTask = prompt.lastIndexOf(DUOI_TASK);
+  const cuoi = Math.min(iLore < 0 ? prompt.length : iLore, iTask < 0 ? prompt.length : iTask);
+  const trong = prompt.slice(iNd, cuoi).indexOf(NHAT_KY_RONG) === 0;
+  return { dau: iNd, cuoi: cuoi, trong: trong, neo: trong ? iNd : cuoi };
+}
+
+// Mỗi cặp lượt liền nhau: vị trí lệch đầu tiên (`chung`) so với mốc neo của prompt TRƯỚC.
+export function doCotPrompt(prompts) {
+  const ra = [];
+  for (let i = 1; i < prompts.length; i++) {
+    const neo = neoDienBien(prompts[i - 1]);
+    if (!neo) {
+      ra.push({ cap: i + "-" + (i + 1), loi: "thiếu khối DIỄN BIẾN trong prompt trước", dat: false, thieu: 0 });
+      continue;
+    }
+    const chung = viTriKhacDau(prompts[i - 1], prompts[i]);
+    ra.push({
+      cap: i + "-" + (i + 1),
+      chung: chung,
+      neo: neo.neo,
+      nhatKyRong: neo.trong,
+      dat: chung >= neo.neo,
+      thieu: Math.max(0, neo.neo - chung),
+    });
+  }
+  return ra;
+}
+
+// Cặp lượt được MIỄN khỏi ca cấu trúc vì có sự kiện đổi SỚM trong `buildContext` là CHỦ ĐÍCH.
+// Quyết định KHÔNG sửa prompt (giữ trọng số chú ý của model) ghi ở src/README.md, mục 7a.
+export const NGOAI_LE_COT = {
+  nhom: [],
+  rieng: [],
+  daodien: [
+    {
+      cap: "3-4",
+      lyDo:
+        "Lượt 4 duyệt Khép cảnh: khối NỘI TÂM & QUAN HỆ và khối ĐÍNH CHÍNH/HƯỚNG PHÁT TRIỂN đổi SỚM trong buildContext. Chủ đích, đã cân nhắc — xem src/README.md mục 7a.",
+    },
+  ],
+};
+
 // ------------------------------------------------------------- chạy mẫu bằng AI giả
 // `traLoi` = mảng văn bản AI giả trả về, dùng lần lượt cho từng lời gọi. Một lượt = MỘT lời
 // gọi (nhóm cũng vậy: `replyAsGroup` sinh cả đoạn cảnh trong một lần).
-async function chayMotMau(mau) {
+export async function chayMau(mau) {
   const goc = typeof window !== "undefined" ? window.TRUYEN_VAI_ROOT : null;
   if (!goc) throw new Error("thiếu window.TRUYEN_VAI_ROOT (phải import tests/lib/moi-truong.js trước)");
   const cu = goc.aiTextPlugin;
@@ -554,7 +646,7 @@ function lamTron(x) {
 export async function chayTatCa() {
   const ra = {};
   for (const mau of dungTatCa()) {
-    const prompts = await chayMotMau(mau);
+    const prompts = await chayMau(mau);
     const cap = doTienTo(prompts);
     const tyLe = cap.map((c) => c.tyLe);
     ra[mau.key] = {
@@ -562,6 +654,7 @@ export async function chayTatCa() {
       ten: mau.ten,
       prompts,
       cap,
+      cot: doCotPrompt(prompts),
       nhoNhat: lamTron(Math.min.apply(null, tyLe)),
       trungBinh: lamTron(tyLe.reduce((a, b) => a + b, 0) / tyLe.length),
     };
@@ -578,6 +671,7 @@ export function mocTuKetQua(kq) {
       nhoNhat: kq[key].nhoNhat,
       trungBinh: kq[key].trungBinh,
       cap: kq[key].cap.map((c) => ({ cap: c.cap, chung: c.chung, dai: c.dai, tyLe: lamTron(c.tyLe) })),
+      ngoaiLe: NGOAI_LE_COT[key] || [],
     };
   }
   return {
@@ -585,7 +679,9 @@ export function mocTuKetQua(kq) {
     soLuot: SO_LUOT,
     ghiChu:
       "Mốc prefix-cache của 3 truyện mẫu hư cấu (Giai đoạn 7a). Ca Node ĐỎ nếu tỉ lệ tiền tố " +
-      "chung nhỏ nhất của bất kỳ mẫu nào giảm quá 5 điểm phần trăm so với mốc. Tạo lại bằng: " +
+      "chung nhỏ nhất HOẶC trung bình của bất kỳ mẫu nào giảm quá 5 điểm phần trăm so với mốc. " +
+      "Khối ngoaiLe khai những cặp lượt được miễn ca CẤU TRÚC (lượt mới chỉ được nối thêm vào " +
+      "cuối khối DIỄN BIẾN) vì có sự kiện đổi sớm trong CỐT TRUYỆN là chủ đích. Tạo lại bằng: " +
       "node tests/lib/tao-prompt-fixture.mjs (ghi cả fixture từng lượt).",
     donVi: "byte UTF-8; tyLe = tiền tố chung / độ dài prompt sau",
     mau,

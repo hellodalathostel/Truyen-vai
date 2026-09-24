@@ -1084,8 +1084,12 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 **NGUỒN SỰ THẬT: repo GitHub `https://github.com/hellodalathostel/Truyen-vai`.** Tải repo là
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
-**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Đợt 6d**
-`https://user.uploads.dev/file/c6dc4cdf96e660ac34a552a07b11dd15.zip` (Đợt 6c:
+**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Giai đoạn 7a**
+`https://user.uploads.dev/file/ad04085a3aa71e7c6ea53697cf4a68aa.zip` (165 tệp, 820 KB — gồm
+`src/` byte-for-byte, `tests/**` với fixture prompt, `main.pjs`, `index.html`, `package.json`, CI;
+**không** chứa `.git`; đã chạy lại tầng Node trên chính gói tải về: **5 415 khẳng định · 0 không
+đạt**). Các gói trước: Đợt 6d
+`https://user.uploads.dev/file/c6dc4cdf96e660ac34a552a07b11dd15.zip`; Đợt 6c:
 `https://user.uploads.dev/file/5b6804aec274c1a3c22f9df24be6af39.zip` — mốc tách `openStoryMenu` +
 `openLorebook` + `bindGlobalEvents`; Đợt 6b:
 `https://user.uploads.dev/file/1da7f265676235f0bec0b2f49915d55a.zip` — mốc tách
@@ -1617,25 +1621,43 @@ Prompt từng lượt được ghim vào `tests/fixtures/prompt/<mẫu>-<lượt
 Đo bằng **byte UTF-8**; tỉ lệ = tiền tố chung / độ dài prompt SAU (prompt thật sự gửi đi). Ca Node
 ĐỎ nếu nhỏ nhất HOẶC trung bình của mẫu nào giảm quá **5 điểm phần trăm** so với mốc.
 
-**Phát hiện (chỉ BÁO, KHÔNG sửa prompt trong đợt này):**
+**Phát hiện (đã đo, đã cân nhắc — và đã QUYẾT ĐỊNH):**
 
 - Tỉ lệ leo dần theo lượt ở hai mẫu đầu là **đúng thiết kế**: `buildPrompt` xếp tiền tố tĩnh → nhật
   ký chỉ-nối-thêm → sổ tri thức → `TASK`, nên phần dùng chung lớn dần. Mẫu nhóm thấp hơn vì prompt
   ngắn (5,9 → 8,5 KB) nên nhật ký chiếm tỉ lệ nhỏ, và lượt 1 có nhật ký RỖNG.
-- **Bất thường thật là cặp 3-4 của mẫu Đạo diễn (19,3%)**: một lần duyệt Khép cảnh đổi *hai khối
-  nằm SỚM trong `buildContext`* — khối NỘI TÂM & QUAN HỆ (`buildTrangThai`) và khối ĐÍNH
-  CHÍNH/HƯỚNG PHÁT TRIỂN (`buildDaoDien`) — nên toàn bộ ~12,9 KB còn lại bị tính lại thay vì dùng
-  cache. Cùng cơ chế đó, một nhân vật bước vào/rời cảnh làm khối HIỆN DIỆN TRONG CẢNH (cũng trong
-  `buildContext`) đổi theo.
-- **Đề xuất cho đợt sau (không làm ở 7a):** chuyển hai khối động xuống NGAY TRƯỚC `TASK` (sau nhật
-  ký), hoặc chỉ gửi phần ĐỔI so với lượt trước; khi đó phải đo lại mốc và cập nhật fixture.
+- **Cặp 3-4 của mẫu Đạo diễn rơi còn 19,3%**: một lần duyệt Khép cảnh đổi *hai khối nằm SỚM trong
+  `buildContext`* — khối NỘI TÂM & QUAN HỆ (`buildTrangThai`) và khối ĐÍNH CHÍNH/HƯỚNG PHÁT TRIỂN
+  (`buildDaoDien`) — nên toàn bộ ~12,9 KB còn lại bị tính lại thay vì dùng cache. Cùng cơ chế đó,
+  một nhân vật bước vào/rời cảnh làm khối HIỆN DIỆN TRONG CẢNH (cũng trong `buildContext`) đổi theo.
+- **QUYẾT ĐỊNH: KHÔNG sửa prompt** (chốt với chủ dự án). Lý do:
+  1. Ở đường thường (nhóm, cảnh riêng), **điểm lệch đầu tiên đã nằm đúng chỗ tin nhắn mới nối vào
+     cuối DIỄN BIẾN** — cấu trúc đã tối ưu; tỉ lệ 56–75% thấp chỉ vì **truyện mẫu NGẮN** (giữ nguyên
+     cấu trúc, truyện dài hơn thì tỉ lệ tự khắc cao hơn).
+  2. Cú rơi chỉ xảy ra **một lượt mỗi lần Khép cảnh** — thao tác người chơi chủ động, không phải
+     chuyện mỗi lượt.
+  3. Dời NỘI TÂM & QUAN HỆ xuống cuối prompt sẽ **đổi trọng số chú ý của model** (thông tin về con
+     người và quan hệ nằm sau nhật ký) → rủi ro chất lượng truyện lớn hơn lợi ích cache.
+  Ghi lại đây để **lần sau không đề xuất lại**; muốn đảo ngược thì phải có bằng chứng về CHẤT LƯỢNG
+  truyện (so trên truyện thật), không chỉ bằng con số cache.
 
-**Kiểm chứng 7a:** tầng Node **23 tệp · 5 415 khẳng định · 0 không đạt** (mốc 6d: 22 tệp ·
-5 233), riêng `prompt.test.mjs` **75 khẳng định**; tầng trình duyệt **1 082/1 082 ca · 32 bộ · 0
-cảnh báo**, ca quét ngược **5/5** và **0 tệp rò rỉ** trên **165 tệp của gói**. Dữ liệu thật của
-người dùng **giống từng byte** trước/sau lượt chạy (so cả thư viện ngoại hình, không chỉ tập khoá).
-Đối chứng âm: bản sao cố ý hỏng (sửa một ký tự fixture + nâng khống mốc) làm `prompt.test.mjs` **3 ca
-ĐỎ đúng chỗ** — phép kiểm thật sự có tác dụng.
+**Ca CẤU TRÚC (không phụ thuộc độ dài):** ngoài tỉ lệ phần trăm, `prompt.test.mjs` còn khẳng định
+với **mọi cặp lượt liền nhau** rằng **điểm lệch đầu tiên nằm ở hoặc sau chỗ tin nhắn cũ cuối cùng kết
+thúc trong khối DIỄN BIẾN** — tức lượt mới chỉ được NỐI THÊM vào cuối nhật ký. Mốc neo tính từ chính
+prompt (cuối khối DIỄN BIẾN; riêng lượt trước có nhật ký RỖNG thì lấy đầu khối, vì ô "(chưa có tin
+nhắn nào)" đổi thành danh sách tin nhắn là bình thường). Cặp có sự kiện đổi SỚM trong CỐT TRUYỆN là
+chủ đích (Khép cảnh, vào/rời cảnh) được khai **ngoại lệ trong `moc.json`** kèm lý do, và ca kiểm còn
+khẳng định ngoại lệ đó **vẫn là vi phạm thật** — ngoại lệ cũ không được âm thầm che hồi quy. Đối
+chứng âm: chèn một chuỗi động vào khối CỐT TRUYỆN của mẫu nhóm thường → **cả 4/4 cặp bị bắt** (ca
+cấu trúc ĐỎ đúng chỗ), nên đây là ca có răng chứ không phải ca trang trí.
+
+**Kiểm chứng 7a:** tầng Node **23 tệp · 5 437 khẳng định · 0 không đạt** (mốc 6d: 22 tệp ·
+5 233), riêng `prompt.test.mjs` **97 khẳng định** (6 việc: từng byte · mốc prefix-cache · cấu trúc ·
+đối chứng âm cấu trúc · chạy lại giống hệt · kiểm kê fixture); tầng trình duyệt **1 082/1 082 ca ·
+32 bộ · 0 cảnh báo**, ca quét ngược **5/5** và **0 tệp rò rỉ** trên **165 tệp của gói**. Dữ liệu thật
+của người dùng **giống từng byte** trước/sau lượt chạy (so cả thư viện ngoại hình, không chỉ tập
+khoá). Đối chứng âm: bản sao cố ý hỏng (sửa một ký tự fixture + nâng khống mốc) làm `prompt.test.mjs`
+**3 ca ĐỎ đúng chỗ** — phép kiểm thật sự có tác dụng.
 
 **Một lỗi DỮ LIỆU THẬT của bộ kiểm thử đã lộ ra và đã sửa (đọc kỹ trước khi "dọn cho sạch"):** lượt
 chạy trình duyệt đầu tiên của 7a bị ngắt giữa chừng (tab treo, người dùng phải F5), để lại trong kv
@@ -1647,6 +1669,60 @@ hàng loạt: **báo oan**, không phải rò rỉ. Nặng hơn: bộ dọn dẹ
 trùng tên kiểm thử. Đã sửa (luật 17 trong `tests/README.md`): mọi chỗ dọn dẹp chỉ xoá **theo id**
 (`nhz_*` / id vừa lưu), hồ sơ do form tạo được xoá ngay theo đúng id của nó. Sau khi sửa: chạy đầy
 đủ **1 082/1 082**, **0 cảnh báo**, thư viện ngoại hình của người dùng **không đổi một byte**.
+
+## Giai đoạn 8 — "Viết thành truyện" (`vietTruyen`)
+
+**Mục tiêu:** từ một hội thoại ĐÃ nhập vai, sinh ra một bản **văn xuôi kể chuyện** hoàn chỉnh (không
+phải định dạng hỏi–đáp), có thể chia chương, đọc trong app hoặc xuất file riêng. Đây là dữ liệu
+**DẪN XUẤT**: tính năng **KHÔNG BAO GIỜ** sửa `canhDaKhep`, `hoiThoais` hay bất kỳ trường roleplay nào.
+
+Thiết kế (chốt với chủ dự án; làm theo 5 đợt, mỗi đợt DỪNG báo cáo x/5 chờ duyệt):
+
+1. **Nguồn (người dùng chọn lúc tạo):** `tho` = ghép tin nhắn có `vai` là `nguoi`/`ai` của một hội
+   thoại theo `luc` tăng dần (bỏ `he`, `anh`); `canhKhep` = ghép `tomTat` của các cảnh đã khép
+   (`huy !== true`) thuộc hội thoại đó. Hàm thuần `layNguonVietTruyen(story, hoiThoaiId, loaiNguon)`.
+2. **Chia lô:** log có thể dài hơn một lượt gọi AI ⇒ chia thành các "lô" theo ngưỡng ký tự TÍNH TỪ
+   `countTokens`/`idealMaxTokens` (không hard-code số ký tự). Hàm thuần `chiaLoNguon(doanNguon, gioiHanKyTu)`.
+3. **Nén nhẹ khi prose đã quá dài:** trước mỗi lượt (trừ lượt đầu), nếu
+   `countTokens(proseDaViet) > 0,6 × idealMaxTokens()` thì tóm tắt PHẦN ĐẦU của `proseDaViet` (một
+   lượt gọi AI phụ) rồi dùng `[đoạn tóm tắt] + [~20% cuối giữ nguyên]` làm context lượt sau — giữ
+   mạch văn gần nhất y nguyên. Bản tóm tắt là dữ liệu TẠM: **không** lưu vào `story`. Hàm thuần
+   `canNenProse` / `cutProseGiuMachVan`.
+4. **Ba nguyên tắc BẮT BUỘC trong prompt** (rút từ bug thật đã gặp ở app khác), đặt ở phần ĐẦU prompt
+   (cache-able) qua hàm thuần `layNguyenTacVietTruyen()`: (a) **không tự bịa thêm** tình
+   huống/nhân vật/địa điểm ngoài nguồn; (b) mỗi đoạn nguồn phải thành một **CẢNH** có hành động/lời
+   nói cụ thể, không phải câu tóm lược; (c) đoạn nguồn sau dùng chung nhân vật/địa điểm với đoạn
+   trước KHÔNG có nghĩa đoạn trước "đã xong" — mỗi đoạn phải xuất hiện đầy đủ, riêng biệt.
+5. **Chia chương do AI quyết định** — heading "số + tiêu đề ngắn" nằm NGAY TRONG `noiDung` của bản
+   văn xuôi; **không** tạo bản ghi `MO_TA_CHUONG` mới trong `story.chuongs`.
+6. **Lưu trữ:** `story.truyenVietRa = [{ id, hoiThoaiId, loaiNguon, taoLuc, trangThai, noiDung,
+   loiNeu }]`, `trangThai` ∈ `dangChay` / `xong` / `loi`.
+7. **Cổng 18+:** trước khi chạy, `chanNoiDungNguoiLon(story)` khác rỗng ⇒ **CHẶN** và hiện đúng
+   thông báo đó (không hỏi lại 18+ — dùng kết quả xác nhận đã có của truyện). Truyện đang ở chế độ
+   người lớn thì prompt ghi chú: giữ đúng mức độ rõ ràng của nguồn, **KHÔNG** tự làm nhẹ.
+8. **Màn hình:** `src/ui/vietTruyen/` — `vietTruyenFlow.js` (logic THUẦN) · `vietTruyenHtml.js`
+   (chuỗi HTML tĩnh) · `index.js` (vỏ ≤ 150 dòng, nối qua `VIET_TRUYEN_DEPS`).
+
+### Đợt 1 — schema + chuẩn hoá + migration (đã xong)
+
+- `MO_TA_TRUYEN` thêm `truyenVietRa` (mảng); `kiemTraTruyen` báo mục không phải đối tượng — **chỉ
+  báo, không xoá** (bất biến #4).
+- `PHIEN_BAN_TRUYEN` **7 → 8**; `MIGRATION_TRUYEN` thêm mục **v8 "Bản viết thành truyện"**.
+- `chuanHoaTruyen` (đặt cạnh khối `canhDaKhep`): bù mặc định từng bản ghi — `id` (`uid("vt")`),
+  `hoiThoaiId`, `loaiNguon` (`tho`/`canhKhep`, lạ ⇒ `tho`), `taoLuc`, `trangThai` (lạ ⇒ `loi`, để
+  không hiện nhầm là "đang chạy"), `noiDung`, `loiNeu`. **Khác `canhDaKhep`:** tham chiếu tới hội
+  thoại đã mất vẫn được GIỮ (văn xuôi của người dùng không sinh lại được); chỉ bỏ mục không phải
+  đối tượng.
+- `createStory` tạo `truyenVietRa: []` (truyện mới mở lên là có mảng).
+- `nhap.js` (`capIdMoi`): cấp id mới cho bản viết (`vt`) ở **CUỐI** `gomId` (để dãy id của mọi bản
+  ghi cũ không đổi), dịch `id` + `hoiThoaiId`; hội thoại nguồn không đi kèm bản sao ⇒ bỏ tham chiếu
+  (cùng luật với `convId` của ảnh).
+- Fixture `tests/fixtures/phien-ban-cu.mjs` thêm **v8**; `khongCo` của v0..v7 thêm `truyenVietRa`
+  (cơ chế tự bắt "fixture lỡ chứa hình dạng mới").
+- Ca Node mới/sửa: `store.test.mjs` (chuẩn hoá: giữ bản ghi thiếu trường · bỏ mục không phải đối
+  tượng · giữ tham chiếu mồ côi · ép kiểu · không dùng chung tham chiếu), `schema.test.mjs` (sổ
+  migration v8, `buocCanChay`, idempotent cho v8, báo lỗi hình dạng), `nhap.test.mjs` (id mới +
+  dịch tham chiếu + giữ nội dung), `gd4.test.mjs` (mốc phiên bản toàn dự án).
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

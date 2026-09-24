@@ -252,6 +252,41 @@ test("chuanHoaTruyen: bù mặc định, lọc dữ liệu không đáng tin", (
   eqSau(s2.canhDaKhep.map((c) => c.id), ["c2"], "cảnh không gắn được hội thoại nào là rác ⇒ bỏ");
 });
 
+test("truyenVietRa: bù mặc định, KHÔNG bao giờ xoá bản viết của người dùng", () => {
+  // Bản lưu cũ (chưa có trường) ⇒ mảng rỗng, không phải undefined.
+  eqSau(chuanHoaTruyen(truyenTho({})).truyenVietRa, [], "truyện cũ: mảng rỗng");
+  const s = chuanHoaTruyen(
+    truyenTho({
+      hoiThoais: [{ id: "ht_1", nhanVatIds: [] }],
+      truyenVietRa: [
+        { id: "vt_1", hoiThoaiId: "ht_1", loaiNguon: "canhKhep", taoLuc: 5, trangThai: "dangChay", noiDung: "prose 1", loiNeu: "" },
+        { hoiThoaiId: "ht_khong_co", loaiNguon: "la-hoac", trangThai: "la-hoac", noiDung: 5 },
+        "khong-phai-doi-tuong",
+        null,
+      ],
+    })
+  );
+  eq(s.truyenVietRa.length, 2, "bỏ mục không phải đối tượng, GIỮ bản ghi thiếu trường");
+  eq(s.truyenVietRa[0].id, "vt_1", "giữ id đã có");
+  eq(s.truyenVietRa[0].trangThai, "dangChay", "giữ trạng thái hợp lệ");
+  eq(s.truyenVietRa[0].noiDung, "prose 1", "giữ nội dung văn xuôi");
+  eq(s.truyenVietRa[0].loaiNguon, "canhKhep", "giữ nguồn hợp lệ");
+  const x = s.truyenVietRa[1];
+  ok(x.id.indexOf("vt") === 0, "bù id mới cho bản ghi thiếu id");
+  eq(x.loaiNguon, "tho", "nguồn lạ rơi về tho");
+  eq(x.trangThai, "loi", "trạng thái lạ rơi về loi (không hiện nhầm là đang chạy)");
+  eq(x.noiDung, "5", "nội dung không phải chuỗi được ép thành chuỗi");
+  eq(x.loiNeu, "", "thiếu ghi chú lỗi ⇒ chuỗi rỗng");
+  ok(x.taoLuc > 0, "thiếu mốc thời gian ⇒ bù mốc hiện tại");
+  eq(x.hoiThoaiId, "ht_khong_co", "tham chiếu mồ côi được GIỮ (văn xuôi không sinh lại được)");
+  eq(s.phienBan, PHIEN_BAN_TRUYEN, "truyện được đóng dấu phiên bản hiện tại");
+  // Mảng của bản chuẩn hoá không dùng chung tham chiếu với bản gốc.
+  const goc = truyenTho({ truyenVietRa: [{ id: "vt_goc", hoiThoaiId: "", loaiNguon: "tho", taoLuc: 1, trangThai: "xong", noiDung: "a", loiNeu: "" }] });
+  const s3 = chuanHoaTruyen(goc);
+  ok(s3.truyenVietRa !== goc.truyenVietRa, "không dùng chung mảng với bản gốc");
+  eq(s3.truyenVietRa[0].noiDung, "a", "giữ nguyên nội dung của bản ghi hợp lệ");
+});
+
 test("CỔNG 18+ chạy SAU CÙNG: không đường nào tự mở lớp người lớn", () => {
   const nguoiLon = nv("nv_a", "Duy", { tuoi: "31" });
   const tre = nv("nv_b", "Bé", { tuoi: "16" });

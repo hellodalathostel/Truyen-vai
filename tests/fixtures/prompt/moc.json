@@ -1,7 +1,7 @@
 {
   "phienBan": 1,
   "soLuot": 5,
-  "ghiChu": "Mốc prefix-cache của 3 truyện mẫu hư cấu (Giai đoạn 7a). Ca Node ĐỎ nếu tỉ lệ tiền tố chung nhỏ nhất của bất kỳ mẫu nào giảm quá 5 điểm phần trăm so với mốc. Tạo lại bằng: node tests/lib/tao-prompt-fixture.mjs (ghi cả fixture từng lượt).",
+  "ghiChu": "Mốc prefix-cache của 3 truyện mẫu hư cấu (Giai đoạn 7a). Ca Node ĐỎ nếu tỉ lệ tiền tố chung nhỏ nhất HOẶC trung bình của bất kỳ mẫu nào giảm quá 5 điểm phần trăm so với mốc. Khối ngoaiLe khai những cặp lượt được miễn ca CẤU TRÚC (lượt mới chỉ được nối thêm vào cuối khối DIỄN BIẾN) vì có sự kiện đổi sớm trong CỐT TRUYỆN là chủ đích. Tạo lại bằng: node tests/lib/tao-prompt-fixture.mjs (ghi cả fixture từng lượt).",
   "donVi": "byte UTF-8; tyLe = tiền tố chung / độ dài prompt sau",
   "mau": {
     "nhom": {
@@ -33,7 +33,8 @@
           "dai": 8548,
           "tyLe": 0.6492
         }
-      ]
+      ],
+      "ngoaiLe": []
     },
     "rieng": {
       "ten": "cảnh riêng",
@@ -64,7 +65,8 @@
           "dai": 7227,
           "tyLe": 0.7591
         }
-      ]
+      ],
+      "ngoaiLe": []
     },
     "daodien": {
       "ten": "chế độ Đạo diễn",
@@ -94,6 +96,12 @@
           "chung": 10475,
           "dai": 13311,
           "tyLe": 0.7869
+        }
+      ],
+      "ngoaiLe": [
+        {
+          "cap": "3-4",
+          "lyDo": "Lượt 4 duyệt Khép cảnh: khối NỘI TÂM & QUAN HỆ và khối ĐÍNH CHÍNH/HƯỚNG PHÁT TRIỂN đổi SỚM trong buildContext. Chủ đích, đã cân nhắc — xem src/README.md mục 7a."
         }
       ]
     }

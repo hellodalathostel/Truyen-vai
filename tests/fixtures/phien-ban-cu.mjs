@@ -20,6 +20,9 @@
 //   v6  + `thoiGian` + `ngoaiManHinh`
 //   v7  + liên kết hồ sơ ngoại hình: `ngoaiHinhId`/`bietDanh` trên nhân vật, `ngoaiHinhId`
 //       trên người chơi, `hoSoIds` trên ảnh cảnh
+//   v8  + `truyenVietRa`: bản văn xuôi dẫn xuất từ một hội thoại (log thô hoặc cảnh đã khép),
+//       có id riêng, trạng thái chạy, nội dung prose và ghi chú lỗi — dữ liệu nhập vai gốc
+//       không đổi
 //   v0  không có trường `phienBan` (bản lưu trước khi có ghi chép phiên bản)
 //
 // Trường `khongCo` của mỗi mục là danh sách tên trường KHÔNG được xuất hiện trong bản ghi đó
@@ -219,6 +222,26 @@ function truyenV7() {
   return s;
 }
 
+// v8 = hình dạng HIỆN TẠI: thêm `truyenVietRa` (bản văn xuôi dẫn xuất, có id riêng).
+function truyenV8() {
+  const s = truyenV7();
+  s.id = "ct_zzv8";
+  s.ten = "ZZ Truyện bản 8";
+  s.phienBan = 8;
+  s.truyenVietRa = [
+    {
+      id: "vt_zzv8",
+      hoiThoaiId: "ht_zzv1",
+      loaiNguon: "canhKhep",
+      taoLuc: 1000,
+      trangThai: "xong",
+      noiDung: "Một đoạn văn xuôi hư cấu.\n\nChương 1 — Mở đầu\n\nĐoạn thứ hai.",
+      loiNeu: "",
+    },
+  ];
+  return s;
+}
+
 // v0 = bản lưu TRƯỚC khi có trường phiên bản: cùng hình dạng v1 nhưng KHÔNG có `phienBan`.
 function truyenV0() {
   const s = truyenV1();
@@ -229,14 +252,15 @@ function truyenV0() {
 }
 
 export const TRUYEN_CU = [
-  { phienBan: 0, ten: "không có trường phienBan", moTa: "Bản lưu trước khi có ghi chép phiên bản.", khongCo: ["hienDien", "canhRieng", "nhip", "canhDaKhep", "daoDien", "thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds"], raw: truyenV0() },
-  { phienBan: 1, ten: "Bản đầu", moTa: "Truyện + nhân vật + chương/hội thoại + biên niên sử + người chơi.", khongCo: ["hienDien", "canhRieng", "nhip", "canhDaKhep", "daoDien", "thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds"], raw: truyenV1() },
-  { phienBan: 2, ten: "Chưa có ghi chú trong mã", moTa: "Không mô tả trong mã nguồn; đường chuẩn hoá xử lý y như bản 1.", khongCo: ["hienDien", "canhRieng", "nhip", "canhDaKhep", "daoDien", "thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds"], raw: truyenV2() },
-  { phienBan: 3, ten: "Hiện diện & cảnh riêng", moTa: "Hội thoại có hienDien và canhRieng.", khongCo: ["nhip", "canhDaKhep", "daoDien", "thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds"], raw: truyenV3() },
-  { phienBan: 4, ten: "Nhịp phát triển & cảnh đã khép", moTa: "Truyện có nhip và canhDaKhep.", khongCo: ["daoDien", "thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds"], raw: truyenV4() },
-  { phienBan: 5, ten: "Chế độ Đạo diễn", moTa: "Truyện có daoDien (dinhChinh + huong).", khongCo: ["thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds"], raw: truyenV5() },
-  { phienBan: 6, ten: "Thời gian vắng mặt", moTa: "Truyện có thoiGian và ngoaiManHinh.", khongCo: ["ngoaiHinhId", "bietDanh", "hoSoIds"], raw: truyenV6() },
-  { phienBan: 7, ten: "Liên kết hồ sơ ngoại hình", moTa: "Nhân vật/người chơi có ngoaiHinhId + bietDanh, ảnh có hoSoIds.", khongCo: [], raw: truyenV7() },
+  { phienBan: 0, ten: "không có trường phienBan", moTa: "Bản lưu trước khi có ghi chép phiên bản.", khongCo: ["hienDien", "canhRieng", "nhip", "canhDaKhep", "daoDien", "thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds", "truyenVietRa"], raw: truyenV0() },
+  { phienBan: 1, ten: "Bản đầu", moTa: "Truyện + nhân vật + chương/hội thoại + biên niên sử + người chơi.", khongCo: ["hienDien", "canhRieng", "nhip", "canhDaKhep", "daoDien", "thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds", "truyenVietRa"], raw: truyenV1() },
+  { phienBan: 2, ten: "Chưa có ghi chú trong mã", moTa: "Không mô tả trong mã nguồn; đường chuẩn hoá xử lý y như bản 1.", khongCo: ["hienDien", "canhRieng", "nhip", "canhDaKhep", "daoDien", "thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds", "truyenVietRa"], raw: truyenV2() },
+  { phienBan: 3, ten: "Hiện diện & cảnh riêng", moTa: "Hội thoại có hienDien và canhRieng.", khongCo: ["nhip", "canhDaKhep", "daoDien", "thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds", "truyenVietRa"], raw: truyenV3() },
+  { phienBan: 4, ten: "Nhịp phát triển & cảnh đã khép", moTa: "Truyện có nhip và canhDaKhep.", khongCo: ["daoDien", "thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds", "truyenVietRa"], raw: truyenV4() },
+  { phienBan: 5, ten: "Chế độ Đạo diễn", moTa: "Truyện có daoDien (dinhChinh + huong).", khongCo: ["thoiGian", "ngoaiManHinh", "ngoaiHinhId", "bietDanh", "hoSoIds", "truyenVietRa"], raw: truyenV5() },
+  { phienBan: 6, ten: "Thời gian vắng mặt", moTa: "Truyện có thoiGian và ngoaiManHinh.", khongCo: ["ngoaiHinhId", "bietDanh", "hoSoIds", "truyenVietRa"], raw: truyenV6() },
+  { phienBan: 7, ten: "Liên kết hồ sơ ngoại hình", moTa: "Nhân vật/người chơi có ngoaiHinhId + bietDanh, ảnh có hoSoIds.", khongCo: ["truyenVietRa"], raw: truyenV7() },
+  { phienBan: 8, ten: "Bản viết thành truyện", moTa: "Truyện có truyenVietRa: các bản văn xuôi dẫn xuất từ hội thoại.", khongCo: [], raw: truyenV8() },
 ];
 
 // ---------------------------------------------------------------- hồ sơ ngoại hình

@@ -99,7 +99,7 @@ thì cập nhật fixture + `moc.json` CÙNG commit kèm lý do; mốc không t�
 
 | Hằng | Giá trị | Ở đâu | Ý nghĩa |
 |---|---|---|---|
-| `PHIEN_BAN_TRUYEN` | 7 | `store.js` | Hình dạng truyện đã lưu. Lịch sử: `schema.js` · `MIGRATION_TRUYEN`. |
+| `PHIEN_BAN_TRUYEN` | 8 | `store.js` | Hình dạng truyện đã lưu. Lịch sử: `schema.js` · `MIGRATION_TRUYEN`. |
 | `PHIEN_BAN_HO_SO` | 1 | `ngoaiHinh.js` | Hình dạng hồ sơ ngoại hình (`MIGRATION_HO_SO`). |
 
 ## 7. Luật làm việc

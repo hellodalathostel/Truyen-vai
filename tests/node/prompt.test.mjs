@@ -1,7 +1,7 @@
 // Truyện Vai — tầng kiểm thử Node: SNAPSHOT PROMPT + MỐC PREFIX-CACHE (Giai đoạn 7a).
 // Chạy: node --test tests/node/
 //
-// Bốn việc của tệp này:
+// Sáu việc của tệp này:
 //   1. Prompt dựng ra phải KHỚP FIXTURE TỪNG BYTE (3 truyện mẫu × 5 lượt liên tiếp). Muốn
 //      đổi prompt thì phải chạy `node tests/lib/tao-prompt-fixture.mjs` và commit fixture
 //      mới + moc.json mới CÙNG LÚC, kèm lý do — không được sửa fixture cho khớp một cách
@@ -9,15 +9,22 @@
 //   2. Tỉ lệ tiền tố chung của mỗi mẫu không được TỤT quá 5 điểm phần trăm so với mốc. Phần
 //      đầu prompt dùng chung giữa hai lượt liền nhau chính là thứ máy chủ cache được; tụt
 //      nghĩa là có nội dung động trôi lên đầu prompt và mỗi lượt lại phải tính lại từ đó.
-//   3. Chạy lại phải ra Y HỆT (mẫu không được lén dùng giờ hệ thống hay ngẫu nhiên).
-//   4. Bộ fixture phải đủ và đúng hình dạng (3 × 5 tệp + moc.json).
+//   3. CẤU TRÚC (không phụ thuộc độ dài): với mọi cặp lượt liền nhau không có sự kiện lạ, điểm
+//      lệch đầu tiên phải nằm ở hoặc sau chỗ tin nhắn cũ cuối cùng kết thúc trong khối DIỄN
+//      BIẾN. Tỉ lệ phần trăm phụ thuộc độ dài truyện mẫu, nên ca này mới là ca bắt hồi quy
+//      "có thứ gì đó động trôi lên ĐẦU prompt". Cặp có Khép cảnh / vào-rời cảnh là NGOẠI LỆ
+//      có chủ đích, khai trong moc.json, VÀ ngoại lệ đó phải là vi phạm thật.
+//   4. Đối chứng âm cho ca cấu trúc: chèn một chuỗi động vào khối CỐT TRUYỆN thì ca cấu trúc
+//      PHẢI ĐỎ — nếu không thì ca cấu trúc chỉ là ca trang trí.
+//   5. Chạy lại phải ra Y HỆT (mẫu không được lén dùng giờ hệ thống hay ngẫu nhiên).
+//   6. Bộ fixture phải đủ và đúng hình dạng (3 × 5 tệp + moc.json).
 //
 // Luật: KHÔNG dùng dấu gạch chéo ngược. Mọi tên/id trong fixture là HƯ CẤU (xem
 // tests/lib/prompt.mjs và luật 4 ở tests/README.md).
 
 import "../lib/moi-truong.js";
 import { test, ok, eq } from "../lib/h.js";
-import { chayTatCa, MAU_KEY, SO_LUOT } from "../lib/prompt.mjs";
+import { chayTatCa, chayMau, dungDoiChungAm, doCotPrompt, MAU_KEY, SO_LUOT } from "../lib/prompt.mjs";
 
 const NL = String.fromCharCode(10);
 const NGACH = 0.05; // 5 điểm phần trăm
@@ -144,6 +151,61 @@ test("prefix-cache: tỉ lệ tiền tố chung không tụt quá 5 điểm ph�
       ok(c.chung > 0 && c.tyLe > 0 && c.tyLe <= 1, "mẫu " + key + " · cặp " + c.cap + " có tiền tố chung " + c.chung + " byte (" + pt(c.tyLe) + ")");
     }
   }
+});
+
+test("cấu trúc: lượt mới chỉ được NỐI THÊM vào cuối khối DIỄN BIẾN (không phụ thuộc độ dài)", async () => {
+  const doc = layBoDoc();
+  if (!doc) {
+    ok(false, "không đọc được " + MOC_TEP + " (thiếu bộ đọc tệp)");
+    return;
+  }
+  const raw = await doc0(doc, MOC_TEP);
+  let moc = null;
+  try {
+    moc = raw === null ? null : JSON.parse(raw);
+  } catch (e) {
+    moc = null;
+  }
+  ok(!!moc && !!moc.mau, "moc.json đọc được để lấy danh sách ngoại lệ");
+  if (!moc || !moc.mau) return;
+  const kq = await ketQuaDungSan();
+  for (const key of MAU_KEY) {
+    const m = moc.mau[key] || {};
+    const dsMien = Array.isArray(m.ngoaiLe) ? m.ngoaiLe : [];
+    const cot = doCotPrompt(kq[key].prompts);
+    eq(cot.length, SO_LUOT - 1, "mẫu " + key + " có đúng " + (SO_LUOT - 1) + " cặp để đo cấu trúc");
+    let soKiem = 0;
+    for (const c of cot) {
+      if (dsMien.filter((x) => x && x.cap === c.cap).length) continue;
+      soKiem += 1;
+      ok(
+        c.dat === true,
+        "mẫu " + key + " · cặp " + c.cap + " — điểm lệch đầu tiên ở ký tự " + c.chung + ", phải ở hoặc sau mốc " +
+          c.neo + " (cuối nhật ký cũ" + (c.nhatKyRong ? " — lượt trước có nhật ký RỖNG" : "") + "), thiếu " + c.thieu + " ký tự"
+      );
+    }
+    eq(soKiem, SO_LUOT - 1 - dsMien.length, "mẫu " + key + " đo " + soKiem + " cặp (đã trừ ngoại lệ có khai)");
+    // Ngoại lệ phải là NGOẠI LỆ THẬT: cặp được miễn mà KHÔNG vi phạm nghĩa là ngoại lệ đã cũ và
+    // đang che một hồi quy (hoặc cặp đó không còn đo được gì).
+    for (const x of dsMien) {
+      const c = cot.filter((y) => y.cap === x.cap)[0];
+      ok(!!c && c.dat === false, "mẫu " + key + " · ngoại lệ " + x.cap + " vẫn là vi phạm THẬT (nếu không thì gỡ ngoại lệ khỏi moc.json)");
+      ok(typeof x.lyDo === "string" && x.lyDo.length > 20, "mẫu " + key + " · ngoại lệ " + x.cap + " có ghi lý do trong moc.json");
+    }
+  }
+});
+
+test("cấu trúc: đối chứng âm — chuỗi động trong khối CỐT TRUYỆN phải làm ca cấu trúc ĐỎ", async () => {
+  const prompts = await chayMau(dungDoiChungAm());
+  eq(prompts.length, SO_LUOT, "mẫu đối chứng âm chạy đủ " + SO_LUOT + " lượt");
+  const cot = doCotPrompt(prompts);
+  const viPham = cot.filter((c) => c.dat === false);
+  eq(
+    viPham.length,
+    SO_LUOT - 1,
+    "mọi cặp lượt đều bị bắt khi khối CỐT TRUYỆN có chuỗi động (bắt được " + viPham.length + ": " +
+      viPham.map((c) => c.cap + " (lệch ở ký tự " + c.chung + ", mốc " + c.neo + ")").join(", ") + ")"
+  );
 });
 
 test("mẫu chạy hai lần ra y hệt nhau (không dùng giờ hệ thống / ngẫu nhiên)", async () => {

@@ -321,12 +321,14 @@ test("kiemTraBatBien: chỉ ĐỌC — không sửa dữ liệu truyền vào", 
   eq(JSON.stringify(bc.nhom), dsTruoc, "chạy lại cho kết quả y hệt (không tích luỹ trạng thái)");
 });
 
-test("Giai đoạn 4 không đổi hình dạng dữ liệu ⇒ PHIEN_BAN_TRUYEN KHÔNG tăng", () => {
+test("siêu dữ liệu Giai đoạn 4 KHÔNG đổi hình dạng truyện ⇒ không tăng phiên bản vì nó", () => {
   // Mốc sao lưu nằm trong localStorage (cài đặt), nhật ký parse nằm ở kv folder riêng, và
   // `kiemTraBatBien` chỉ đọc. Không có trường mới nào trong bản ghi truyện, nên không được
-  // tăng phiên bản: tăng phiên bản mà không có đường nâng cấp chỉ làm hại bản lưu cũ.
-  // Nếu ca này đỏ: hoặc Giai đoạn 4 thật sự đã đổi schema (thì phải thêm `chuanHoa*` + tăng
-  // phiên bản cho đúng), hoặc có ai đó sửa `PHIEN_BAN_TRUYEN` mà không cần.
-  eq(PHIEN_BAN_TRUYEN, 7, "PHIEN_BAN_TRUYEN vẫn là 7");
+  // tăng phiên bản vì những thứ đó: tăng phiên bản mà không có đường nâng cấp chỉ làm hại
+  // bản lưu cũ.
+  // Con số dưới đây là mốc CỦA TOÀN DỰ ÁN (không phải của riêng Giai đoạn 4): nó chỉ được
+  // tăng khi có mục tương ứng trong `MIGRATION_TRUYEN` + đường chuẩn hoá trong `store.js` —
+  // ràng buộc đó được ghim ở `tests/node/schema.test.mjs`.
+  eq(PHIEN_BAN_TRUYEN, 8, "PHIEN_BAN_TRUYEN hiện là 8 (v8 = bản viết thành truyện)");
   ok(PHIEN_BAN_TRUYEN > 0, "là số dương");
 });

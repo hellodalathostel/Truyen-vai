@@ -57,6 +57,10 @@ function dungTruyen() {
     chuongs: [{ id: "ch_1", so: 1, tieuDe: "Chương một", mucTieu: "", tomTat: "", daKetThuc: false, taoLuc: 1, suaLuc: 1 }],
     hoiThoais: [ht1, ht2],
     canhDaKhep: [canh],
+    truyenVietRa: [
+      { id: "vt_1", hoiThoaiId: "ht_1", loaiNguon: "canhKhep", taoLuc: 7, trangThai: "xong", noiDung: "Văn xuôi hư cấu.", loiNeu: "" },
+      { id: "vt_2", hoiThoaiId: "ht_khong_co", loaiNguon: "tho", taoLuc: 8, trangThai: "loi", noiDung: "", loiNeu: "lỗi giả" },
+    ],
     bienNienSu: [{ id: "bn_1", noiDung: "sự kiện", luc: 3 }],
     anh: [
       { id: "anh_1", convId: "ht_1", hoSoIds: ["nh_a", "nh_khong_co"], chuThich: "trong truyện" },
@@ -109,11 +113,12 @@ test("capIdMoi: bản GỐC không bị đụng, mọi ID đều là ID mới", 
 
   const moi = kq.story;
   ok(moi.id !== "ct_zznhap" && moi.id.indexOf("ct_") === 0, "truyện có id mới");
-  const idCu = ["nv_a", "nv_b", "ch_1", "ht_1", "ht_2", "canh_1", "ku_1", "qh_1", "nvz_1", "bn_1", "lb_1", "dc_1", "hd_1", "td_1", "vge_1", "vgp_1", "anh_1", "anh_2"];
+  const idCu = ["nv_a", "nv_b", "ch_1", "ht_1", "ht_2", "canh_1", "ku_1", "qh_1", "nvz_1", "bn_1", "lb_1", "dc_1", "hd_1", "td_1", "vge_1", "vgp_1", "anh_1", "anh_2", "vt_1", "vt_2"];
   const idMoi = [moi.nhanVats[0].id, moi.nhanVats[1].id, moi.chuongs[0].id, moi.hoiThoais[0].id, moi.hoiThoais[1].id,
     moi.canhDaKhep[0].id, moi.canhDaKhep[0].kyUc[0].id, moi.canhDaKhep[0].quanHe[0].id, moi.canhDaKhep[0].nhanVat[0].id,
     moi.bienNienSu[0].id, moi.lorebook.entries[0].id, moi.daoDien.dinhChinh[0].id, moi.daoDien.huong[0].id,
-    moi.daoDien.huong[0].tienDo[0].id, moi.ngoaiManHinh[0].id, moi.thoiGian.phien.id, moi.anh[0].id, moi.anh[1].id];
+    moi.daoDien.huong[0].tienDo[0].id, moi.ngoaiManHinh[0].id, moi.thoiGian.phien.id, moi.anh[0].id, moi.anh[1].id,
+    moi.truyenVietRa[0].id, moi.truyenVietRa[1].id];
   for (let i = 0; i < idMoi.length; i++) {
     ok(idCu.indexOf(idMoi[i]) < 0, "id đã đổi: vị trí " + i);
     eq(idMoi.filter((x) => x === idMoi[i]).length, 1, "id mới duy nhất: vị trí " + i);
@@ -145,6 +150,14 @@ test("capIdMoi: mọi tham chiếu chéo được dịch sang ID mới", () => {
   eq(moi.canhDaKhep[0].quanHe[0].tu, nvA, "quan hệ (từ) đã dịch");
   eq(moi.canhDaKhep[0].quanHe[0].den, nvB, "quan hệ (đến) đã dịch");
   eq(moi.canhDaKhep[0].nhanVat[0].nvId, nvA, "nhân vật trong cảnh đã dịch");
+
+  // Bản viết thành truyện: id mới + hội thoại nguồn dịch theo; hội thoại không đi kèm bản sao thì
+  // bỏ tham chiếu (không để trỏ ra ngoài bản sao) — nội dung văn xuôi vẫn còn nguyên.
+  ok(moi.truyenVietRa[0].id !== "vt_1" && moi.truyenVietRa[0].id.indexOf("vt_") === 0, "bản viết thành truyện có id mới");
+  eq(moi.truyenVietRa[0].hoiThoaiId, ht1, "bản viết trỏ tới hội thoại mới");
+  eq(moi.truyenVietRa[0].noiDung, "Văn xuôi hư cấu.", "nội dung văn xuôi giữ nguyên");
+  eq(moi.truyenVietRa[1].hoiThoaiId, "", "hội thoại nguồn không có trong bản sao ⇒ bỏ tham chiếu");
+  eq(moi.truyenVietRa[1].loiNeu, "lỗi giả", "ghi chú lỗi giữ nguyên");
 
   eq(moi.daoDien.dinhChinh[0].nvId, nvA, "đính chính trỏ tới nhân vật mới");
   eqSau(moi.daoDien.dinhChinh[0].nguonCanh, [canh1], "nguồn cảnh của đính chính đã dịch");

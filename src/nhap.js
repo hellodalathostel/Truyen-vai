@@ -89,6 +89,9 @@ function gomId(ctx) {
   // chung ID sự kiện và chung phiên với bản gốc.
   for (const e of s.ngoaiManHinh || []) dat(e && e.id, "vge");
   if (s.thoiGian && s.thoiGian.phien) dat(s.thoiGian.phien.id, "vgp");
+  // Bản "viết thành truyện" cũng là bản ghi của truyện (có id riêng + trỏ tới hội thoại).
+  // Cấp id ở CUỐI cùng để dãy id của mọi bản ghi cũ không đổi — `uid()` sinh id theo thứ tự.
+  for (const v of s.truyenVietRa || []) dat(v && v.id, "vt");
 }
 
 // Bước 2 — thân truyện: mọi tham chiếu chéo được dịch qua `R()`.
@@ -172,6 +175,12 @@ function dichThamChieu(ctx, R) {
     for (const d of (e.anhHuong && e.anhHuong.noiTam) || []) { d.nvId = R(d.nvId); }
   }
   if (s.thoiGian && s.thoiGian.phien) s.thoiGian.phien.id = R(s.thoiGian.phien.id);
+  // Bản viết thành truyện: dịch id của chính nó, và dịch hội thoại nguồn. Hội thoại không đi
+  // kèm bản sao thì bỏ tham chiếu (không để trỏ ra ngoài bản sao) — nội dung văn xuôi vẫn còn.
+  for (const v of s.truyenVietRa || []) {
+    v.id = R(v.id);
+    v.hoiThoaiId = cuHt.indexOf(v.hoiThoaiId) >= 0 ? R(v.hoiThoaiId) : "";
+  }
 }
 
 // Bước 3 — tin nhắn của những hội thoại được mang sang, khoá theo ID hội thoại MỚI.
