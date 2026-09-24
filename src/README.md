@@ -1084,11 +1084,15 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 **NGUỒN SỰ THẬT: repo GitHub `https://github.com/hellodalathostel/Truyen-vai`.** Tải repo là
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
-**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Giai đoạn 7a**
-`https://user.uploads.dev/file/ad04085a3aa71e7c6ea53697cf4a68aa.zip` (165 tệp, 820 KB — gồm
-`src/` byte-for-byte, `tests/**` với fixture prompt, `main.pjs`, `index.html`, `package.json`, CI;
-**không** chứa `.git`; đã chạy lại tầng Node trên chính gói tải về: **5 415 khẳng định · 0 không
-đạt**). Các gói trước: Đợt 6d
+**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Giai đoạn 8
+Đợt 2 (logic thuần: chọn nguồn · chia lô · nén prose)**
+`https://user.uploads.dev/file/96a47ab75c79525dc6d95fe0d120566f.zip`
+(167 tệp, 822 KB — gồm `src/` byte-for-byte, `tests/**` với fixture prompt, `main.pjs`,
+`index.html`, `package.json`, CI; **không** chứa `.git`; đã chạy lại tầng Node trên chính gói tải
+về: **5 683 khẳng định · 0 không đạt**). Các gói trước: Giai đoạn 8 Đợt 1
+`https://user.uploads.dev/file/fe2502abb3b5d7f78e83cb6d58309abe.zip`; Giai đoạn 7a (bản 2 — thêm ca
+CẤU TRÚC) `https://user.uploads.dev/file/7261be153032279f469cbb7c728fb272.zip`; Giai đoạn 7a (bản 1)
+`https://user.uploads.dev/file/ad04085a3aa71e7c6ea53697cf4a68aa.zip`; Đợt 6d
 `https://user.uploads.dev/file/c6dc4cdf96e660ac34a552a07b11dd15.zip`; Đợt 6c:
 `https://user.uploads.dev/file/5b6804aec274c1a3c22f9df24be6af39.zip` — mốc tách `openStoryMenu` +
 `openLorebook` + `bindGlobalEvents`; Đợt 6b:
@@ -1099,8 +1103,8 @@ Giai đoạn 5: `https://user.uploads.dev/file/6d32cb23b2b5d3fdb6c28bea8b310f16.
 `https://user.uploads.dev/file/29c20b8b44adbddd616bca6b2fbef024.zip`).
 
 *Lưu ý quy trình:* gói zip **không thể** chứa URL của chính nó, nên `src/README.md` **bên trong
-gói** vẫn trỏ tới **Đợt 6c**; dòng vừa cập nhật ở trên chỉ có ở workspace (và ở repo sau khi
-chủ dự án đẩy lên).
+gói** vẫn trỏ tới **Giai đoạn 8 Đợt 2**; dòng vừa cập nhật ở trên chỉ có ở workspace (và ở repo
+sau khi chủ dự án đẩy lên).
 
 - Tầng Node: `npm test` (không cần trình duyệt, không tốn quota, chạy trên CI).
 - Tầng trình duyệt: mở generator rồi nạp `tests/browser/runner.js` và gọi `chayTatCa()`.
@@ -1739,6 +1743,26 @@ Tệp mới `src/ui/vietTruyen/vietTruyenFlow.js` — **0 import**, mọi phụ 
 Ca Node: `tests/node/vietTruyenFlow.test.mjs` (**165 khẳng định**). Ba bất biến được ghim: tổng ký tự
 các lô = tổng ký tự nguồn (thử cả ngưỡng 1 ký tự) · mọi lô ≤ ngưỡng (tính cả 2 ký tự nối `"\n\n"`) ·
 đoạn LẶP ở hai chỗ vẫn là hai đoạn (đối chứng âm chống gộp/khử trùng).
+
+### Đợt 3 — ba nguyên tắc prompt + cổng 18+ trước khi chạy (đã xong)
+
+Thêm vào chính `src/ui/vietTruyen/vietTruyenFlow.js`. Tệp có **đúng MỘT import**: cổng 18+ lấy từ
+`store.js` chứ không nhận qua tham số — cửa chặn nội dung người lớn phải là MỘT nguồn duy nhất
+(luật §2.6), nhận qua tham số là mở đường cho bản sao thứ hai lệch câu chữ. Mọi phụ thuộc khác vẫn
+truyền vào như trước.
+
+| Hàm / hằng | Việc |
+|---|---|
+| `layNguyenTacVietTruyen()` | Khối nguyên tắc **TĨNH, 0 tham số** để cắm vào ĐẦU prompt (phần cache-able — đúng nguyên tắc "đầu ổn định, cuối TASK thay đổi" của `ai.js`). Ba nguyên tắc, mỗi cái chặn đúng một kiểu hỏng đã gặp khi viết lại log nhập vai: (1) **không tự bịa thêm** — nguồn (log thô / tóm tắt cảnh khép) là SỰ THẬT đã roleplay, cấm thêm tình huống/nhân vật/địa điểm không có trong nguồn; (2) **mỗi đoạn nguồn phải thành một cảnh THẬT**, không phải câu tóm lược — kể cả một dòng tóm tắt cảnh khép ngắn cũng phải thành đoạn văn có hành động + lời nói cụ thể; (3) **đoạn sau chung nhân vật/địa điểm KHÔNG có nghĩa đoạn trước đã xong** — mỗi đoạn trong lô đang xử lý phải xuất hiện đầy đủ, riêng biệt. |
+| `GHI_CHU_MUC_DO_NGUOI_LON` | Một dòng, CHỈ dùng khi truyện ở chế độ người lớn: giữ ĐÚNG mức độ rõ ràng của nguồn, không tự làm nhẹ khi viết lại thành prose. Tách riêng hẳn để `layNguyenTacVietTruyen()` vẫn tĩnh tuyệt đối. |
+| `layNguyenTacVietTruyenCho(story)` | Khối nguyên tắc dùng THẬT cho một truyện: phần tĩnh luôn là **tiền tố** (truyện thường và truyện người lớn chia sẻ đúng đoạn prefix đó), cộng ghi chú khi `laCheDoNguoiLon(story)` bật. |
+| `kiemVietTruyenTruocKhiChay(story)` | Cổng 18+ TRƯỚC khi chạy → `{choPhep, loiNeu}`. Gọi đúng `chanNoiDungNguoiLon(story)`; `loiNeu` là **nguyên văn** lý do của cửa dùng chung (`""` ⇒ cho chạy). **Không hỏi lại 18+** — đây không phải luồng tạo mới: dữ liệu hiện tại không hợp lệ thì chỉ còn việc CHẶN và trả lý do kèm cách sửa. Thuần: chỉ ĐỌC truyện, không tự bật/tắt giao kèo, không tự ghi cờ `nguoiLon`. |
+
+Ca Node (cùng tệp `tests/node/vietTruyenFlow.test.mjs`, **thêm 3 ca**): đủ ba nguyên tắc (kiểm bằng
+CỤM TỪ KHOÁ đặc trưng nên không giòn khi sửa câu chữ) + khối tĩnh không nhận tham số và không chứa
+ghi chú người lớn · ghi chú chỉ xuất hiện khi `giaoKeo.bat` (đúng cờ `store.js` dùng) và luôn nằm
+SAU khối tĩnh · cổng chặn **⟺** `chanNoiDungNguoiLon` trả khác rỗng (quét cả ca thiếu truyện, so
+`loiNeu` với nguyên văn hàm thật) và cổng không sửa gì trong truyện.
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

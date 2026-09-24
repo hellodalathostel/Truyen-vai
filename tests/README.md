@@ -508,6 +508,44 @@ Ba điểm cần nhớ khi sửa tệp đó:
 **Kiểm chứng Đợt 2:** tầng Node **24 tệp · 5 683 khẳng định · 0 không đạt** (Đợt 1: 23 tệp ·
 5 500).
 
+**Đợt 3 — ba nguyên tắc prompt + cổng 18+ trước khi chạy (đã xong, đã kiểm chứng):**
+
+| Việc | Ở đâu |
+|---|---|
+| `layNguyenTacVietTruyen()` — khối nguyên tắc **TĨNH, 0 tham số** (ba nguyên tắc: không tự bịa thêm · mỗi đoạn thành **cảnh THẬT** · chung bối cảnh ≠ đã xong) | `src/ui/vietTruyen/vietTruyenFlow.js` |
+| `GHI_CHU_MUC_DO_NGUOI_LON` — đúng một dòng, chỉ dùng khi truyện ở chế độ người lớn | nt |
+| `layNguyenTacVietTruyenCho(story)` — khối tĩnh (luôn là TIỀN TỐ) + ghi chú người lớn khi cần | nt |
+| `kiemVietTruyenTruocKhiChay(story)` → `{choPhep, loiNeu}` — đi qua `chanNoiDungNguoiLon`, **không hỏi lại 18+** | nt |
+| Ca Node (24 tệp, **223 khẳng định** riêng tệp này; Đợt 2: 165) | `tests/node/vietTruyenFlow.test.mjs` |
+
+Ba điểm cần nhớ khi sửa phần này:
+
+- **Cổng 18+ là thứ DUY NHẤT được import vào tệp thuần.** `vietTruyenFlow.js` nhận
+  `countTokens`/`idealMaxTokens` qua tham số (để tầng Node cắm hàm giả), nhưng cửa chặn thì lấy
+  thẳng `chanNoiDungNguoiLon` từ `store.js` — câu chữ 18+ chỉ được có MỘT nguồn (luật §2.6). Đừng
+  đổi nó thành tham số.
+- **Khối nguyên tắc phải TĨNH.** Nó nằm ở ĐẦU prompt nên là phần cache-able; thêm tham số vào
+  `layNguyenTacVietTruyen()` là phá prefix cache (và `eq(layNguyenTacVietTruyen.length, 0)` sẽ đỏ).
+  Vì vậy ghi chú người lớn nằm ở `layNguyenTacVietTruyenCho()` chứ không phải một tham số của hàm tĩnh.
+- **Ca kiểm ba nguyên tắc dùng CỤM TỪ KHOÁ đặc trưng, không so nguyên văn** — sửa câu chữ là chuyện
+  bình thường, nhưng đánh mất Ý của một trong ba nguyên tắc thì phải đỏ.
+
+**Kiểm chứng Đợt 3:** tầng Node **24 tệp · 5 747 khẳng định · 0 không đạt** (Đợt 2: 5 683). Tầng
+trình duyệt **1 082/1 082 khẳng định · 32 bộ · 0 cảnh báo** (trong đó `rr-ten-that` 5/5 trên 167 tệp,
+0 rò rỉ).
+
+**Cách CHẠY tầng trình duyệt cho ra mốc đó (đọc trước khi kết luận là hỏng):** trong môi trường hiện
+tại, chạy **gộp một lượt** thì `gy-goi-y` đỏ ở ca 12 với lỗi `không thấy nút .goi-y-card[data-i="1"]`.
+Đã dò ra nguyên nhân: lúc bấm, nút ✨ trong ô nhập **đang bị `disabled`** (trong khi app
+`streaming === false`), nên cú bấm không gọi AI lần nào — `FAKE.calls` không tăng, `app.suggestions`
+rỗng, `app.suggLoi` rỗng. Tức là **bộ `gy-goi-y` phụ thuộc trạng thái mà các bộ `nh-*` chạy trước để
+lại**, chứ không phải hỏng vì Giai đoạn 8: `src/ui/vietTruyen/vietTruyenFlow.js` **không được app
+nạp** (`performance.getEntriesByType("resource")` trên trang sống không có tệp đó — chưa có
+`ui/vietTruyen/index.js`). Cách chạy đã dùng để lấy mốc: `rr-ten-that` + 30 bộ còn lại trong một
+lượt, rồi `gy-goi-y` **một lượt riêng** (46/46) — tổng đúng bằng mốc Đợt 2 (1 082). Muốn chạy gộp
+được thì bộ này phải **chờ nút bật** (`!el.disabled`) trước khi bấm, hoặc chờ app hết `streaming`;
+việc sửa bộ kiểm đó để chủ dự án quyết.
+
 ## Thêm một bộ kiểm thử
 
 1. Viết `tests/browser/<tên>.js`, dùng `import { test, ok, eq, eqSau } from "../lib/h.js"`.

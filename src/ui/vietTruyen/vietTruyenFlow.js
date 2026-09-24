@@ -5,16 +5,22 @@
 // không DOM, không kv, không gọi AI. Để ở đây thì kiểm được ở tầng Node (nhanh, không tốn quota,
 // chạy trên CI), còn `index.js` chỉ còn phần giao diện + gọi model thật.
 //
-// Tệp này KHÔNG import gì — kể cả `ai.js`. Mọi phụ thuộc được TRUYỀN VÀO (`countTokens`,
-// `idealMaxTokens`) nên tầng Node cắm được hàm giả để kiểm đúng ngưỡng, và tầng trình duyệt truyền
-// đúng hàm thật của app. Đây cũng là lý do không có hằng số ký tự nào bị đóng cứng: ngân sách ký tự
-// của một lô được ĐO từ chính `countTokens` (xem `gioiHanKyTuChoLo`).
+// Phụ thuộc: `countTokens`/`idealMaxTokens` được TRUYỀN VÀO (tầng Node cắm hàm giả để kiểm đúng
+// ngưỡng, tầng trình duyệt truyền đúng hàm thật của app). Cũng vì thế không có hằng số ký tự nào bị
+// đóng cứng: ngân sách ký tự của một lô được ĐO từ chính `countTokens` (xem `gioiHanKyTuChoLo`).
+//
+// Ngoại lệ DUY NHẤT: cổng 18+ lấy THẲNG từ `store.js` chứ không nhận qua tham số. Cửa chặn nội
+// dung người lớn phải là MỘT nguồn duy nhất (luật §2.6 — và tầng Node có ca ghim "câu chữ 18+ chỉ
+// có một nguồn"); nhận nó qua tham số là mở đường cho bản sao thứ hai lệch câu chữ. Mọi thứ còn lại
+// của tệp này vẫn thuần: không DOM, không kv, không gọi AI.
 //
 // Bất biến của tệp này:
 //   · Nguồn (`layNguonVietTruyen`) chỉ ĐỌC dữ liệu nhập vai. Không chỗ nào trong tính năng này ghi
 //     ngược vào `canhDaKhep`/`hoiThoais` — văn xuôi là dữ liệu DẪN XUẤT, lưu riêng ở `truyenVietRa`.
 //   · `chiaLoNguon` KHÔNG bao giờ mất chữ: tổng ký tự các lô = tổng ký tự nguồn (đoạn được cắt nhỏ
 //     vẫn giữ nguyên từng ký tự, chỉ đổi chỗ ngắt), và không lô nào vượt ngưỡng.
+
+import { chanNoiDungNguoiLon, laCheDoNguoiLon } from "../../store.js";
 
 export const LOAI_NGUON = ["tho", "canhKhep"];
 
@@ -198,4 +204,53 @@ function mocGiu(prose, tu) {
 
 function chuoi(x) {
   return String(x === undefined || x === null ? "" : x);
+}
+
+// ------------------------------------------------------------------ 4. nguyên tắc prompt
+// Khối nguyên tắc TĨNH — KHÔNG tham số, KHÔNG phụ thuộc truyện. Đây là phần ĐẦU của prompt nên phải
+// ổn định từ lượt này sang lượt khác: đó chính là điều kiện để prefix cache dùng lại được, đúng
+// nguyên tắc "đầu ổn định, cuối TASK thay đổi" của `ai.js`. (Vì vậy ghi chú người lớn ở dưới nằm
+// NGOÀI hàm này chứ không phải một tham số của nó.)
+//
+// Ba nguyên tắc không phải ba câu khẩu hiệu suông: mỗi cái chặn đúng một kiểu hỏng đã gặp khi viết
+// lại log nhập vai thành văn xuôi — (1) model tự sáng tác thêm cảnh không ai diễn, (2) model coi
+// một dòng tóm tắt cảnh khép là việc đã kể xong nên nhảy cóc, (3) model coi đoạn sau là "cùng cảnh
+// với đoạn trước" nên gộp hai đoạn làm một và bỏ luôn đoạn sau.
+export function layNguyenTacVietTruyen() {
+  return [
+    "BA NGUYÊN TẮC BẮT BUỘC KHI VIẾT LẠI THÀNH VĂN XUÔI:",
+    "1. Không tự bịa thêm. Nguồn (log thô, hoặc tóm tắt cảnh đã khép) là SỰ THẬT đã diễn ra trong buổi nhập vai. Chỉ được viết lại đúng những gì có trong nguồn: cấm thêm tình huống, nhân vật, địa điểm hay chi tiết không có trong nguồn.",
+    "2. Mỗi đoạn nguồn phải thành một cảnh THẬT trong prose, không phải một câu tóm lược. Kể cả một dòng tóm tắt cảnh khép ngắn cũng phải được viết ra thành đoạn văn có hành động và lời nói cụ thể.",
+    "3. Đoạn nguồn sau dùng chung nhân vật hoặc địa điểm với đoạn trước KHÔNG có nghĩa là đoạn trước đã xong. Mỗi đoạn trong lô đang xử lý phải xuất hiện đầy đủ và riêng biệt trong prose.",
+  ].join("\n");
+}
+
+// Ghi chú CHỈ dành cho truyện đang ở chế độ người lớn. Viết lại thành văn xuôi là ĐỔI HÌNH THỨC, không
+// phải đổi MỨC ĐỘ: nguồn đã rõ ràng tới đâu thì prose ra tới đó. Một dòng, tách riêng khỏi khối tĩnh
+// để `layNguyenTacVietTruyen()` vẫn tĩnh tuyệt đối.
+export const GHI_CHU_MUC_DO_NGUOI_LON =
+  "GHI CHÚ (truyện đang ở chế độ người lớn): giữ ĐÚNG mức độ rõ ràng của nguồn, không tự làm nhẹ, không tự lược bỏ khi viết lại thành văn xuôi.";
+
+// Khối nguyên tắc dùng THẬT cho một truyện: phần tĩnh ở đầu (cache-able), cộng ghi chú người lớn khi
+// lớp nội dung người lớn của truyện đó đang bật. Phần tĩnh luôn là TIỀN TỐ của kết quả, nên truyện
+// thường và truyện người lớn vẫn chia sẻ được đúng đoạn prefix đó.
+export function layNguyenTacVietTruyenCho(story) {
+  const goc = layNguyenTacVietTruyen();
+  return laCheDoNguoiLon(story) ? goc + "\n" + GHI_CHU_MUC_DO_NGUOI_LON : goc;
+}
+
+// ------------------------------------------------------------------ 5. cổng 18+ trước khi chạy
+// Viết lại thành truyện đưa nguyên văn nguồn vào prompt rồi yêu cầu model viết ở ĐÚNG mức độ rõ ràng
+// của nguồn, nên đây là một ĐƯỜNG VÀO nội dung người lớn nữa: phải đi qua đúng cửa chặn dùng chung
+// `chanNoiDungNguoiLon` (luật §2.6), không được tự suy từ `c.tuoi`.
+//
+// Cửa này KHÔNG hỏi lại 18+ — đây không phải luồng tạo mới: truyện đã tồn tại và người dùng đã đi
+// qua cửa 18+ từ trước. Nếu dữ liệu hiện tại không còn hợp lệ (có nhân vật ghi tuổi dưới 18, hoặc
+// nhân vật chưa được xác nhận trưởng thành khi lớp người lớn đang bật) thì chỉ còn một việc đúng:
+// CHẶN và trả lại nguyên văn lý do của cửa dùng chung để giao diện hiện cho người dùng, kèm cách sửa.
+//
+// Thuần: chỉ ĐỌC truyện, không sửa gì (không tự bật/tắt giao kèo, không tự ghi cờ `nguoiLon`).
+export function kiemVietTruyenTruocKhiChay(story) {
+  const loiNeu = chuoi(chanNoiDungNguoiLon(story));
+  return { choPhep: loiNeu === "", loiNeu };
 }
