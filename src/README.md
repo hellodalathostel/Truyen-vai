@@ -1081,8 +1081,9 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 **NGUỒN SỰ THẬT: repo GitHub `https://github.com/hellodalathostel/Truyen-vai`.** Tải repo là
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
-**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Giai đoạn 5**
-`https://user.uploads.dev/file/6d32cb23b2b5d3fdb6c28bea8b310f16.zip` (Giai đoạn 4:
+**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Giai đoạn 6**
+`https://user.uploads.dev/file/c5eb29483e0383f59ced780c56a74d2a.zip` (Giai đoạn 5:
+`https://user.uploads.dev/file/6d32cb23b2b5d3fdb6c28bea8b310f16.zip`; Giai đoạn 4:
 `https://user.uploads.dev/file/29c20b8b44adbddd616bca6b2fbef024.zip`).
 
 - Tầng Node: `npm test` (không cần trình duyệt, không tốn quota, chạy trên CI).
@@ -1386,8 +1387,70 @@ xuống đáy** rồi chụp lại mới thấy đủ; kiểm bằng DOM (`[data
 (Cách so pixel: `createImageBitmap` + `OffscreenCanvas.getImageData` ngay trong `execute_js` — không
 cần thư viện giải PNG nào.)
 
-**Còn lại sau thí điểm này:** `openCharacterEditor` (**537 dòng**) vẫn quá dài và **chưa** tách —
-chờ chủ dự án duyệt *cách làm* của Giai đoạn 6 rồi mới làm tiếp.
+### Đợt 6b — tách `openCharacterEditor` + `openNewStoryModal` (tháng 9/2026)
+
+Chủ dự án đã duyệt *cách làm* của Giai đoạn 6 và yêu cầu tách **hai** hàm còn lại **cùng lúc**,
+cùng khuôn. Hai hàm này chứa các đường vào nội dung người lớn nên có ba điều kiện riêng: mọi
+quyết định cổng 18+ phải nằm ở tầng logic THUẦN (có ca Node riêng); các bộ trình duyệt
+(`gd1-tuoi` và mọi bộ chạm editor/wizard) phải xanh **y như trước trên cả bản CŨ lẫn MỚI, cùng
+số ca**; và **không** được đổi thông điệp, thứ tự bước hay mặc định của bất kỳ hộp 18+ nào.
+
+1. **`src/ui/nhanVat/` — 9 tệp.** `index.js` là **vỏ**: nhận `(charId, opts, D)`, dựng modal rồi
+   gọi `lapMau`/`lapAvatar`/`lapLienKet`/`lapAi`/`lapGiaoKeo`/`lapLuu` (đòi **thân hàm** ≤ 150
+   dòng — không phải số dòng tệp).
+   - `nhanVatForm.js` (**THUẦN, không DOM**): luật tuổi/cờ người lớn (`khoaNguoiLonTheoTuoi`,
+     `chotNguoiLon`, `tuoiTheoHoSo`), tên (`tenTrongForm`, `tenSauKhiLuu`), BDSM trong editor
+     (`bdsmTrongEditor`, `soThichTuChuoi`, `doiSoThich`), `goiYTuoiText`, và `promptAvatarAi` +
+     câu chữ `LY_DO_KHOA_TUOI`, `LY_DO_BAT_GIAO_KEO`, `LOI_TU_CHOI_BAT_GIAO_KEO`, `TEN_MAC_DINH`.
+   - `nhanVatHtml.js` (chuỗi HTML từng khối), `nhanVatMau.js` (áp mẫu + ghi chú mẫu BDSM),
+     `nhanVatAvatar.js` (ảnh đại diện qua AI), `nhanVatLienKet.js` (liên kết hồ sơ ngoại hình),
+     `nhanVatAi.js` (nhờ AI nghĩ hướng / viết chi tiết), `nhanVatGiaoKeo.js` (**nút "Bật giao
+     kèo"** — hỏi lại rồi đi qua cửa 18+), `nhanVatLuu.js` (`docForm`/`luuNhanVat`).
+2. **`src/ui/taoTruyen/` — 5 tệp.** `index.js` là **vỏ**: nhận `(opts, D)` rồi gọi `lapTaoNhanh`
+   (đường "Tạo nhanh") hoặc `lapWizard` (đường "Nâng cao"/wizard).
+   - `taoTruyenFlow.js` (**THUẦN, không DOM**): `cheDoMacDinh`, `theLoaiHienThi`, `emojiTheLoai`,
+     `tenNguoiChoi`, `ghepBoiCanhVaLuat`, `datTenTuBoiCanh` (trần 60 ký tự), `locNhanVatCoTen`,
+     `stubTruyen`, và payload `createStory` của hai đường (`payloadWizard`, `payloadTaoNhanh`).
+   - `taoTruyenHtml.js`, `taoTruyenNhanh.js`, `taoTruyenWizard.js`.
+3. **`src/ui/cong18.js` — cửa 18+ DÙNG CHUNG (THUẦN, không DOM).** Một nguồn duy nhất cho câu chữ
+   và cho quyết định "ai được ghi cờ / ai bị chặn / có phải hỏi lại không": `coBdsm`,
+   `danhSachGhiCo`, `danhSachBiChan`, `maDanhSach`, `canHoiLaiDanhSach`, `patchGiaoKeoTaoNhanh`,
+   `patchGiaoKeoBanNhap`, `loiTuChoiTaoNhanh`. Tệp DOM **chỉ hiển thị** câu chữ đó và **chuyển
+   lựa chọn** của người dùng vào đây. Nhờ vậy cả ba đường (bật giao kèo ở màn sửa nhân vật; xác
+   nhận 18+ ở "Tạo nhanh" lúc dựng bản nháp **và** lúc tạo; cờ người lớn từng nhân vật ở wizard)
+   dùng chung một luật, kiểm được bằng Node.
+4. **`NHAN_VAT_DEPS` / `TAO_TRUYEN_DEPS` — cùng luật Giai đoạn 6:** bảng chỉ chứa hàm **còn lại
+   của app**; mọi thứ khác (kể cả `createStory`, `newCharacter`, `giaoKeoMacDinh`,
+   `xacNhanMoiNguoiLon`) lấy thẳng từ lõi. `app.js`: **9 311 → 8 397 dòng**;
+   `openCharacterEditor` (**537 dòng**) và `openNewStoryModal` (**416 dòng**) nay chỉ còn **vỏ 3
+   dòng**.
+5. **HAI LỖI THẬT bắt được nhờ kịch bản tất định + ca test mới** — giá trị thật của đợt này:
+   - `src/ui/cong18.js` import `"../../store.js"` **sai độ sâu** (tệp nằm một tầng, phải là
+     `"../store.js"`) ⇒ **mọi** module import nó đều chết, app **không boot**. Ca "import trong
+     `src/ui/` đều tương đối và trỏ đúng tệp có thật" đã bắt được (trước đó luật cấm `../` nên
+     không ai phát hiện).
+   - `nhanVatAvatar.js` gọi `D.promptAvatarAi` trong khi `NHAN_VAT_DEPS` **thiếu khoá đó** ⇒ bấm
+     "Tạo ảnh đại diện" báo `D.promptAvatarAi is not a function`. Ca mới *"bảng DEPS chỉ chứa thứ
+     KHÔNG import được từ lõi"* đã bắt được.
+
+**Kiểm chứng Đợt 6b:** tầng Node **15 tệp, 2 710 khẳng định, 0 không đạt** (thêm
+`tests/node/cong18.test.mjs` 51, `nhanVatForm.test.mjs` 84, `taoTruyenFlow.test.mjs` 51, và 2 ca
+mới trong `goi-chung.test.mjs`); tầng trình duyệt **1 077/1 077 ca · 31 bộ, 0 cảnh báo — giống hệt**
+khi chạy trên `app.js` **CŨ** lẫn **MỚI** (cùng số ca; `gd1-tuoi` và mọi bộ chạm editor/wizard đều
+xanh ở cả hai). Kịch bản tất định cho ra JSON **90 828 ký tự GIỐNG HỆT TỪNG BYTE** (HTML modal hai
+màn qua từng bước, 6 `instruction` gửi AI, prompt máy vẽ, **câu chữ + thứ tự bước + mặc định của
+cả ba hộp xác nhận 18+**, trạng thái ô tích/tuổi sau từng bước, bản ghi truyện tạo ra). **Ảnh chụp
+giống hệt từng byte**: modal 270 617 B, thân modal bỏ giới hạn cao 1 346 910 B, khối Tuổi 18 152 B,
+khối giao kèo 563 681 B, dòng ô tích 23 360 B; ảnh **cả trang** chỉ khác 206/3 980 673 pixel và mỗi
+kênh lệch **≤ 1** (jitter khử răng cưa) — hợp luật 12. Dữ liệu thật **nguyên trạng** (1 truyện ·
+3 hồ sơ · 2 nhóm tin nhắn · 4 ảnh; `chayTuKiemTra()` → `soLoi 0`, `soLoiHinhDang 0`) và mọi dữ liệu
+test đã dọn sạch. `src/CONTEXT.md` = **10 196 byte** (≤ 10 240), đã thêm dòng trỏ tới mục
+"Không đổi hành vi" của `tests/README.md`.
+
+**Cách đo "không đổi hành vi" giờ là CHUẨN BẮT BUỘC cho mọi lần tách hàm** (chi tiết + bẫy nằm ở
+`tests/README.md`, mục "Không đổi hành vi"): script tất định trên bản CŨ rồi MỚI, so **từng ký tự**
+và so **từng pixel**. `openTaoAnh`, `openCharacterEditor` và `openNewStoryModal` đã tách xong —
+**đừng** viết thân màn trở lại `app.js`.
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

@@ -35,6 +35,16 @@ tách ra từ `app.js`:
     src/ui/taoAnh/taoAnhChon.js   khu "Nhân vật trong khung hình" + dịch ngoại hình
     src/ui/taoAnh/taoAnhDung.js   "Viết lại" + "Dựng khung hình" (cổng 18+ ở đây)
     src/ui/taoAnh/taoAnhLuu.js    "Đưa vào truyện"
+    src/ui/nhanVat/index.js       vỏ màn "Sửa nhân vật" (thân hàm ≤ 150 dòng, chỉ nối)
+    src/ui/nhanVat/nhanVatForm.js logic THUẦN, KHÔNG DOM — cổng 18+ theo tuổi, có test Node
+    src/ui/taoTruyen/index.js     vỏ màn "Cốt truyện mới" (thân hàm ≤ 150 dòng, chỉ nối)
+    src/ui/taoTruyen/taoTruyenFlow.js  logic THUẦN, KHÔNG DOM — đối số createStory
+    src/ui/cong18.js              cửa 18+ DÙNG CHUNG: câu chữ + ai được ghi cờ (THUẦN)
+
+Ba màn đã tách khỏi `app.js` là `taoAnh/` (tạo ảnh) · `nhanVat/` (sửa nhân vật) ·
+`taoTruyen/` (cốt truyện mới). Mỗi màn: `index.js` là VỎ (chỉ nối, **thân hàm** ≤ 150
+dòng — không phải số dòng tệp) và `*Form.js`/`*Flow.js` là **quyết định THUẦN, KHÔNG DOM**
+nên kiểm được ở tầng Node. `cong18.js` là cửa 18+ dùng chung cho cả ba màn.
 
 ## Luật không được vi phạm
 
@@ -86,6 +96,42 @@ tách ra từ `app.js`:
    đó chỉ chứa hàm **còn lại của app**; mọi thứ khác lấy thẳng từ lõi. Đừng biến nó thành túi đồ
    nghề chung. Luật 150 dòng áp cho **mọi** hàm trong `src/ui/**`, kể cả hàm con bên trong tệp, và
    `goi-chung.test.mjs` đếm cả chúng.
+
+## Không đổi hành vi — cách đo (bắt buộc mỗi lần tách hàm khỏi `app.js`)
+
+Mọi lần tách hàm phải chứng minh **hành vi không đổi**. "Trông giống" không tính; bằng chứng
+phải là **ký tự** và **pixel**, và chạy trên **cả** bản CŨ **lẫn** bản MỚI. Quy trình (đã dùng
+ở Giai đoạn 6 và Đợt 6b):
+
+1. Giữ lại `app.js` **CŨ** (trước khi tách) thành một tệp riêng trong lúc làm; bản MỚI là
+   `src/app.js`. Nạp bản nào thì `page_refresh` bản đó — **không** vá `window.fetch` để tráo
+   mã (không chặn được module loader). Vì `page_refresh` xoá `window.__tvNguon`, phải **tiêm
+   lại** nguồn các bộ test sau mỗi lần nạp.
+2. Viết **một script TẤT ĐỊNH** chạy trên trang thật, dùng `window.__tv_test` (điểm neo kiểm
+   thử) + AI giả trả lời theo NỘI DUNG câu hỏi + máy vẽ giả ghi lại prompt. Script phải:
+   - đặt cứng **mọi** id/thời gian: `Date.now = () => 1700000000000`, id theo bộ đếm;
+   - thay `Math.random` bằng **LCG** (bộ sinh tuyến tính) — **KHÔNG** dùng hằng số: hằng số làm
+     `uid()` trùng nhau, bản ghi sau ghi đè bản ghi trước, hai bản "giống nhau" một cách giả tạo;
+   - lấy ra đủ thứ để so: `outerHTML` của modal qua **từng bước**, mọi `instruction` gửi AI,
+     prompt gửi máy vẽ, **câu chữ + thứ tự bước + mặc định của mọi hộp xác nhận 18+**, trạng
+     thái ô tích/tuổi sau từng bước, và bản ghi cuối cùng;
+   - trả về một chuỗi JSON. Chạy trên CŨ rồi MỚI và so **từng ký tự** (độ dài + nội dung).
+3. So **ảnh chụp** trên cả hai bản: phần tử modal, thân modal khi đã **bỏ giới hạn cao**, từng
+   khối (tuổi, dòng ô tích 18+, khối giao kèo), và ảnh cả trang. Ảnh chụp phần tử phải giống
+   **từng byte**; ảnh cả trang nếu lệch thì phải là **jitter khử răng cưa** — so pixel bằng
+   `createImageBitmap` + `OffscreenCanvas.getImageData` (không cần thư viện giải PNG) và đòi mỗi
+   kênh lệch **≤ 1**. Ảnh chụp cả trang là thứ **vision** soi lại được, nên hãy hỏi vision đúng
+   thứ đáng thấy (khối nào, nút nào, thứ tự nào).
+4. **Dữ liệu THẬT phải nguyên trạng**: chụp tập khoá kv trước/sau (so **tập khoá**, đừng lọc
+   theo tiền tố — id truyện sinh bằng `uid()` nên không có tiền tố), `chayTuKiemTra()` phải ra
+   `soLoi 0`/`soLoiHinhDang 0`, và `localStorage["truyenVai.caiDat"]` phải được **trả nguyên**.
+5. Dọn sạch **mọi** dữ liệu test đã sinh, rồi mới chạy tầng trình duyệt đầy đủ (`chayTatCa()`,
+   không `gomPhu`) và đóng gói.
+
+Bẫy khi viết script: modal cao hơn khung nhìn ⇒ phải bỏ giới hạn cao của `.modal-body` rồi mới
+chụp được khối dưới; đóng modal bằng **nút đóng của chính nó** theo LIFO (luật 7); `page_eval`
+với IIFE `async` mà **không** có `return` ngoài thì trả `null`; hộp xác nhận 18+ dùng nút
+`"Tôi xác nhận 18+"`, và wizard chỉ qua cửa khi ô tích người lớn đã bật.
 
 ## Biết trước (khiếm khuyết đã biết)
 
@@ -191,6 +237,37 @@ kể cả đường dẫn lồng `ui/taoAnh/…`) — nhưng tầng phục vụ 
 worker**, nên từ trong editor **không thể** chứng minh "không qua SW" (gọi vòng qua SW trả 404
 `"No src manifest available for this page"` dù generator đã lưu). Cái kiểm được là resolver xử lý
 đúng đường dẫn lồng và trả đúng byte.
+
+### Đợt 6b (tách `openCharacterEditor` + `openNewStoryModal` → `src/ui/nhanVat/` + `src/ui/taoTruyen/`)
+
+Đợt 6b tách **hai** hàm còn lại cùng lúc, theo đúng khuôn Giai đoạn 6, và rút cổng 18+ của cả
+ba đường vào nội dung người lớn ra một tệp dùng chung. Tầng trình duyệt **không thêm ca nào** —
+đó chính là bằng chứng: `1077/1077 ca · 31 bộ, 0 cảnh báo`, **y như trước khi tách**, và **giống
+hệt** khi chạy trên `app.js` **CŨ** lẫn **MỚI** (cùng số ca; `gd1-tuoi` cùng mọi bộ chạm
+editor/wizard đều xanh ở cả hai bản).
+
+| Tệp Node | Phủ gì |
+|---|---|
+| `cong18.test.mjs` (51 khẳng định) | **Cửa 18+ dùng chung** (`src/ui/cong18.js`) — thuần, không DOM: ghim **nguyên văn 8 hằng câu chữ** (`LY_DO_BAT_GIAO_KEO`, `LY_DO_NHANH_DUNG_BAN_NHAP`, `LY_DO_NHANH_TAO_TRUYEN`, `LOI_TU_CHOI_DANH_SACH`, `LOI_TU_CHOI_BAT_GIAO_KEO`, `GHI_CHU_NHANH_KHONG_BDSM`, `LOI_NHANH_THE_LOAI_BDSM`, `LOI_NHANH_CHUA_XAC_NHAN`), `coBdsm`, danh sách **được ghi cờ** / **bị chặn**, `maDanhSach`, `canHoiLaiDanhSach`, `patchGiaoKeoTaoNhanh`/`patchGiaoKeoBanNhap`, `loiTuChoiTaoNhanh` |
+| `nhanVatForm.test.mjs` (84 khẳng định) | Logic THUẦN của màn sửa nhân vật: bốn luật khoá ô 18+ theo tuổi (`khoaNguoiLonTheoTuoi`, `chotNguoiLon`, `tuoiTheoHoSo`), `tenTrongForm`/`tenSauKhiLuu`, `bdsmTrongEditor`, `soThichTuChuoi`/`doiSoThich`, `goiYTuoiText`, và **snapshot byte-for-byte** của `promptAvatarAi` |
+| `taoTruyenFlow.test.mjs` (51 khẳng định) | Logic THUẦN của màn tạo cốt truyện: `cheDoMacDinh`, `theLoaiHienThi`/`emojiTheLoai`, `tenNguoiChoi`, `ghepBoiCanhVaLuat`, `datTenTuBoiCanh` (trần 60 ký tự), `stubTruyen`, `locNhanVatCoTen`, và payload `createStory` của **cả hai** đường (`payloadWizard`/`payloadTaoNhanh`) |
+
+`goi-chung.test.mjs` thêm **2 ca** cho đợt này:
+
+- *"bảng DEPS chỉ chứa thứ KHÔNG import được từ lõi"* — quét `export` của lõi rồi đòi mọi `D.<tên>`
+  xuất hiện trong `src/ui/**` phải **có** trong bảng của màn và **không** được là thứ lõi đã
+  export. Ca này bắt được một lỗi thật (một tệp gọi `D.<hàm>` mà bảng thiếu khoá ⇒ nút "Tạo ảnh
+  đại diện" hỏng lúc chạy).
+- *"cổng 18+ của hai màn mới nằm ở tầng logic THUẦN, câu chữ chỉ có một nguồn"* — đòi mọi quyết
+  định 18+ (khi nào hỏi lại, ai được ghi cờ, ai bị chặn + lý do) nằm ở tầng logic và câu chữ chỉ
+  tồn tại ở `src/ui/cong18.js`, **không** rải trong tệp HTML/DOM.
+
+Luật import `src/ui/` cũng được nới **đúng mức**: cho phép `../` (để `src/ui/<màn>/…` với tới
+`src/ui/cong18.js` và lõi) nhưng vẫn **chặn trỏ ra ngoài gói**.
+
+Tổng tầng Node sau Đợt 6b: **15 tệp, 2 710 khẳng định, 0 không đạt** (Giai đoạn 6: 12 tệp,
+2 012 khẳng định). Con số này là hệ quả của việc thêm ca, nên **đừng** ghim nó vào tài liệu như
+một mốc cứng — nó sẽ đổi mỗi lần thêm ca.
 
 ## Thêm một bộ kiểm thử
 

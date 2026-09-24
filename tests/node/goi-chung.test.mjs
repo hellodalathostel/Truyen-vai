@@ -99,9 +99,9 @@ const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "sch
 // vào đây — có ca "DAG" ở cuối tệp ghim luật đó.
 const MODULE_UI_GOC = "src/ui";
 const TEP_NODE = [
-  "ai-parse.test.mjs", "dom.test.mjs", "gd4.test.mjs", "goi-chung.test.mjs", "khong-ro-ri.test.mjs",
-  "lore.test.mjs", "ngoaiHinh.test.mjs", "schema.test.mjs", "store.test.mjs", "taoAnhFlow.test.mjs",
-  "thoiGian.test.mjs", "trangThai.test.mjs",
+  "ai-parse.test.mjs", "cong18.test.mjs", "dom.test.mjs", "gd4.test.mjs", "goi-chung.test.mjs",
+  "khong-ro-ri.test.mjs", "lore.test.mjs", "ngoaiHinh.test.mjs", "nhanVatForm.test.mjs", "schema.test.mjs",
+  "store.test.mjs", "taoAnhFlow.test.mjs", "taoTruyenFlow.test.mjs", "thoiGian.test.mjs", "trangThai.test.mjs",
 ];
 const TEP_FIXTURE = ["ke-hoach.mjs", "phien-ban-cu.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
 const SRC_CHO_PHEP = MODULE_SRC.concat(["styles.css", "README.md", "CONTEXT.md", "ui"]);
@@ -223,6 +223,55 @@ ca("cổng an toàn tuổi của Giai đoạn 1 còn nguyên trong mã", async (
   const main = await bd.doc("main.pjs");
   for (const x of ["CauHinh", "SoThichBdsm", "MucDoBdsm", "GiaoKeoMacDinh", "MauNhanVat", "NhipDoBdsm", "DoDaiCanh", "NgonNguBdsm", "KieuQuanHe"]) {
     ok(main.indexOf(x) >= 0, "main.pjs còn danh sách: " + x);
+  }
+});
+
+ca("cổng 18+ của hai màn mới nằm ở tầng logic THUẦN, câu chữ chỉ có một nguồn", async (bd) => {
+  // Điều kiện riêng của Đợt 6b: mọi QUYẾT ĐỊNH của cửa 18+ (khi nào hỏi, ai được ghi cờ, ai
+  // bị chặn kèm lý do, mã danh sách) phải nằm trong tệp thuần, còn phần DOM chỉ hiển thị và
+  // chuyển lựa chọn của người dùng. Và câu chữ của hộp xác nhận chỉ được định nghĩa MỘT chỗ.
+  const cong = await bd.doc("src/ui/cong18.js");
+  for (const x of ["danhSachGhiCo", "danhSachBiChan", "maDanhSach", "canHoiLaiDanhSach", "coBdsm"]) {
+    ok(cong.indexOf("export function " + x) >= 0, "src/ui/cong18.js xuất " + x);
+  }
+  for (const x of ["LY_DO_BAT_GIAO_KEO", "LOI_TU_CHOI_DANH_SACH", "LOI_TU_CHOI_BAT_GIAO_KEO", "LOI_NHANH_CHUA_XAC_NHAN"]) {
+    ok(cong.indexOf("export const " + x) >= 0, "src/ui/cong18.js xuất câu chữ " + x);
+  }
+  ok(cong.indexOf("dom.js") < 0, "src/ui/cong18.js KHÔNG import DOM");
+  const form = await bd.doc("src/ui/nhanVat/nhanVatForm.js");
+  for (const x of ["khoaNguoiLonTheoTuoi", "chotNguoiLon", "tuoiTheoHoSo"]) {
+    ok(form.indexOf("export function " + x) >= 0, "nhanVatForm.js xuất " + x);
+  }
+  ok(form.indexOf("dom.js") < 0, "nhanVatForm.js KHÔNG import DOM");
+  ok(form.indexOf("document.") < 0, "nhanVatForm.js KHÔNG đọc DOM");
+  const flow = await bd.doc("src/ui/taoTruyen/taoTruyenFlow.js");
+  ok(flow.indexOf("dom.js") < 0, "taoTruyenFlow.js KHÔNG import DOM");
+  ok(flow.indexOf("document.") < 0, "taoTruyenFlow.js KHÔNG đọc DOM");
+  // Phần DOM phải GỌI đúng những hàm thuần đó, và cửa 18+ cấp truyện phải đi qua
+  // `xacNhan18PlusTruyen` (hộp liệt kê danh sách) — không được tự viết hộp riêng.
+  const gk = await bd.doc("src/ui/nhanVat/nhanVatGiaoKeo.js");
+  ok(gk.indexOf("xacNhan18PlusTruyen") >= 0, "nút Bật giao kèo đi qua hộp xác nhận danh sách");
+  ok(gk.indexOf("chanNoiDungNguoiLon") >= 0, "nút Bật giao kèo đi qua cổng chặn dùng chung");
+  ok(gk.indexOf("LY_DO_BAT_GIAO_KEO") >= 0, "nút Bật giao kèo lấy câu chữ từ cong18.js");
+  const luu = await bd.doc("src/ui/nhanVat/nhanVatLuu.js");
+  ok(luu.indexOf("chotNguoiLon") >= 0, "lúc LƯU nhân vật áp luật tuổi thuần");
+  const nhanh = await bd.doc("src/ui/taoTruyen/taoTruyenNhanh.js");
+  ok(nhanh.indexOf("canHoiLaiDanhSach") >= 0, "Tạo nhanh hỏi lại khi danh sách ghi cờ đổi");
+  ok(nhanh.indexOf("xacNhan18PlusTruyen") >= 0, "Tạo nhanh liệt kê danh sách trước khi ghi cờ");
+  ok(nhanh.indexOf("chanNoiDungNguoiLon") >= 0, "Tạo nhanh đi qua cổng chặn dùng chung");
+  const wiz = await bd.doc("src/ui/taoTruyen/taoTruyenWizard.js");
+  ok(wiz.indexOf("xacNhan18PlusTruyen") >= 0, "wizard liệt kê danh sách trước khi ghi cờ");
+  // Câu chữ không được chép lại trong tầng DOM: chỉ cần một câu chữ bị chép là đã có hai
+  // nguồn, và sửa một chỗ sẽ lệch chỗ kia.
+  const DOM_18 = [
+    "src/ui/nhanVat/nhanVatGiaoKeo.js", "src/ui/nhanVat/nhanVatLuu.js", "src/ui/nhanVat/nhanVatAi.js",
+    "src/ui/nhanVat/nhanVatAvatar.js", "src/ui/nhanVat/nhanVatMau.js", "src/ui/nhanVat/index.js",
+    "src/ui/taoTruyen/taoTruyenNhanh.js", "src/ui/taoTruyen/taoTruyenWizard.js", "src/ui/taoTruyen/index.js",
+  ];
+  const CAU = ["Chưa xác nhận 18+", "Bạn đang bật giao kèo BDSM cho truyện này.", "không thể đánh dấu là người trưởng thành"];
+  for (const f of DOM_18) {
+    const text = await bd.doc(f);
+    for (const c of CAU) ok(text.indexOf(c) < 0, f + " không được chép lại câu chữ 18+: " + c);
   }
 });
 
@@ -356,6 +405,42 @@ function giaiTu(bd, tuTep, spec) {
   return phan.join("/");
 }
 
+// Một tên định danh JS hợp lệ (viết tay, không dùng biểu thức chính quy — xem đầu tệp).
+function laTenDinhDanh(s) {
+  const t = String(s || "");
+  if (!t.length) return false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (c.charCodeAt(0) > 127) return false;
+    const chu = (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || c === "_" || c === "$";
+    const so = c >= "0" && c <= "9";
+    if (!chu && !so) return false;
+    if (i === 0 && so) return false;
+  }
+  return true;
+}
+
+// Ký tự có thể nằm trong một tên định danh (kể cả sau ký tự đầu).
+function laChuThan(c) {
+  if (!c) return false;
+  if (c.charCodeAt(0) > 127) return false;
+  return (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9") || c === "_" || c === "$";
+}
+
+// Mọi tên được gọi qua bảng phụ thuộc: `D.ten`.
+function dsGoiQuaDeps(text) {
+  const ra = [];
+  const t = String(text);
+  let i = t.indexOf("D.");
+  while (i >= 0) {
+    let j = i + 2;
+    while (j < t.length && laChuThan(t[j])) j += 1;
+    if (j > i + 2) ra.push(t.slice(i + 2, j));
+    i = t.indexOf("D.", j > i + 2 ? j : i + 2);
+  }
+  return ra;
+}
+
 ca("DAG: lõi KHÔNG BAO GIỜ import src/ui (một chiều)", async (bd) => {
   // `src/ui/*` được import lõi (store/ngoaiHinh/schema/dom/…). Chiều ngược lại là cấm:
   // một import ngược sẽ kéo DOM vào tầng thuần và làm `src/ui` không còn tách ra được.
@@ -380,26 +465,128 @@ ca("import trong src/ui/ đều tương đối và trỏ đúng tệp có thật
     const text = await bd.doc(f);
     for (const s of dsDuongDan(text)) {
       soImport += 1;
-      const noiBo = s.indexOf("./") === 0;
-      const lenLoi = s.indexOf("../../") === 0;
-      ok(noiBo || lenLoi, f + " chỉ import trong cùng thư mục hoặc lên lõi: " + s);
-      if (noiBo || lenLoi) ok(await bd.co(giaiTu(bd, f, s)), f + " trỏ đúng tệp: " + s);
+      // Tương đối: `./` cùng thư mục, `../` lên một tầng (chỉ `src/ui/cong18.js` dùng),
+      // `../../` lên tới lõi.
+      const tuongDoi = s.indexOf("./") === 0 || s.indexOf("../") === 0;
+      ok(tuongDoi, f + " chỉ được import tương đối: " + s);
+      if (tuongDoi) ok(await bd.co(giaiTu(bd, f, s)), f + " trỏ đúng tệp: " + s);
+      // Đếm số tầng `../` để chắc chắn import không trỏ ra ngoài gói (giaiTu cắt quá tay
+      // vẫn cho ra một đường dẫn trông hợp lệ, nên phải chặn bằng số tầng).
+      let con = s;
+      let soTang = 0;
+      while (con.indexOf("../") === 0) {
+        soTang += 1;
+        con = con.slice(3);
+      }
+      ok(soTang <= f.split("/").length - 1, f + " import không được trỏ ra ngoài gói: " + s);
     }
   }
   ok(soImport >= 10, "đọc được import của src/ui/ (" + soImport + " dòng)");
 });
 
-ca("màn tạo ảnh: logic thuần nằm ở src/ui, KHÔNG ở app.js", async (bd) => {
-  // Sau khi tách (Giai đoạn 6), `openTaoAnh` trong app.js chỉ còn là vỏ ngắn. Nếu ai đó
-  // viết lại thân màn tạo ảnh vào app.js thì vỏ sẽ phình ra — ca này bắt đúng lúc đó.
+// Ba màn đã tách khỏi app.js: tạo ảnh (Giai đoạn 6), Cốt truyện mới và Sửa nhân vật (Đợt 6b).
+// Mỗi màn là một VỎ ngắn trong app.js + một bảng phụ thuộc tường minh, thân nằm ở src/ui/.
+const MAN_HINH = [
+  { ten: "tạo ảnh", khaiBao: "async function openTaoAnh(opts = {}) {", goi: "moTaoAnh(opts, TAO_ANH_DEPS)", bang: "TAO_ANH_DEPS" },
+  { ten: "Cốt truyện mới", khaiBao: "function openNewStoryModal(opts = {}) {", goi: "moTaoTruyen(opts, TAO_TRUYEN_DEPS)", bang: "TAO_TRUYEN_DEPS" },
+  { ten: "Sửa nhân vật", khaiBao: "function openCharacterEditor(charId, opts = {}) {", goi: "moNhanVat(charId, opts, NHAN_VAT_DEPS)", bang: "NHAN_VAT_DEPS" },
+];
+
+ca("ba màn đã tách: thân nằm ở src/ui, app.js chỉ còn vỏ nối", async (bd) => {
+  // Nếu ai đó viết thân màn hình trở lại app.js thì vỏ sẽ phình ra — ca này bắt đúng lúc đó.
   const app = await bd.doc("src/app.js");
-  const i = app.indexOf("async function openTaoAnh(opts = {}) {");
-  ok(i >= 0, "app.js còn định nghĩa openTaoAnh (vỏ)");
-  const than = app.slice(i, app.indexOf("\n}\n", i) + 3);
-  const soDong = than.split(NL).length;
-  ok(soDong <= 150, "openTaoAnh ≤ 150 dòng (đang " + soDong + " dòng)");
-  ok(than.indexOf("moTaoAnh(opts, TAO_ANH_DEPS)") >= 0, "vỏ gọi thẳng vào src/ui/taoAnh");
-  ok(app.indexOf("const TAO_ANH_DEPS = {") >= 0, "có bảng phụ thuộc tường minh");
+  for (const mh of MAN_HINH) {
+    const i = app.indexOf(mh.khaiBao);
+    ok(i >= 0, "app.js còn định nghĩa vỏ của màn " + mh.ten);
+    const than = app.slice(i, app.indexOf("\n}\n", i) + 3);
+    const soDong = than.split(NL).length;
+    ok(soDong <= 150, "vỏ " + mh.ten + " ≤ 150 dòng (đang " + soDong + " dòng)");
+    ok(than.indexOf(mh.goi) >= 0, "vỏ " + mh.ten + " gọi thẳng vào src/ui/ bằng bảng phụ thuộc");
+    ok(app.indexOf("const " + mh.bang + " = {") >= 0, "màn " + mh.ten + " có bảng phụ thuộc tường minh");
+  }
+  ok(app.indexOf('from "./ui/nhanVat/index.js"') >= 0, "app.js nạp điểm vào của màn nhân vật");
+  ok(app.indexOf('from "./ui/taoTruyen/index.js"') >= 0, "app.js nạp điểm vào của màn Cốt truyện mới");
+});
+
+ca("bảng phụ thuộc (DEPS) chỉ chứa thứ KHÔNG import được từ lõi", async (bd) => {
+  // Luật của dự án: bảng `*_DEPS` là chỗ nối với những hàm CÒN LẠI của app.js (điều hướng,
+  // ghi dữ liệu, tiện ích). Mọi thứ khác phải import thẳng từ lõi — nếu không, bảng biến
+  // thành một túi đồ nghề chung và tầng giao diện không còn tách ra được.
+  const ten = [];
+  for (const x of ["export function ", "export async function ", "export const ", "export let "]) ten.push(x);
+  const lõi = ["dom.js", "store.js", "ai.js", "ngoaiHinh.js", "schema.js", "thoiGian.js", "lore.js", "trangThai.js"];
+  const xuat = [];
+  for (const m of lõi) {
+    for (const dong of String(await bd.doc("src/" + m)).split(NL)) {
+      const t = dong.trim();
+      // Dạng gộp: `export { a, b as c };` — tên dùng được là phần SAU chữ " as ".
+      if (t.indexOf("export {") === 0) {
+        const mo = t.indexOf("{");
+        const dong2 = t.indexOf("}", mo);
+        if (dong2 > mo) {
+          for (const phan of t.slice(mo + 1, dong2).split(",")) {
+            let p = phan.trim();
+            if (!p) continue;
+            const k = p.indexOf(" as ");
+            if (k >= 0) p = p.slice(k + 4).trim();
+            xuat.push(p);
+          }
+        }
+        continue;
+      }
+      for (const x of ten) {
+        if (t.indexOf(x) !== 0) continue;
+        let con = t.slice(x.length);
+        let cat = con.length;
+        for (const c of [" ", "=", "(", ";"]) {
+          const i = con.indexOf(c);
+          if (i >= 0 && i < cat) cat = i;
+        }
+        xuat.push(con.slice(0, cat));
+        break;
+      }
+    }
+  }
+  ok(xuat.length >= 100, "đọc được tên hàm/hằng xuất của lõi (" + xuat.length + " tên)");
+  const app = await bd.doc("src/app.js");
+  const tatCaKhoaDeps = [];
+  for (const mh of MAN_HINH) {
+    const dau = app.indexOf("const " + mh.bang + " = {");
+    ok(dau >= 0, "có bảng " + mh.bang);
+    const cuoi = app.indexOf("\n};", dau);
+    const than = app.slice(dau, cuoi);
+    let soKhoa = 0;
+    for (const dong of than.split(NL)) {
+      const t = dong.trim();
+      if (!t || t.indexOf("const ") === 0) continue;
+      // Một khoá có thể viết tắt (`$$,`) hoặc có giá trị (`mauChoices: MAU_CHOICES`), và
+      // nhiều khoá có thể nằm chung một dòng — nên tách theo dấu phẩy rồi cắt ở dấu hai chấm.
+      for (const phan of t.split(",")) {
+        let k = phan.trim();
+        if (!k) continue;
+        const i = k.indexOf(":");
+        if (i >= 0) k = k.slice(0, i).trim();
+        if (!laTenDinhDanh(k)) continue;
+        soKhoa += 1;
+        tatCaKhoaDeps.push(k);
+        ok(xuat.indexOf(k) < 0, mh.bang + " KHÔNG được chứa thứ lõi đã xuất: " + k);
+      }
+    }
+    ok(soKhoa >= 3, mh.bang + " có khai báo phụ thuộc (" + soKhoa + " khoá)");
+  }
+  // Và mặt ngược lại: tầng giao diện không được GỌI qua `D.` một thứ lõi đã xuất — làm vậy
+  // là vẫn còn đường vòng qua bảng, chỉ khác là nó vỡ lúc chạy (đã từng xảy ra: xoá
+  // `giaoKeoMacDinh` khỏi bảng xong `D.giaoKeoMacDinh()` vẫn nằm trong màn Cốt truyện mới).
+  for (const f of await dsTepUi(bd)) {
+    const text = await bd.doc(f);
+    for (const x of dsGoiQuaDeps(text)) {
+      ok(xuat.indexOf(x) < 0, f + " KHÔNG được gọi D." + x + " (lõi đã xuất — import thẳng)");
+      // Mọi thứ gọi qua `D.` phải CÓ THẬT trong một bảng phụ thuộc. Thiếu khoá là lỗi chỉ
+      // hiện ra lúc bấm nút (đã từng xảy ra: `D.promptAvatarAi is not a function` khi bấm
+      // "Tạo ảnh đại diện") — tầng Node phải bắt được, không để người dùng phát hiện.
+      ok(tatCaKhoaDeps.indexOf(x) >= 0, f + " gọi D." + x + " nhưng bảng phụ thuộc không có khoá đó");
+    }
+  }
 });
 
 ca("không hàm nào trong src/ui/ dài quá 150 dòng", async (bd) => {
