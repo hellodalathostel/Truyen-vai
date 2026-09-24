@@ -44,12 +44,17 @@ import {
 } from "./lore.js";
 import {
   esc, fmt, fmtBongBong, icon, toast, modal, confirmModal, promptModal, initials, timeAgo, hexToRgba, el, download, ganAriaNhan, debounce,
+  $, $$,
 } from "./dom.js";
 // Giai đoạn 6 — thân màn tạo ảnh nằm ở `src/ui/taoAnh/`. Chiều import một chiều: `src/ui/*`
 // được import lõi; lõi không bao giờ import `src/ui/*` (xem `tests/node/goi-chung.test.mjs`).
 import { openTaoAnh as moTaoAnh } from "./ui/taoAnh/index.js";
 import { openNewStoryModal as moTaoTruyen } from "./ui/taoTruyen/index.js";
 import { openCharacterEditor as moNhanVat } from "./ui/nhanVat/index.js";
+import { openTuyChonTruyen as moTuyChon } from "./ui/tuyChonTruyen/index.js";
+import { openLorebook as moLorebook } from "./ui/lorebook/index.js";
+// Đợt 6c — bảng xử lý sự kiện toàn cục: `bindGlobalEvents` chỉ còn là điểm ĐĂNG KÝ duy nhất.
+import { gopBangSuKien } from "./ui/suKien/index.js";
 
 const app = {
   screen: "library",
@@ -89,9 +94,11 @@ const app = {
   ghiMocLuc: 0, // lần cuối ghi mốc hoạt động xuống kv (chống ghi liên tục)
 };
 
-const EMOJI_CHOICES = ["🙂","😈","😎","🥰","😭","🤔","😤","🫣","👑","🧙","🧝","🧛","🦸","🕵️","👩‍🎤","🎭","⚔️","🗡️","🏹","🔮","📜","🕯️","🌙","🌘","🐉","🐺","🦊","🐈","🦉","🐍","🤖","👾","🛸","🌊","🔥","❄️","🌸","🍂","⭐","✦"];
+// Tên viết thường để bảng phụ thuộc `*_DEPS` chỉ chứa TÊN KHOÁ (viết tắt `emojiChoices,`)
+// chứ không kèm một tên thứ hai sau dấu hai chấm — xem ca "bảng DEPS hai chiều".
+const emojiChoices = ["🙂","😈","😎","🥰","😭","🤔","😤","🫣","👑","🧙","🧝","🧛","🦸","🕵️","👩‍🎤","🎭","⚔️","🗡️","🏹","🔮","📜","🕯️","🌙","🌘","🐉","🐺","🦊","🐈","🦉","🐍","🤖","👾","🛸","🌊","🔥","❄️","🌸","🍂","⭐","✦"];
 
-const MAU_CHOICES = ["#8b5cf6","#ec4899","#f97316","#eab308","#22c55e","#14b8a6","#3b82f6","#6366f1","#ef4444","#a855f7","#0ea5e9","#84cc16"];
+const mauChoices = ["#8b5cf6","#ec4899","#f97316","#eab308","#22c55e","#14b8a6","#3b82f6","#6366f1","#ef4444","#a855f7","#0ea5e9","#84cc16"];
 
 // ---------------------------------------------------------------- ảnh cảnh
 const ANH_FALLBACK = {
@@ -127,8 +134,7 @@ function luuAnhChon() {
 // ==========================================================================
 //  TIỆN ÍCH CHUNG
 // ==========================================================================
-const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+// `$` / `$$` nay ở `src/dom.js` (Đợt 6c) — tầng `src/ui/*` cũng dùng.
 
 function currentStory() {
   return getStory(app.storyId);
@@ -3971,13 +3977,12 @@ function ganSuKienGiaoKeo(scope, p) {
 // những hàm SỐNG TRONG TỆP NÀY (điều hướng, tạo truyện, khối giao kèo, cửa 18+) qua
 // `TAO_TRUYEN_DEPS`. Cùng luật một chiều như `src/ui/nhanVat/`.
 const TAO_TRUYEN_DEPS = {
-  $$,
   mauCotTruyen: () => (R.MauCotTruyen ? R.MauCotTruyen() : null),
   theLoai: () => (R.TheLoai ? R.TheLoai() : null),
   docGiaoKeo, htmlGiaoKeo, paintGiaoKeo, ganSuKienGiaoKeo,
   xacNhan18Plus, xacNhan18PlusTruyen,
   openStory, baoLoiLuu,
-  sinhHuongNhanVat, chonHuongNhanVat, mauChoices: MAU_CHOICES,
+  sinhHuongNhanVat, chonHuongNhanVat, mauChoices,
 };
 
 function openNewStoryModal(opts = {}) {
@@ -4077,7 +4082,7 @@ const NHAN_VAT_DEPS = {
   xacNhan18PlusTruyen, openNgoaiHinh, openSuaNgoaiHinh,
   sinhHuongNhanVat, chonHuongNhanVat,
   avatarHtml, htmlLienKetNgoaiHinh, dienLienKetNgoaiHinh, htmlThichChipsNv, paintNvThich,
-  mauChoices: MAU_CHOICES, emojiChoices: EMOJI_CHOICES,
+  mauChoices, emojiChoices,
   mauNhanVat: () => (R.MauNhanVat ? R.MauNhanVat() : null),
 };
 
@@ -5741,607 +5746,29 @@ async function suaBatBien(bc) {
   return { ok: true, soSua: soSua, xoaTn: xoaTn.length, xoaAnh: xoaAnh.length, truyen: Array.from(new Set(truyenIds)).length };
 }
 
+// ------------------------------------------------------------------ tuỳ chọn truyện
+// Bảng phụ thuộc của màn "Tuỳ chọn truyện" (Đợt 6c): chỉ hàm CÒN LẠI của app; dom/store/
+// thoiGian/trangThai import thẳng từ lõi. Ca "bảng DEPS hai chiều" ghim không thừa/không thiếu.
+const TUY_CHON_TRUYEN_DEPS = {
+  currentStory, render, luuTruyen, baoLoiLuu,
+  xuatTruyen, nhapTruyen, openNgoaiHinh, openSuaNgoaiHinh,
+  openGiaoKeo, openLorebook, openDaoDien,
+  hoiXacNhan, ddTruoc, ddLuu, goLibrary,
+};
+
 function openStoryMenu() {
-  const story = currentStory();
-  if (!story) return;
-  const body = el("div");
-  const tgv = thoiGianOf(story);
-  const nguongChon = NGUONG_CHON.slice();
-  if (tgv.nguongPhut > 0 && nguongChon.indexOf(tgv.nguongPhut) < 0) nguongChon.push(tgv.nguongPhut);
-  nguongChon.sort((a, b) => a - b);
-  body.innerHTML =
-    '<label class="field-label">Tên cốt truyện</label><input class="input" data-f="ten">' +
-    '<label class="field-label">Biểu tượng</label><input class="input" data-f="emoji" maxlength="4">' +
-    '<label class="field-label">Bối cảnh</label><textarea class="input" data-f="boiCanh" rows="4"></textarea>' +
-    '<label class="field-label">Tên nhân vật của bạn (người chơi)</label><input class="input" data-f="nguoiChoiTen">' +
-    '<label class="field-label">Mô tả bạn trong truyện</label><textarea class="input" data-f="nguoiChoiMoTa" rows="2"></textarea>' +
-    '<div class="nh-link" data-nc-link>' +
-      '<div class="gk-char-head">' + esc("🧬 Hồ sơ ngoại hình của bạn (người chơi)") + "</div>" +
-      '<label class="field-label">Liên kết hồ sơ ngoại hình cho bạn</label>' +
-      '<select class="input" data-f="nguoiChoiNgoaiHinhId"><option value="">— không liên kết —</option>' +
-        dsNgoaiHinh().map((x) => '<option value="' + esc(x.id) + '">' + esc(tenHoSo(x)) + (x.tuoi ? " (" + esc(x.tuoi) + " tuổi)" : "") + "</option>").join("") +
-      "</select>" +
-      '<div class="hint">Hồ sơ quyết định ngoại hình <b>CỐ ĐỊNH</b> của bạn trong khung hình — dùng chung một thư viện ' +
-        "với nhân vật, không phải thông tin riêng của truyện này. Bỏ liên kết thì ảnh có bạn sẽ chỉ dùng phần mô tả ở trên.</div>" +
-      '<div class="row-gap"><button type="button" class="btn btn-sm" data-act="open-ngoai-hinh">' + icon("users", 14) + " Thư viện ngoại hình</button></div>" +
-      '<div class="nh-link-info" data-nc-link-info></div>' +
-    "</div>" +
-    '<label class="field-label">Cách dựng truyện</label>' +
-    '<select class="input" data-f="mode">' +
-      '<option value="chuong">Một cốt truyện, nhiều chương</option>' +
-      '<option value="songSong">Nhiều hội thoại theo cốt truyện</option>' +
-    "</select>" +
-    '<label class="field-label">Nhịp phát triển (nội tâm & quan hệ)</label>' +
-    '<select class="input" data-f="nhip">' +
-      TS.NHIP.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.ten + " — " + x.moTa) + "</option>").join("") +
-    "</select>" +
-    '<label class="field-label">Chế độ Đạo diễn</label>' +
-    '<select class="input" data-f="daoDien">' +
-      '<option value="0">Tắt</option>' +
-      '<option value="1">Bật — xem trạng thái ẩn, đính chính, đặt hướng tương lai</option>' +
-    "</select>" +
-    '<div class="row-gap"><button class="btn btn-sm" data-act="open-dao-dien">' + icon("clapper", 14) + " Mở màn Đạo diễn</button></div>" +
-    '<div class="hint">Tắt chỉ ẩn phần hiển thị — không xoá đính chính hay hướng nào. Hướng chỉ ngừng được bơm vào prompt khi bạn bấm <b>Tạm dừng</b> hoặc <b>Huỷ hướng</b>.</div>' +
-    '<label class="field-label">Thời gian khi rời app</label>' +
-    '<select class="input" data-f="vgCheDo">' +
-      CHE_DO.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.ten + " — " + x.moTa) + "</option>").join("") +
-    "</select>" +
-    '<label class="field-label">Ngưỡng xử lý</label>' +
-    '<select class="input" data-f="vgNguong">' +
-      nguongChon.map((p) => '<option value="' + p + '">' + esc(khoangText(p)) + "</option>").join("") +
-      '<option value="0">Tắt — không mô phỏng gì</option>' +
-    "</select>" +
-    '<label class="field-label">Tương tác chủ động</label>' +
-    '<select class="input" data-f="vgChuDong">' +
-      '<option value="1">Bật — nhân vật có lý do có thể chủ động liên lạc</option>' +
-      '<option value="0">Tắt — chỉ diễn biến ngoài màn hình</option>' +
-    "</select>" +
-    '<div class="hint">Perchance không chạy khi tab đóng; diễn biến được mô phỏng khi bạn quay lại. Mỗi lần quay lại tối đa <b>3 sự kiện cho cả truyện</b>, và <b>không mô phỏng</b> khi còn cảnh đang dang dở.</div>' +
-    '<label class="field-label">Giao kèo trao đổi quyền lực (BDSM M/M)</label>' +
-    '<button class="btn btn-sm" data-act="open-giao-keo">' + icon("lock", 14) + " " +
-      (giaoKeoOf(story).bat ? "Đang bật — chỉnh giao kèo" : "Thiết lập giao kèo") + "</button>" +
-    '<label class="field-label">Sổ tri thức (lorebook)</label>' +
-    '<button class="btn btn-sm" data-act="open-lorebook">' + icon("book", 14) + " " +
-      (loreCua(story).entries.length ? "Đang có " + loreCua(story).entries.length + " mục — mở sổ" : "Nạp file lorebook") + "</button>" +
-    '<div class="row-gap">' +
-      '<button class="btn btn-sm" data-act="export-story">' + icon("download", 14) + " Xuất truyện</button>" +
-      '<button class="btn btn-sm" data-act="import-story">' + icon("upload", 14) + " Nhập truyện</button>" +
-      '<button class="btn btn-sm btn-danger" data-act="delete-story">' + icon("trash", 14) + " Xoá truyện</button>" +
-    "</div>";
-  const F = (f) => body.querySelector('[data-f="' + f + '"]');
-  F("ten").value = story.ten;
-  F("emoji").value = story.emoji || "✦";
-  F("boiCanh").value = story.boiCanh || "";
-  F("nguoiChoiTen").value = story.nguoiChoi.ten || "";
-  F("nguoiChoiMoTa").value = story.nguoiChoi.moTa || "";
-  // ---- Liên kết hồ sơ ngoại hình của NGƯỜI CHƠI ----
-  // Người chơi không nằm trong `nhanVats` nên không có editor nhân vật để liên kết; khối
-  // này là chỗ duy nhất. Cùng luật với nhân vật: đổi ô chọn chỉ đổi trên FORM, chỉ được
-  // ghi vào truyện khi bấm Lưu thành công (`luuNhapNhay`).
-  function paintNcLink() {
-    const sel = F("nguoiChoiNgoaiHinhId");
-    const info = body.querySelector("[data-nc-link-info]");
-    if (!sel || !info) return;
-    const h = sel.value ? getNgoaiHinh(sel.value) : null;
-    const tenNc = String(F("nguoiChoiTen").value || "").trim() || "Bạn";
-    if (!h) {
-      info.innerHTML = '<div class="hint">Chưa liên kết: khung hình có bạn sẽ chỉ dùng mô tả “' + esc(tenNc) + "” ở trên.</div>";
-      return;
-    }
-    const dung = demDungNgoaiHinh(store.stories, h.id);
-    // Lựa chọn đang gõ CHƯA được lưu, nên nếu truyện này chưa trỏ tới hồ sơ thì phép đếm
-    // chưa tính người chơi — cộng vào để con số không nói thiếu so với những gì sắp xảy ra.
-    const sapDung = story.nguoiChoi.ngoaiHinhId !== h.id ? 1 : 0;
-    const demHien = { nhanVat: dung.nhanVat, nguoiChoi: dung.nguoiChoi + sapDung, anh: dung.anh };
-    const lech = tenNc.toLowerCase() !== h.tenChinh.toLowerCase();
-    info.innerHTML =
-      '<div class="hint">Đang liên kết <b>' + esc(tenHoSo(h)) + "</b>" + (h.tuoi ? " · " + esc(h.tuoi) + " tuổi" : "") +
-      (h.anh ? " · có ảnh tham chiếu" : "") + ". Hồ sơ này đang được dùng bởi " +
-      esc(moTaNguoiDung(demHien) || "chưa ai") + ".</div>" +
-      '<div class="nh-info-mota">' + esc((h.moTa || "Chưa có mô tả ngoại hình.").slice(0, 220)) + "</div>" +
-      (h.tranh ? '<div class="nh-info-tranh">Tránh: ' + esc(h.tranh.slice(0, 160)) + "</div>" : "") +
-      (lech
-        ? '<div class="nh-info-lech">Bạn đang tên “' + esc(tenNc) + '”, khác tên chính của hồ sơ (“' + esc(h.tenChinh) +
-          '”). Hồ sơ vẫn nhận diện được cả hai tên khi tạo ảnh. Nếu muốn dùng đúng tên hồ sơ thì bấm nút dưới — nút chỉ ' +
-          "điền vào ô tên (chưa lưu), tin nhắn cũ <b>không</b> bị sửa.</div>" +
-          '<div class="row-gap"><button type="button" class="btn btn-sm" data-act="dong-ten-nguoi-choi">' +
-          icon("check", 13) + " Dùng tên chính của hồ sơ</button></div>"
-        : "") +
-      '<div class="row-gap"><button type="button" class="btn btn-sm" data-act="sua-ngoai-hinh" data-id="' + esc(h.id) + '">' +
-      icon("edit", 13) + " Sửa hồ sơ</button></div>";
-  }
-  // Dựng lại danh sách <option> từ thư viện HIỆN TẠI (hồ sơ có thể vừa được tạo/xoá ở màn
-  // thư viện) rồi vẽ lại phần tóm tắt. `muon` = giá trị muốn chọn (mặc định: giữ nguyên
-  // lựa chọn đang có trên form). Lựa chọn chỉ được GIỮ nếu hồ sơ đó còn tồn tại.
-  function lamMoiNcLink(muon) {
-    const sel = F("nguoiChoiNgoaiHinhId");
-    if (sel) {
-      const dangChon = muon === undefined ? sel.value : String(muon || "");
-      sel.innerHTML =
-        '<option value="">— không liên kết —</option>' +
-        dsNgoaiHinh().map((x) => '<option value="' + esc(x.id) + '">' + esc(tenHoSo(x)) + (x.tuoi ? " (" + esc(x.tuoi) + " tuổi)" : "") + "</option>").join("");
-      sel.value = dangChon && getNgoaiHinh(dangChon) ? dangChon : "";
-    }
-    paintNcLink();
-  }
-  {
-    lamMoiNcLink(story.nguoiChoi.ngoaiHinhId || "");
-    F("nguoiChoiNgoaiHinhId").addEventListener("change", paintNcLink);
-    F("nguoiChoiTen").addEventListener("input", paintNcLink);
-  }
-  F("mode").value = story.mode;
-  F("nhip").value = TS.nhipCua(story).id;
-  F("daoDien").value = daoDienOf(story).bat ? "1" : "0";
-  F("vgCheDo").value = tgv.cheDo;
-  F("vgNguong").value = String(tgv.nguongPhut);
-  F("vgChuDong").value = tgv.chuDong ? "1" : "0";
-  async function luuNhapNhay() {
-    // Ảnh chụp các giá trị sắp sửa đổi — ghi hỏng thì trả lại đúng trạng thái cũ và trả
-    // về false để chỗ gọi KHÔNG đóng bảng / không coi như đã lưu.
-    const truoc = {
-      ten: story.ten, emoji: story.emoji, boiCanh: story.boiCanh, mode: story.mode, nhip: story.nhip,
-      ncTen: story.nguoiChoi.ten, ncMoTa: story.nguoiChoi.moTa, ncNgoaiHinh: story.nguoiChoi.ngoaiHinhId,
-      soChuong: story.chuongs.length, ddBat: daoDienOf(story).bat,
-      cheDo: tgv.cheDo, nguong: tgv.nguongPhut, chuDong: tgv.chuDong,
-    };
-    // Lưu ngay những gì đang gõ dở, để mở Giao kèo / Sổ tri thức (modal khác) không làm mất.
-    story.ten = F("ten").value.trim() || story.ten;
-    story.emoji = F("emoji").value.trim() || "✦";
-    story.boiCanh = F("boiCanh").value.trim();
-    story.nguoiChoi.ten = F("nguoiChoiTen").value.trim() || "Bạn";
-    story.nguoiChoi.moTa = F("nguoiChoiMoTa").value.trim();
-    story.nguoiChoi.ngoaiHinhId = F("nguoiChoiNgoaiHinhId") ? F("nguoiChoiNgoaiHinhId").value : "";
-    // Chỉ giữ liên kết tới hồ sơ CÒN tồn tại (thư viện có thể đã bị xoá ở tab khác).
-    if (story.nguoiChoi.ngoaiHinhId && !getNgoaiHinh(story.nguoiChoi.ngoaiHinhId)) story.nguoiChoi.ngoaiHinhId = "";
-    const newMode = F("mode").value;
-    if (newMode === "chuong" && !story.chuongs.length) story.chuongs.push(newChapter(1, { tieuDe: "Chương 1" }));
-    story.mode = newMode;
-    const nhipMoi = F("nhip").value;
-    story.nhip = TS.NHIP.some((x) => x.id === nhipMoi) ? nhipMoi : "cham";
-    daoDienOf(story).bat = F("daoDien").value === "1";
-    const cdMoi = F("vgCheDo").value;
-    tgv.cheDo = CHE_DO.some((x) => x.id === cdMoi) ? cdMoi : "tamDung";
-    tgv.nguongPhut = Math.max(0, Math.round(Number(F("vgNguong").value) || 0));
-    tgv.chuDong = F("vgChuDong").value === "1";
-    if (!(await luuTruyen(story, "tuỳ chọn truyện"))) {
-      story.ten = truoc.ten;
-      story.emoji = truoc.emoji;
-      story.boiCanh = truoc.boiCanh;
-      story.mode = truoc.mode;
-      story.nhip = truoc.nhip;
-      story.nguoiChoi.ten = truoc.ncTen;
-      story.nguoiChoi.moTa = truoc.ncMoTa;
-      story.nguoiChoi.ngoaiHinhId = truoc.ncNgoaiHinh;
-      story.chuongs.length = truoc.soChuong;
-      daoDienOf(story).bat = truoc.ddBat;
-      tgv.cheDo = truoc.cheDo;
-      tgv.nguongPhut = truoc.nguong;
-      tgv.chuDong = truoc.chuDong;
-      return false;
-    }
-    return true;
-  }
-  const m = modal({
-    title: "Tuỳ chọn truyện",
-    wide: true,
-    body,
-    actions: [{ label: "Đóng", onClick: (mm) => mm.close() },
-      { label: "Lưu", primary: true, onClick: async (mm) => {
-        if (await luuNhapNhay()) { mm.close(); render(); }
-      } }],
-  });
-  body.addEventListener("click", async (e) => {
-    const b = e.target.closest("[data-act]");
-    if (!b) return;
-    if (b.dataset.act === "export-story") xuatTruyen(story);
-    if (b.dataset.act === "import-story") nhapTruyen();
-    // Liên kết ngoại hình của NGƯỜI CHƠI: thư viện / sửa hồ sơ là modal con, mở xong quay
-    // lại dựng lại khối liên kết để danh sách và phần tóm tắt luôn khớp thư viện hiện tại.
-    if (b.dataset.act === "open-ngoai-hinh") { e.stopPropagation(); openNgoaiHinh(lamMoiNcLink); }
-    if (b.dataset.act === "sua-ngoai-hinh") {
-      e.stopPropagation();
-      openSuaNgoaiHinh(b.dataset.id, lamMoiNcLink);
-    }
-    if (b.dataset.act === "dong-ten-nguoi-choi") {
-      const h = getNgoaiHinh(F("nguoiChoiNgoaiHinhId").value);
-      // CHỈ điền vào form — người chơi tự bấm Lưu, và tin nhắn cũ không bị sửa.
-      if (h) F("nguoiChoiTen").value = h.tenChinh;
-      paintNcLink();
-    }
-    // Modal con mở lên trên, modal này vẫn giữ nguyên — không mất thay đổi chưa lưu.
-    if (b.dataset.act === "open-giao-keo") { e.stopPropagation(); await luuNhapNhay(); openGiaoKeo(); }
-    if (b.dataset.act === "open-lorebook") { e.stopPropagation(); await luuNhapNhay(); openLorebook(); }
-    if (b.dataset.act === "open-dao-dien") {
-      e.stopPropagation();
-      await luuNhapNhay();
-      if (!daoDienOf(story).bat) {
-        const bat = await hoiXacNhan(
-          "Chế độ Đạo diễn đang tắt",
-          "Bật Chế độ Đạo diễn cho truyện này rồi mở màn Đạo diễn? Đây là màn riêng của bạn — nó không hiện gì trong chat.",
-          { yesLabel: "Bật & mở" }
-        );
-        if (!bat) return;
-        const t = ddTruoc(story);
-        daoDienOf(story).bat = true;
-        F("daoDien").value = "1";
-        if (!(await ddLuu(story, "bật Chế độ Đạo diễn", t))) return;
-      }
-      m.close();
-      openDaoDien();
-    }
-    if (b.dataset.act === "delete-story") {
-      m.close();
-      confirmModal("Xoá cốt truyện", "Xoá vĩnh viễn “" + story.ten + "” cùng toàn bộ hội thoại? Không thể hoàn tác.", async () => {
-        try {
-          await deleteStory(story.id);
-        } catch (e) {
-          // Xoá là giao dịch: hỏng thì truyện vẫn còn nguyên. Không được báo "đã xoá".
-          baoLoiLuu(e, "cốt truyện");
-          goLibrary();
-          return;
-        }
-        toast("Đã xoá cốt truyện.");
-        goLibrary();
-      }, { danger: true, yesLabel: "Xoá vĩnh viễn" });
-    }
-  });
+  return moTuyChon(TUY_CHON_TRUYEN_DEPS);
 }
 
-// -------------------------------------------------------------- sổ tri thức
-function lbMucHtml(e, kb) {
-  const khop = kb ? kb.get(e.id) : null;
-  return (
-    '<div class="lb-muc' + (e.bat ? "" : " off") + (khop ? " khop" : "") + '" data-lb-muc="' + esc(e.id) + '">' +
-      '<div class="lb-muc-head">' +
-        '<label class="lb-switch" title="Bật / tắt mục"><input type="checkbox" data-lb-bat="' + esc(e.id) + '"' + (e.bat ? " checked" : "") + "></label>" +
-        '<span class="lb-muc-ten">' + esc(e.ghiChu) + "</span>" +
-        (e.hangSo ? '<span class="lb-badge">cố định</span>' : "") +
-        (e.chonLoc ? '<span class="lb-badge">cần khoá phụ</span>' : "") +
-        (khop ? '<span class="lb-badge khop">đang khớp' + (khop.ly === "liên quan" ? " (kéo theo)" : "") + "</span>" : "") +
-        '<span class="lb-muc-meta">' + (e.keys.length ? e.keys.length + " từ khoá" : "không từ khoá") + " · ưu tiên " + esc(String(e.thuTu)) + "</span>" +
-        '<span class="lb-muc-nut">' +
-          '<button class="btn btn-sm" data-lb-sua="' + esc(e.id) + '" title="Sửa mục">' + icon("edit", 12) + "</button>" +
-          '<button class="btn btn-sm btn-danger" data-lb-xoa="' + esc(e.id) + '" title="Xoá mục">' + icon("trash", 12) + "</button>" +
-        "</span>" +
-      "</div>" +
-      (e.keys.length ? '<div class="lb-keys">' + e.keys.map((k) => '<span class="lb-key">' + esc(k) + "</span>").join("") + "</div>" : "") +
-      '<div class="lb-noi">' + esc(e.noiDung.slice(0, 240)) + (e.noiDung.length > 240 ? "…" : "") + "</div>" +
-      lbFormHtml(e) +
-    "</div>"
-  );
-}
-
-function lbFormHtml(e) {
-  const ck = (k, nhan) => '<label class="lb-check"><input type="checkbox" data-lb-f="' + k + '"' + (e[k] ? " checked" : "") + "> " + nhan + "</label>";
-  return (
-    '<div class="lb-form" hidden>' +
-      '<label class="field-label">Tên mục (chỉ để bạn nhận ra — không gửi cho AI)</label>' +
-      '<input class="input" data-lb-f="ghiChu" value="' + esc(e.ghiChu) + '">' +
-      '<label class="field-label">Từ khoá — cách nhau bằng dấu phẩy</label>' +
-      '<input class="input" data-lb-f="keys" value="' + esc(e.keys.join(", ")) + '" placeholder="ví dụ: hội đồng, năm người">' +
-      '<label class="field-label">Từ khoá phụ (chỉ dùng khi bật “cần khoá phụ”)</label>' +
-      '<input class="input" data-lb-f="keys2" value="' + esc(e.keys2.join(", ")) + '" placeholder="ví dụ: quyền lực, bỏ phiếu">' +
-      '<label class="field-label">Nội dung gửi cho AI khi mục này khớp</label>' +
-      '<textarea class="input" data-lb-f="noiDung" rows="5">' + esc(e.noiDung) + "</textarea>" +
-      '<div class="grid-2">' +
-        '<div><label class="field-label">Ưu tiên (số nhỏ xếp trước)</label>' +
-        '<input class="input" data-lb-f="thuTu" type="number" value="' + esc(String(e.thuTu)) + '"></div>' +
-        '<div><label class="field-label">Số tin nhắn để dò (0 = mặc định)</label>' +
-        '<input class="input" data-lb-f="doSau" type="number" min="0" value="' + esc(String(e.doSau)) + '"></div>' +
-      "</div>" +
-      '<div class="lb-checks">' +
-        ck("hangSo", "Luôn gửi") +
-        ck("chonLoc", "Cần khoá phụ") +
-        ck("phanBietHoa", "Phân biệt hoa/thường") +
-        ck("khopTronTu", "Khớp trọn từ") +
-        ck("khongDeQuy", "Không cho kéo theo") +
-      "</div>" +
-      '<div class="row-gap">' +
-        '<button class="btn btn-sm btn-primary" data-lb-luu="' + esc(e.id) + '">' + icon("check", 13) + " Lưu mục</button>" +
-        '<button class="btn btn-sm" data-lb-dong="' + esc(e.id) + '">Đóng</button>' +
-      "</div>" +
-    "</div>"
-  );
-}
+// ------------------------------------------------------------------ sổ tri thức
+// Bảng phụ thuộc của màn "Sổ tri thức (lorebook)" (Đợt 6c): chỉ hàm CÒN LẠI của app.
+// Phần parse/xếp/lọc mục nằm ở lõi (`src/lore.js`) và đã có ca Node riêng.
+const LOREBOOK_DEPS = {
+  currentStory, app, render, luuTruyen,
+};
 
 function openLorebook() {
-  const story = currentStory();
-  if (!story) return;
-  if (document.querySelector(".lb-modal")) return;
-  // `let` vì khi ghi hỏng ta phải nạp lại truyện từ máy và trỏ `lb` sang bản ghi mới.
-  let lb = loreCua(story);
-  // Đang ở trong chat thì lấy hội thoại đó; ở bảng điều khiển thì lấy hội thoại mở gần nhất.
-  const conv = (() => {
-    const id = app.convId || store.lastConvId;
-    return id ? story.hoiThoais.find((c) => c.id === id) || null : null;
-  })();
-  const body = el("div", { class: "lb-modal" });
-  body.innerHTML =
-    '<div class="hint lb-note">Sổ tri thức giữ những thông tin nền cố định (địa danh, tổ chức, nhân vật phụ, luật lệ…). ' +
-      "AI <b>chỉ đọc</b> những mục có <b>từ khoá</b> xuất hiện trong bối cảnh truyện, tên hội thoại hoặc vài tin nhắn gần nhất — " +
-      "nên bạn nạp cả một quyển cũng không tốn ngữ cảnh.</div>" +
-    '<details class="lb-help"><summary>Định dạng file được nhận</summary><div>' +
-      "File JSON theo chuẩn <b>World Info / SillyTavern</b>: <code>{ \"entries\": { \"0\": { \"key\": [\"từ khoá\"], \"content\": \"…\" } } }</code>, " +
-      "dạng mảng <code>{ \"entries\": [ … ] }</code> (character book), sổ nằm trong thẻ nhân vật (<code>data.character_book</code>), hoặc một mục đơn lẻ. " +
-      "Các trường được đọc: <code>key/keys</code>, <code>keysecondary/secondary_keys</code>, <code>content</code>, <code>comment/name</code>, " +
-      "<code>constant</code>, <code>selective</code>, <code>disable</code>/<code>enabled</code>, <code>order/insertion_order</code>, " +
-      "<code>caseSensitive</code>, <code>matchWholeWords</code>, <code>preventRecursion</code>, <code>scanDepth</code>. " +
-      "Mục thiếu nội dung bị bỏ qua; mục thiếu từ khoá được nhập ở trạng thái tắt để bạn sửa sau." +
-      '<div class="row-gap"><button class="btn btn-sm" data-lb-vidu>Xem ví dụ JSON</button></div>' +
-    "</div></details>" +
-    '<div class="lb-nhap">' +
-      '<div class="row-gap">' +
-        '<button class="btn btn-sm" data-lb-file>' + icon("upload", 14) + " Chọn file lorebook (.json)</button>" +
-        '<button class="btn btn-sm" data-lb-them>' + icon("plus", 14) + " Thêm mục trống</button>" +
-      "</div>" +
-      '<label class="field-label">Hoặc dán JSON vào đây</label>' +
-      '<textarea class="input" data-lb-json rows="3" spellcheck="false" placeholder=\'{ "entries": { "0": { "key": ["hội đồng"], "content": "Hội đồng gồm năm người…" } } }\'></textarea>' +
-      '<div class="row-gap">' +
-        '<button class="btn btn-sm btn-primary" data-lb-nhap-them>Thêm vào sổ</button>' +
-        '<button class="btn btn-sm" data-lb-nhap-thay>Thay thế toàn bộ sổ</button>' +
-      "</div>" +
-    "</div>" +
-    '<div class="lb-thongke" data-lb-thongke></div>' +
-    '<div class="lb-list" data-lb-list></div>';
-
-  let moId = "";
-
-  function veThongKe() {
-    const ctn = body.querySelector("[data-lb-thongke]");
-    const n = lb.entries.length;
-    const bat = lb.entries.filter((e) => e.bat).length;
-    if (!n) {
-      ctn.textContent = "Sổ đang trống.";
-      return;
-    }
-    const khop = conv ? mucKhop(story, conv, getMessages(conv.id)).length : 0;
-    ctn.innerHTML =
-      "<b>" + n + "</b> mục · <b>" + bat + "</b> đang bật" +
-      (conv ? ' · <b class="lb-khop-num">' + khop + "</b> đang khớp với hội thoại này" : "") +
-      (lb.ten ? " · " + esc(lb.ten) : "");
-  }
-
-  function veDanhSach() {
-    const ctn = body.querySelector("[data-lb-list]");
-    const kb = conv ? new Map(mucKhop(story, conv, getMessages(conv.id)).map((x) => [x.entry.id, x])) : null;
-    ctn.innerHTML = lb.entries.length
-      ? lb.entries.map((e) => lbMucHtml(e, kb)).join("")
-      : '<div class="hint">Chưa có mục nào. Nạp một file lorebook, dán JSON, hoặc bấm “Thêm mục trống” để tự viết.</div>';
-    if (moId) {
-      const node = ctn.querySelector('[data-lb-muc="' + moId + '"]');
-      if (node) node.querySelector(".lb-form").hidden = false;
-    }
-    veThongKe();
-  }
-
-  async function luuSapXep() {
-    chamLore(story);
-    if (!(await luuTruyen(story, "sổ tri thức"))) {
-      await hoanTacSo();
-      return false;
-    }
-    veDanhSach();
-    return true;
-  }
-
-  // Ghi hỏng ⇒ đọc lại từ máy và dựng lại danh sách, để bảng không hiển thị một trạng
-  // thái chưa từng được lưu.
-  async function hoanTacSo() {
-    try { await loadStories(); } catch (e) { console.error(e); }
-    const s2 = getStory(story.id);
-    const moi = s2 ? loreCua(s2) : null;
-    if (moi) {
-      lb.ten = moi.ten;
-      lb.entries = moi.entries;
-    }
-    veDanhSach();
-  }
-
-  async function nhapTu(text, thayThe) {
-    let kq;
-    try {
-      kq = docLorebook(text);
-    } catch (err) {
-      toast("Không đọc được file: " + (err.message || err), "error");
-      return;
-    }
-    const bao = (dau) =>
-      dau +
-      (kq.boQua.length ? " Bỏ qua " + kq.boQua.length + " mục thiếu nội dung." : "") +
-      (kq.thieuTuKhoa ? " " + kq.thieuTuKhoa + " mục thiếu từ khoá đã được tắt." : "");
-    const nhan = async () => {
-      const cuTen = lb.ten;
-      if (kq.ten) lb.ten = kq.ten;
-      chamLore(story);
-      if (!(await luuTruyen(story, "sổ tri thức"))) {
-        lb.ten = cuTen;
-        await hoanTacSo();
-        return false;
-      }
-      veDanhSach();
-      return true;
-    };
-    if (thayThe && lb.entries.length) {
-      confirmModal(
-        "Thay thế sổ tri thức",
-        "Xoá " + lb.entries.length + " mục hiện có và thay bằng " + kq.entries.length + " mục vừa đọc?",
-        async () => {
-          lb.entries = kq.entries;
-          if (await nhan()) toast(bao("Đã thay sổ tri thức."));
-        },
-        { yesLabel: "Thay thế", danger: true }
-      );
-      return;
-    }
-    lb.entries = lb.entries.concat(kq.entries);
-    if (await nhan()) toast(bao("Đã thêm " + kq.entries.length + " mục vào sổ."));
-  }
-
-  function chonFile() {
-    const inp = document.createElement("input");
-    inp.type = "file";
-    inp.accept = "application/json,.json";
-    inp.onchange = async () => {
-      const f = inp.files[0];
-      if (!f) return;
-      try {
-        const kq = docLorebook(await f.text());
-        if (kq.boQua.length && !kq.entries.length) {
-          toast("File không có mục nào dùng được.", "error");
-          return;
-        }
-        lb.entries = lb.entries.concat(kq.entries);
-        if (kq.ten) lb.ten = kq.ten;
-        chamLore(story);
-        if (!(await luuTruyen(story, "sổ tri thức"))) {
-          await hoanTacSo();
-          return;
-        }
-        veDanhSach();
-        toast(
-          "Đã nạp " + kq.entries.length + " mục từ “" + f.name + "”." +
-            (kq.boQua.length ? " Bỏ qua " + kq.boQua.length + " mục thiếu nội dung." : "") +
-            (kq.thieuTuKhoa ? " " + kq.thieuTuKhoa + " mục thiếu từ khoá đã được tắt." : "")
-        );
-      } catch (err) {
-        toast("Nhập thất bại: " + (err.message || err), "error");
-      }
-    };
-    inp.click();
-  }
-
-  const m = modal({
-    title: "Sổ tri thức (lorebook)",
-    subtitle: "Tải file World Info / SillyTavern, hoặc tự viết từng mục.",
-    wide: true,
-    body,
-    actions: [
-      { label: "Đóng", onClick: (mm) => mm.close() },
-      {
-        label: "Xuất JSON",
-        onClick: () => {
-          download(
-            "lorebook-" + String(story.ten || "so").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase() + ".json",
-            xuatLorebook(story)
-          );
-          toast("Đã xuất file lorebook (chuẩn World Info).");
-        },
-      },
-      {
-        label: "Xoá cả sổ",
-        danger: true,
-        onClick: async (mm) => {
-          if (!lb.entries.length) {
-            toast("Sổ đang trống.");
-            return;
-          }
-          confirmModal(
-            "Xoá sổ tri thức",
-            "Xoá toàn bộ " + lb.entries.length + " mục của sổ tri thức? Không thể hoàn tác.",
-            async () => {
-              lb.entries = [];
-              chamLore(story);
-              if (!(await luuTruyen(story, "sổ tri thức"))) {
-                await hoanTacSo();
-                return;
-              }
-              mm.close();
-              render();
-              toast("Đã xoá sổ tri thức.");
-            },
-            { yesLabel: "Xoá tất cả", danger: true }
-          );
-        },
-      },
-    ],
-  });
-
-  veDanhSach();
-
-  body.addEventListener("change", async (e) => {
-    const cb = e.target.closest("[data-lb-bat]");
-    if (!cb) return;
-    const e2 = lb.entries.find((x) => x.id === cb.dataset.lbBat);
-    if (!e2) return;
-    e2.bat = cb.checked;
-    await luuSapXep();
-  });
-
-  body.addEventListener("click", async (e) => {
-    const b = e.target.closest("[data-lb-file],[data-lb-them],[data-lb-nhap-them],[data-lb-nhap-thay],[data-lb-vidu],[data-lb-xoa],[data-lb-sua],[data-lb-dong],[data-lb-luu]");
-    if (!b) return;
-    const lay = (id) => body.querySelector('[data-lb-muc="' + id + '"]');
-    if (b.dataset.lbVidu !== undefined) {
-      body.querySelector("[data-lb-json]").value = JSON.stringify(viDuLorebook(), null, 2);
-      toast("Đã dán ví dụ — bấm “Thêm vào sổ” để thử.");
-      return;
-    }
-    if (b.dataset.lbFile !== undefined) {
-      chonFile();
-      return;
-    }
-    if (b.dataset.lbThem !== undefined) {
-      const e2 = newLoreEntry({ ghiChu: "Mục mới", keys: [], noiDung: "Nội dung gửi cho AI khi mục này khớp." });
-      lb.entries.push(e2);
-      moId = e2.id;
-      await luuSapXep();
-      const node = lay(e2.id);
-      if (node) node.scrollIntoView({ block: "center" });
-      return;
-    }
-    if (b.dataset.lbNhapThem !== undefined || b.dataset.lbNhapThay !== undefined) {
-      await nhapTu(body.querySelector("[data-lb-json]").value, b.dataset.lbNhapThay !== undefined);
-      return;
-    }
-    if (b.dataset.lbXoa !== undefined) {
-      const e2 = lb.entries.find((x) => x.id === b.dataset.lbXoa);
-      if (!e2) return;
-      confirmModal("Xoá mục", "Xoá mục “" + e2.ghiChu + "” khỏi sổ tri thức?", async () => {
-        lb.entries = lb.entries.filter((x) => x.id !== e2.id);
-        if (await luuSapXep()) toast("Đã xoá mục.");
-      }, { yesLabel: "Xoá", danger: true });
-      return;
-    }
-    if (b.dataset.lbSua !== undefined) {
-      moId = b.dataset.lbSua;
-      const node = lay(moId);
-      if (node) {
-        node.querySelector(".lb-form").hidden = false;
-        node.scrollIntoView({ block: "center" });
-      }
-      return;
-    }
-    if (b.dataset.lbDong !== undefined) {
-      const node = lay(b.dataset.lbDong);
-      if (node) node.querySelector(".lb-form").hidden = true;
-      return;
-    }
-    if (b.dataset.lbLuu !== undefined) {
-      const e2 = lb.entries.find((x) => x.id === b.dataset.lbLuu);
-      const node = e2 ? lay(e2.id) : null;
-      if (!e2 || !node) return;
-      const g = (f) => node.querySelector('[data-lb-f="' + f + '"]');
-      const ds = (f) => String(g(f).value || "").split(",").map((s) => s.trim()).filter(Boolean);
-      const nd = g("noiDung").value.trim();
-      if (!nd) {
-        toast("Mục chưa có nội dung.", "error");
-        return;
-      }
-      e2.ghiChu = g("ghiChu").value.trim() || ds("keys")[0] || "Mục";
-      e2.keys = ds("keys");
-      e2.keys2 = ds("keys2");
-      e2.noiDung = nd;
-      e2.thuTu = Number(g("thuTu").value) || 0;
-      e2.doSau = Math.max(0, Number(g("doSau").value) || 0);
-      e2.hangSo = g("hangSo").checked;
-      e2.chonLoc = g("chonLoc").checked;
-      e2.phanBietHoa = g("phanBietHoa").checked;
-      e2.khopTronTu = g("khopTronTu").checked;
-      e2.khongDeQuy = g("khongDeQuy").checked;
-      moId = "";
-      if (await luuSapXep()) toast("Đã lưu mục.");
-    }
-  });
+  return moLorebook(LOREBOOK_DEPS);
 }
 
 // ------------------------------------------------------------------ giao kèo
@@ -7179,6 +6606,25 @@ function nhapTatCa() { chonFileNhap(); }
 // ==========================================================================
 //  SỰ KIỆN
 // ==========================================================================
+// ------------------------------------------------------------------ cầu nối sự kiện
+// Bảng phụ thuộc cho MỌI tệp trong `src/ui/suKien/` (Đợt 6c). Chỉ chứa hàm CÒN LẠI của
+// app.js — dom/store/thoiGian/trangThai import thẳng từ lõi. Ca kiểm thử "bảng DEPS hai
+// chiều" ghim rằng bảng này không thừa tên nào (mọi khoá đều được dùng) và không thiếu tên
+// nào (mọi `D.<tên>` đều có trong bảng).
+const SU_KIEN_DEPS = {
+  app, currentStory, currentConv, render, autoGrow,
+  chronicleFromConv, goDashboard, goLibrary, nhapTatCa, openChapterEditor,
+  openCharacterEditor, openCharacterList, openChonCanhRieng, openChronicle, openConv,
+  openConvEditor, openDaoDien, openGiaoKeo, openHienDien, openKhepCanh,
+  openLorebook, openNewStoryModal, openSettings, openStory, openStoryMenu,
+  openTaoAnh, xuatTatCa, boQuaVangMat, capNhatConv, doiMucDo,
+  dongCanhRieng, endChapter, factsFromMessage, generateTurn, giaoDichApp,
+  hoiVoHieuCanh, maybeCompact, moThuVienAnh, moVietLaiTinGiua, moXemAnh,
+  moXemAnhId, nvtsCuaTin, onContinueAi, onOpening, onSend,
+  onSuggest, stopStreaming, taiAnhTuMsg, thuLaiVangMat, tinHieuCanh,
+  vietLaiTinCuoi, voHieuCanhTuDiem, voHieuTomTat, xoaHoiThoai,
+};
+
 function bindGlobalEvents() {
   // Menu ⋯ của hội thoại: chỉ hai thao tác chính ở lại header, phần còn lại nằm trong đây.
   const dongMenuChat = () => {
@@ -7187,6 +6633,10 @@ function bindGlobalEvents() {
     const nut = $(".chat-more-btn");
     if (nut) nut.setAttribute("aria-expanded", "false");
   };
+  // ĐÂY LÀ ĐIỂM ĐĂNG KÝ SỰ KIỆN DUY NHẤT CỦA APP. Bảng hành động ⇒ hàm xử lý được gom từ
+  // `src/ui/suKien/*` (mỗi tệp một tính năng). Muốn thêm hành động thì thêm một khoá vào
+  // bảng con tương ứng — ĐỪNG thêm một `addEventListener("click")` ở chỗ khác.
+  const bangSuKien = gopBangSuKien(SU_KIEN_DEPS);
   document.addEventListener("click", async (e) => {
     const t = e.target.closest("[data-act]");
     if (!t) {
@@ -7197,278 +6647,9 @@ function bindGlobalEvents() {
       // bấm bất kỳ thao tác nào (kể cả trong menu ⋯) thì đóng menu lại
       dongMenuChat();
     }
-    const act = t.dataset.act;
-    const story = currentStory();
-    const conv = currentConv();
-    switch (act) {
-      case "new-story": openNewStoryModal(); break;
-      case "open-story": await openStory(t.dataset.id); break;
-      case "go-library": goLibrary(); break;
-      case "go-dashboard": goDashboard(); break;
-      case "toggle-sidebar":
-        if (app.tapTrung) break;
-        app.sidebarOpen = !app.sidebarOpen;
-        $(".sidebar").classList.toggle("open", app.sidebarOpen);
-        $(".sidebar-scrim").classList.toggle("on", app.sidebarOpen);
-        break;
-      case "close-sidebar":
-        app.sidebarOpen = false;
-        $(".sidebar").classList.remove("open");
-        $(".sidebar-scrim").classList.remove("on");
-        break;
-      case "toggle-scene-bar": {
-        // Đổi thẳng trên DOM để không mất vị trí cuộn của mạch truyện.
-        const sb = $(".scene-bar");
-        if (!sb) break;
-        const mo = sb.classList.toggle("mo");
-        const tg = sb.querySelector(".scene-bar-toggle");
-        if (tg) tg.setAttribute("aria-expanded", mo ? "true" : "false");
-        app.thanhCanhMo = mo;
-        break;
-      }
-      case "toggle-msg-tools": {
-        const hang = t.closest(".msg-tools");
-        if (!hang) break;
-        const mo = hang.classList.toggle("open");
-        t.setAttribute("aria-expanded", mo ? "true" : "false");
-        break;
-      }
-      case "toggle-focus": {
-        app.tapTrung = !app.tapTrung;
-        store.settings.tapTrung = app.tapTrung;
-        saveSettings();
-        const ap = $(".app");
-        if (ap) ap.classList.toggle("tap-trung", app.tapTrung);
-        if (app.tapTrung) {
-          app.sidebarOpen = false;
-          const side = $(".sidebar");
-          if (side) side.classList.remove("open");
-          const scrim = $(".sidebar-scrim");
-          if (scrim) scrim.classList.remove("on");
-          const sb = $(".scene-bar");
-          if (sb) {
-            sb.classList.remove("mo");
-            const tg = sb.querySelector(".scene-bar-toggle");
-            if (tg) tg.setAttribute("aria-expanded", "false");
-          }
-        }
-        toast(app.tapTrung ? "Chế độ tập trung: đã ẩn sidebar và thu gọn thanh trạng thái." : "Đã tắt chế độ tập trung.");
-        break;
-      }
-      case "toggle-chat-menu": {
-        const menu = $(".chat-menu");
-        const nut = $(".chat-more-btn");
-        if (menu) {
-          menu.hidden = !menu.hidden;
-          if (nut) nut.setAttribute("aria-expanded", menu.hidden ? "false" : "true");
-        }
-        break;
-      }
-      case "open-chars": openCharacterList(); break;
-      case "new-char": openCharacterEditor(null, { focusTen: true }); break;
-      case "edit-char": openCharacterEditor(t.dataset.id); break;
-      case "open-chronicle": openChronicle(); break;
-      case "story-menu": openStoryMenu(); break;
-      case "open-settings": openSettings(); break;
-      case "import-all": nhapTatCa(); break;
-      case "export-all": await xuatTatCa(); break;
-      case "new-conv": openConvEditor(null, { chuongId: t.dataset.chuong }); break;
-      case "open-conv": await openConv(t.dataset.id); break;
-      case "edit-conv": if (conv) openConvEditor(conv.id); break;
-      case "delete-conv": if (conv) xoaHoiThoai(conv.id); break;
-      case "chronicle-from-conv": chronicleFromConv(); break;
-      case "new-chapter": openChapterEditor(null, true); break;
-      case "edit-chapter": openChapterEditor(t.dataset.id, false); break;
-      case "end-chapter": endChapter(t.dataset.id); break;
-      case "open-chapter": openChapterEditor(t.dataset.id, false); break;
-      case "send": await onSend(); break;
-      case "stop": await stopStreaming(); break;
-      case "continue-ai": onContinueAi(); break;
-      case "suggest": onSuggest(); break;
-      case "opening": onOpening(); break;
-      case "set-responder":
-        app.responder = t.dataset.id;
-        $$(".responder-row .chip").forEach((c) => c.classList.toggle("on", c === t));
-        break;
-      case "use-suggestion": {
-        // Chỉ ĐIỀN vào ô nhập — không gửi, không ghi tin nhắn, không đóng khối gợi ý.
-        const i = Number(t.dataset.i);
-        app.draft = app.suggestions[i] || "";
-        const ta = $("#composerInput");
-        if (ta) { ta.value = app.draft; ta.focus(); autoGrow(ta); }
-        // Highlight chỉ thể hiện gợi ý được chọn GẦN NHẤT; sửa bản nháp không làm mất nó.
-        app.suggChon = i;
-        $$(".goi-y-card").forEach((c) => {
-          const on = Number(c.dataset.i) === i;
-          c.classList.toggle("on", on);
-          c.setAttribute("aria-pressed", on ? "true" : "false");
-        });
-        break;
-      }
-      case "copy-msg": {
-        const msgs = getMessages(app.convId);
-        const m = msgs.find((x) => x.id === t.dataset.mid);
-        if (m) { navigator.clipboard.writeText(m.noiDung); toast("Đã sao chép."); }
-        break;
-      }
-      case "edit-msg": app.editingMsgId = t.dataset.mid; render(); break;
-      case "cancel-edit": app.editingMsgId = null; render(); break;
-      case "save-edit": {
-        const box = t.closest(".msg-edit");
-        const ta = box ? box.querySelector("textarea") : null;
-        const msgs = getMessages(app.convId);
-        const idx = msgs.findIndex((x) => x.id === t.dataset.mid);
-        const m = idx >= 0 ? msgs[idx] : null;
-        if (m && ta) {
-          if (!(await hoiVoHieuCanh(story, conv, msgs, idx, "Sửa tin nhắn này"))) { app.editingMsgId = null; render(); break; }
-          // Sửa tin nhắn đụng CẢ HAI khoá: bản ghi tin nhắn và bản ghi truyện (cảnh đã khép
-          // bị vô hiệu + bản tóm tắt cũ bị bỏ). Hỏng ở bước nào cũng phải trả về nguyên
-          // trạng — không được để mất chữ cũ mà trạng thái truyện chưa đổi.
-          const kq = await giaoDichApp([["cotTruyen", story.id], ["tinNhan", app.convId]], async () => {
-            m.noiDung = ta.value.trim();
-            m.sua = true;
-            // Sửa tin nhắn nằm trong vùng đã tóm tắt → bản tóm tắt đó không còn đúng.
-            const boTomTat = voHieuTomTat(conv, idx);
-            const soCanhHuy = voHieuCanhTuDiem(story, conv, msgs, idx);
-            capNhatConv(conv, msgs);
-            await persistMessages(app.convId);
-            await ghiCotTruyen(story);
-            return { boTomTat, soCanhHuy };
-          }, "sửa tin nhắn");
-          if (!kq.ok) {
-            // Giữ hộp sửa MỞ và giữ đúng chữ vừa gõ: giao dịch đã trả nội dung cũ về, người
-            // dùng không phải gõ lại. Giao diện chỉ đóng khi lưu thành công.
-            const chuDangGo = ta.value;
-            render();
-            const nut2 = document.querySelector('[data-act="save-edit"][data-mid="' + m.id + '"]');
-            const inp = nut2 && nut2.closest(".msg-edit") ? nut2.closest(".msg-edit").querySelector("textarea") : null;
-            if (inp) inp.value = chuDangGo;
-            break;
-          }
-          const boTomTat = kq.kq.boTomTat;
-          const soCanhHuy = kq.kq.soCanhHuy;
-          if (soCanhHuy) toast("Đã vô hiệu " + soCanhHuy + " cảnh đã khép bị ảnh hưởng — đã hoàn tác quan hệ/ký ức sinh ra từ đó.");
-          if (boTomTat) {
-            toast("Tin nhắn này đã nằm trong phần tóm tắt cũ — bản tóm tắt đã được bỏ để AI không nhớ sai.");
-            maybeCompact(story, conv);
-          }
-        }
-        app.editingMsgId = null;
-        render();
-        break;
-      }
-      case "del-msg": {
-        const msgs = getMessages(app.convId);
-        const idx = msgs.findIndex((x) => x.id === t.dataset.mid);
-        if (idx >= 0) {
-          if (!(await hoiVoHieuCanh(story, conv, msgs, idx, "Xoá tin nhắn này"))) break;
-          const bo = msgs[idx];
-          // Xoá tin nhắn đụng ba khoá: tin nhắn, bản ghi truyện (cảnh đã khép + sổ hé lộ) và
-          // ẢNH riêng của tin nhắn đó (nếu có) — phải là một giao dịch, kẻo ảnh mất mà
-          // trạng thái truyện chưa đổi.
-          const ds = [["cotTruyen", story.id], ["tinNhan", app.convId]];
-          if (bo.anhId) ds.push(["thuVienAnh", bo.anhId]);
-          const kq = await giaoDichApp(ds, async () => {
-            const boTomTat = voHieuTomTat(conv, idx);
-            msgs.splice(idx, 1);
-            if (bo.anhId) await xoaAnh(story, bo.anhId);
-            const soCanhHuy = voHieuCanhTuDiem(story, conv, msgs, idx);
-            capNhatConv(conv, msgs);
-            // Tin nhắn vừa bị xoá có thể là NGUỒN của một lần hé lộ — tính lại "ai biết gì".
-            tinhLaiBiet(story, { [app.convId]: msgs });
-            await persistMessages(app.convId);
-            await ghiCotTruyen(story);
-            return { boTomTat, soCanhHuy };
-          }, "xoá tin nhắn");
-          if (!kq.ok) { render(); break; }
-          const boTomTat = kq.kq.boTomTat;
-          const soCanhHuy = kq.kq.soCanhHuy;
-          if (soCanhHuy) toast("Đã vô hiệu " + soCanhHuy + " cảnh đã khép bị ảnh hưởng — đã hoàn tác quan hệ/ký ức sinh ra từ đó.");
-          if (boTomTat) {
-            toast("Tin nhắn này đã nằm trong phần tóm tắt cũ — bản tóm tắt đã được bỏ.");
-            maybeCompact(story, conv);
-          }
-          render();
-        }
-        break;
-      }
-      case "thu-lai-loi": {
-        app.loiTam = [];
-        render();
-        const s2 = currentStory();
-        const c2 = currentConv();
-        if (s2 && c2) await generateTurn(s2, c2, { auto: true });
-        break;
-      }
-      case "bo-loi": {
-        app.loiTam.splice(Number(t.dataset.i) || 0, 1);
-        render();
-        break;
-      }
-      case "tao-anh": openTaoAnh({}); break;
-      case "tao-anh-msg": {
-        const msgs = getMessages(app.convId);
-        const mm = msgs.find((x) => x.id === t.dataset.mid);
-        openTaoAnh({ tinNhan: mm ? mm.noiDung : "", sauMsgId: t.dataset.mid });
-        break;
-      }
-      case "anh-xem": await moXemAnh(t.dataset.mid); break;
-      case "anh-tai": await taiAnhTuMsg(t.dataset.mid); break;
-      case "anh-lai": await openTaoAnh({ suaMsgId: t.dataset.mid }); break;
-      case "open-anh-lib":
-        if (t.dataset.id && story) await moXemAnhId(story, t.dataset.id, "");
-        else moThuVienAnh();
-        break;
-      case "regen-msg": {
-        const msgs = getMessages(app.convId);
-        const idx = msgs.findIndex((x) => x.id === t.dataset.mid);
-        if (idx < 0) break;
-        const old = msgs[idx];
-        const nvts = nvtsCuaTin(story, old);
-        if (!nvts.length) { toast("Không xác định được nhân vật.", "error"); break; }
-        if (msgs.length - 1 - idx > 0) {
-          moVietLaiTinGiua(story, conv, idx, nvts);
-          break;
-        }
-        await vietLaiTinCuoi(story, conv, idx, nvts);
-        break;
-      }
-      case "khep-canh": await openKhepCanh(); break;
-      case "open-dao-dien": openDaoDien(); break;
-      case "dung-moc": {
-        const cuoi = conv ? TS.canhCuoi(story, conv) : null;
-        if (cuoi && cuoi.moc) {
-          const ta = $("#composerInput");
-          app.draft = (app.draft ? app.draft + "\n" : "") + cuoi.moc;
-          if (ta) { ta.value = app.draft; ta.focus(); autoGrow(ta); }
-          toast("Đã chèn móc cảnh vào ô nhập — sửa rồi gửi nếu muốn.");
-        }
-        break;
-      }
-      case "open-hien-dien": openHienDien(); break;
-      case "chon-canh-rieng": openChonCanhRieng(); break;
-      case "dong-canh-rieng": { if (conv) await dongCanhRieng(story, conv); break; }
-      case "facts-msg": factsFromMessage(t.dataset.mid); break;
-      case "open-giao-keo": openGiaoKeo(); break;
-      case "open-lorebook": openLorebook(); break;
-      case "safeword": await tinHieuCanh("safeword"); break;
-      case "aftercare": await tinHieuCanh("aftercare"); break;
-      case "thuong-luong": await tinHieuCanh("thuongLuong"); break;
-      case "set-mucdo": await doiMucDo(t.dataset.so); break;
-      case "vg-thu-lai": if (story) await thuLaiVangMat(story); break;
-      case "vg-bo-qua": if (story) await boQuaVangMat(story); break;
-      case "vg-mo-nhip":
-        app.nhipMo[t.dataset.ht] = !app.nhipMo[t.dataset.ht];
-        render();
-        break;
-      case "vg-dong-nhip":
-        app.dongNhip[t.dataset.ht] = true;
-        render();
-        break;
-      case "vg-mo-ht":
-        if (t.dataset.ht) await openConv(t.dataset.ht);
-        break;
-    }
+    const xuLy = bangSuKien[t.dataset.act];
+    if (!xuLy) return;
+    await xuLy({ t, story: currentStory(), conv: currentConv() });
   });
 
   // ---- Mốc hoạt động & mốc rời app cho tính năng thời gian vắng mặt.

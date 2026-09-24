@@ -389,6 +389,9 @@ src/ai.js       toàn bộ prompt + gọi AI: dựng ngữ cảnh (prefix-cache-
                 stream, chọn người nói, gợi ý, tóm tắt, rút sự kiện, sinh truyện/nhân vật/mở đầu/ảnh.
 src/app.js      giao diện & luồng: thư viện, wizard, bảng điều khiển, chat, các editor,
                 modal, routing bằng hash, theme, boot().
+src/ui/<màn>/   các màn đã tách khỏi app.js (Đợt 6): taoAnh/, nhanVat/, taoTruyen/,
+                tuyChonTruyen/, lorebook/, suKien/ (bảng xử lý sự kiện toàn cục) + cong18.js
+                (cửa 18+ dùng chung). Mỗi màn: index.js = VỎ, *Flow.js = logic THUẦN.
 src/lore.js     sổ tri thức (lorebook): đọc file chuẩn World Info / SillyTavern, dò từ khoá
                 theo diễn biến, dựng khối ngữ cảnh gửi kèm, xuất ngược ra JSON.
 src/dom.js      tiện ích dùng chung: esc/fmt, icon() SVG, toast, modal/confirm/prompt,
@@ -1081,10 +1084,15 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 **NGUỒN SỰ THẬT: repo GitHub `https://github.com/hellodalathostel/Truyen-vai`.** Tải repo là
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
-**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Giai đoạn 6**
-`https://user.uploads.dev/file/c5eb29483e0383f59ced780c56a74d2a.zip` (Giai đoạn 5:
-`https://user.uploads.dev/file/6d32cb23b2b5d3fdb6c28bea8b310f16.zip`; Giai đoạn 4:
+**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Đợt 6b**
+`https://user.uploads.dev/file/1da7f265676235f0bec0b2f49915d55a.zip` (Giai đoạn 6:
+`https://user.uploads.dev/file/c5eb29483e0383f59ced780c56a74d2a.zip` — mốc tách `openTaoAnh`;
+Giai đoạn 5: `https://user.uploads.dev/file/6d32cb23b2b5d3fdb6c28bea8b310f16.zip`; Giai đoạn 4:
 `https://user.uploads.dev/file/29c20b8b44adbddd616bca6b2fbef024.zip`).
+
+*Lưu ý quy trình:* gói zip **không thể** chứa URL của chính nó, nên `src/README.md` **bên trong
+gói** vẫn trỏ tới **Giai đoạn 6**; dòng vừa cập nhật ở trên chỉ có ở workspace (và ở repo sau khi
+chủ dự án đẩy lên).
 
 - Tầng Node: `npm test` (không cần trình duyệt, không tốn quota, chạy trên CI).
 - Tầng trình duyệt: mở generator rồi nạp `tests/browser/runner.js` và gọi `chayTatCa()`.
@@ -1449,8 +1457,63 @@ test đã dọn sạch. `src/CONTEXT.md` = **10 196 byte** (≤ 10 240), đã th
 
 **Cách đo "không đổi hành vi" giờ là CHUẨN BẮT BUỘC cho mọi lần tách hàm** (chi tiết + bẫy nằm ở
 `tests/README.md`, mục "Không đổi hành vi"): script tất định trên bản CŨ rồi MỚI, so **từng ký tự**
-và so **từng pixel**. `openTaoAnh`, `openCharacterEditor` và `openNewStoryModal` đã tách xong —
-**đừng** viết thân màn trở lại `app.js`.
+và so **từng pixel**. `openTaoAnh`, `openCharacterEditor`, `openNewStoryModal`, `openStoryMenu`,
+`openLorebook` đã tách xong — **đừng** viết thân màn trở lại `app.js`; `bindGlobalEvents` phải giữ
+**một** điểm đăng ký sự kiện duy nhất.
+
+### Đợt 6c — tách `openStoryMenu` + `openLorebook` + `bindGlobalEvents` (tháng 9/2026)
+
+Ba hàm còn lại trên 150 dòng của `app.js` (`bindGlobalEvents` **319**, `openLorebook` **299**,
+`openStoryMenu` **245**) nay chỉ còn **vỏ 3 dòng** gọi màn đã tách, cùng khuôn Giai đoạn 6/6b —
+`app.js` **8 397 → 7 578 dòng**. Kèm một việc dọn nhỏ chủ dự án yêu cầu làm trước.
+
+1. **Dọn bảng DEPS + phép kiểm tĩnh HAI CHIỀU.** Bản rà soát chỉ ra `NHAN_VAT_DEPS` khai 20 tên
+   nhưng `src/ui/nhanVat/` chỉ dùng 18, `TAO_TRUYEN_DEPS` khai 15 dùng 14. Đã bỏ mục thừa: `$$`
+   (nay lấy thẳng từ `src/dom.js`, không còn là mục của bảng) và hai hằng bảng màu/emoji viết lại
+   thành `mauChoices`/`emojiChoices` để mỗi bảng chỉ còn **đúng tên khoá được dùng**. Ca kiểm tĩnh
+   trong `tests/node/goi-chung.test.mjs` nay chạy **HAI CHIỀU**: mọi `D.<tên>` mà tệp của màn gọi
+   phải có trong bảng VÀ mọi tên trong bảng phải được dùng ít nhất một lần (khai thừa là lỗi);
+   khoá có giá trị chỉ được là HÀM. Bảng hiện tại: `TAO_ANH_DEPS` 16 · `NHAN_VAT_DEPS` 18 ·
+   `TAO_TRUYEN_DEPS` 13 · `TUY_CHON_TRUYEN_DEPS` 15 · `LOREBOOK_DEPS` 4 · `SU_KIEN_DEPS` 54.
+2. **`bindGlobalEvents` — MỘT điểm đăng ký duy nhất, không chia nhỏ.** Đây là chỗ khác các màn
+   trước: hàm này **không** được tách thành nhiều nơi tự `addEventListener`. `bindGlobalEvents`
+   (nay **54 dòng**) vẫn giữ **đúng một** `document.addEventListener("click")` — cộng các mốc hoạt
+   động `pointerdown`/`keydown`/`visibilitychange` và `pagehide` như cũ (giữ thứ tự cũ); phần *xử
+   lý* chia theo TÍNH NĂNG ở **`src/ui/suKien/` — 7 tệp**: `chung`, `chat`, `anh`, `canh`,
+   `nguoiLon`, `vangMat`, `lorebook`; mỗi tệp export một map `"data-act" ⇒ hàm`, cộng `index.js`
+   với `BANG_CON` + `gopBangSuKien(D)`. Đúng **66 khoá = 66 `case` cũ**, không trùng tên (trùng thì
+   `gopBangSuKien` **NÉM LỖI**). Muốn thêm hành động: thêm một khoá vào bảng con — **đừng** thêm
+   `addEventListener` ở chỗ khác. Tệp dài nhất `chat.js` **155 dòng cả tệp**, thân hàm dài nhất
+   `bangChat` **141 dòng** (< 150).
+3. **`src/ui/tuyChonTruyen/` — 5 tệp** (màn Tuỳ chọn truyện, trước là `openStoryMenu` 245 dòng).
+   `index.js` là vỏ (`openTuyChonTruyen(D)`); `tuyChonTruyenFlow.js` là **logic THUẦN, 0 import**
+   (mặc định, ngưỡng, nhãn nút, `chupTrangThai`/`khoiPhucTrangThai`, `giaTriSapLuu`); còn
+   `tuyChonTruyenHtml.js` (chuỗi HTML), `tuyChonTruyenLink.js` (khối liên kết người chơi) và
+   `tuyChonTruyenLuu.js` (lưu + hiệu ứng nhấp nháy). **Luật riêng của màn này:** mọi đường vào hộp
+   Giao kèo / chế độ người lớn đi qua hàm dùng chung của app (`D.openGiaoKeo` →
+   `xacNhan18PlusTruyen` + `chanNoiDungNguoiLon`), **không** tự dựng lại logic tuổi và **không**
+   chép câu chữ 18+ (có ca kiểm thử ghim).
+4. **`src/ui/lorebook/` — 6 tệp** (trước là `openLorebook` 299 dòng). Phần **parse/xếp/lọc mục
+   lore là logic THUẦN** nên tách riêng: `lorebookFlow.js` (0 import — `soBat`, `bangKhop`,
+   `mucTuForm`, `thieuNoiDung`, `tenFileXuat`, câu hỏi/thông báo, mã lỗi file) **có ca Node riêng**;
+   `lorebookHtml.js` (chuỗi HTML), `lorebookVe.js` (vẽ danh sách/thống kê), `lorebookNhap.js`
+   (dán JSON / nhập file), `lorebookNut.js` (thêm-sửa-xoá-xuất); `index.js` là vỏ
+   (`openLorebook(D)`).
+5. **Kiểm chứng "không đổi hành vi".** Kịch bản tất định cho JSON **69 456 ký tự GIỐNG TỪNG BYTE**
+   (HTML màn Tuỳ chọn truyện + Sổ tri thức qua từng bước, 12 hành động toàn cục qua dispatcher, thứ
+   tự toast, bản ghi truyện) và **ba ảnh chụp PHẦN TỬ giống hệt từng byte**: `#appRoot` 1 874 222 B,
+   `.modal-backdrop` 1 710 081 B, sổ tri thức 1 373 219 B (mỗi bản tự chụp hai lần cũng trùng
+   byte). **Bẫy mới:** `snapshot.capture()` **cả trang** KHÔNG tất định (cùng trạng thái, hai lần
+   gọi ra hai ảnh khác nhau) ⇒ chỉ dùng **chụp phần tử**, và phải bỏ `maxHeight`/`overflow` của
+   `.modal-box`/`.modal-body` trước khi chụp vì modal cao hơn khung nhìn.
+
+**Kiểm chứng Đợt 6c:** tầng Node **18 tệp, 4 071 khẳng định, 0 không đạt** (mốc 6b: 15 tệp,
+2 710) — thêm `tests/node/suKien.test.mjs` **324**, `lorebookFlow.test.mjs` **85**,
+`tuyChonTruyenFlow.test.mjs` **91**; `goi-chung.test.mjs` 935 → **1 793** khẳng định (ca
+DEPS-hai-chiều mới), `khong-ro-ri.test.mjs` 195 → 198. Tầng trình duyệt **1 077/1 077 ca · 31 bộ ·
+0 cảnh báo — giống hệt** khi chạy trên `app.js` **CŨ** lẫn **MỚI** (`gd1-tuoi` **94/94** trên cả
+hai). Dữ liệu thật **nguyên trạng** (1 truyện · 3 hồ sơ · 2 nhóm tin nhắn · 4 ảnh; `khoaMat: []`)
+và mọi khoá test đã dọn sạch. `src/CONTEXT.md` = **10 232 byte** (≤ 10 240).
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

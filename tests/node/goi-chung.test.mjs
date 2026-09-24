@@ -100,8 +100,9 @@ const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "sch
 const MODULE_UI_GOC = "src/ui";
 const TEP_NODE = [
   "ai-parse.test.mjs", "cong18.test.mjs", "dom.test.mjs", "gd4.test.mjs", "goi-chung.test.mjs",
-  "khong-ro-ri.test.mjs", "lore.test.mjs", "ngoaiHinh.test.mjs", "nhanVatForm.test.mjs", "schema.test.mjs",
-  "store.test.mjs", "taoAnhFlow.test.mjs", "taoTruyenFlow.test.mjs", "thoiGian.test.mjs", "trangThai.test.mjs",
+  "khong-ro-ri.test.mjs", "lore.test.mjs", "lorebookFlow.test.mjs", "ngoaiHinh.test.mjs", "nhanVatForm.test.mjs",
+  "schema.test.mjs", "store.test.mjs", "suKien.test.mjs", "taoAnhFlow.test.mjs", "taoTruyenFlow.test.mjs",
+  "thoiGian.test.mjs", "trangThai.test.mjs", "tuyChonTruyenFlow.test.mjs",
 ];
 const TEP_FIXTURE = ["ke-hoach.mjs", "phien-ban-cu.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
 const SRC_CHO_PHEP = MODULE_SRC.concat(["styles.css", "README.md", "CONTEXT.md", "ui"]);
@@ -484,15 +485,27 @@ ca("import trong src/ui/ đều tương đối và trỏ đúng tệp có thật
   ok(soImport >= 10, "đọc được import của src/ui/ (" + soImport + " dòng)");
 });
 
-// Ba màn đã tách khỏi app.js: tạo ảnh (Giai đoạn 6), Cốt truyện mới và Sửa nhân vật (Đợt 6b).
-// Mỗi màn là một VỎ ngắn trong app.js + một bảng phụ thuộc tường minh, thân nằm ở src/ui/.
+// Các màn đã tách khỏi app.js: tạo ảnh (Giai đoạn 6), Cốt truyện mới + Sửa nhân vật (Đợt 6b),
+// Tuỳ chọn truyện + Sổ tri thức (Đợt 6c). Mỗi màn là một VỎ ngắn trong app.js + một bảng phụ
+// thuộc tường minh, thân nằm ở src/ui/. `tep` = thư mục chứa thân màn (để ca "DEPS hai chiều"
+// đối chiếu bảng với ĐÚNG những tệp dùng nó).
 const MAN_HINH = [
-  { ten: "tạo ảnh", khaiBao: "async function openTaoAnh(opts = {}) {", goi: "moTaoAnh(opts, TAO_ANH_DEPS)", bang: "TAO_ANH_DEPS" },
-  { ten: "Cốt truyện mới", khaiBao: "function openNewStoryModal(opts = {}) {", goi: "moTaoTruyen(opts, TAO_TRUYEN_DEPS)", bang: "TAO_TRUYEN_DEPS" },
-  { ten: "Sửa nhân vật", khaiBao: "function openCharacterEditor(charId, opts = {}) {", goi: "moNhanVat(charId, opts, NHAN_VAT_DEPS)", bang: "NHAN_VAT_DEPS" },
+  { ten: "tạo ảnh", khaiBao: "async function openTaoAnh(opts = {}) {", goi: "moTaoAnh(opts, TAO_ANH_DEPS)", bang: "TAO_ANH_DEPS", nhap: 'from "./ui/taoAnh/index.js"', tep: ["src/ui/taoAnh"] },
+  { ten: "Cốt truyện mới", khaiBao: "function openNewStoryModal(opts = {}) {", goi: "moTaoTruyen(opts, TAO_TRUYEN_DEPS)", bang: "TAO_TRUYEN_DEPS", nhap: 'from "./ui/taoTruyen/index.js"', tep: ["src/ui/taoTruyen"] },
+  { ten: "Sửa nhân vật", khaiBao: "function openCharacterEditor(charId, opts = {}) {", goi: "moNhanVat(charId, opts, NHAN_VAT_DEPS)", bang: "NHAN_VAT_DEPS", nhap: 'from "./ui/nhanVat/index.js"', tep: ["src/ui/nhanVat"] },
+  { ten: "Tuỳ chọn truyện", khaiBao: "function openStoryMenu() {", goi: "moTuyChon(TUY_CHON_TRUYEN_DEPS)", bang: "TUY_CHON_TRUYEN_DEPS", nhap: 'from "./ui/tuyChonTruyen/index.js"', tep: ["src/ui/tuyChonTruyen"] },
+  { ten: "Sổ tri thức", khaiBao: "function openLorebook() {", goi: "moLorebook(LOREBOOK_DEPS)", bang: "LOREBOOK_DEPS", nhap: 'from "./ui/lorebook/index.js"', tep: ["src/ui/lorebook"] },
 ];
 
-ca("ba màn đã tách: thân nằm ở src/ui, app.js chỉ còn vỏ nối", async (bd) => {
+// Bảng phụ thuộc của SỰ KIỆN TOÀN CỤC (Đợt 6c): không phải một "màn" mà là bảy bảng con ở
+// `src/ui/suKien/*`, gộp bằng `gopBangSuKien`. Vẫn phải theo đúng luật DEPS hai chiều.
+const SU_KIEN_DEPS_TEP = ["src/ui/suKien"];
+
+// Mọi bảng phụ thuộc của app.js + thư mục dùng nó — để soi HAI CHIỀU.
+const BANG_DEPS = MAN_HINH.map((mh) => ({ ten: mh.ten, bang: mh.bang, tep: mh.tep }))
+  .concat([{ ten: "sự kiện toàn cục", bang: "SU_KIEN_DEPS", tep: SU_KIEN_DEPS_TEP }]);
+
+ca("các màn đã tách: thân nằm ở src/ui, app.js chỉ còn vỏ nối", async (bd) => {
   // Nếu ai đó viết thân màn hình trở lại app.js thì vỏ sẽ phình ra — ca này bắt đúng lúc đó.
   const app = await bd.doc("src/app.js");
   for (const mh of MAN_HINH) {
@@ -503,9 +516,8 @@ ca("ba màn đã tách: thân nằm ở src/ui, app.js chỉ còn vỏ nối", a
     ok(soDong <= 150, "vỏ " + mh.ten + " ≤ 150 dòng (đang " + soDong + " dòng)");
     ok(than.indexOf(mh.goi) >= 0, "vỏ " + mh.ten + " gọi thẳng vào src/ui/ bằng bảng phụ thuộc");
     ok(app.indexOf("const " + mh.bang + " = {") >= 0, "màn " + mh.ten + " có bảng phụ thuộc tường minh");
+    ok(app.indexOf(mh.nhap) >= 0, "app.js nạp điểm vào của màn " + mh.ten + " (" + mh.nhap + ")");
   }
-  ok(app.indexOf('from "./ui/nhanVat/index.js"') >= 0, "app.js nạp điểm vào của màn nhân vật");
-  ok(app.indexOf('from "./ui/taoTruyen/index.js"') >= 0, "app.js nạp điểm vào của màn Cốt truyện mới");
 });
 
 ca("bảng phụ thuộc (DEPS) chỉ chứa thứ KHÔNG import được từ lõi", async (bd) => {
@@ -550,7 +562,7 @@ ca("bảng phụ thuộc (DEPS) chỉ chứa thứ KHÔNG import được từ l
   ok(xuat.length >= 100, "đọc được tên hàm/hằng xuất của lõi (" + xuat.length + " tên)");
   const app = await bd.doc("src/app.js");
   const tatCaKhoaDeps = [];
-  for (const mh of MAN_HINH) {
+  for (const mh of BANG_DEPS) {
     const dau = app.indexOf("const " + mh.bang + " = {");
     ok(dau >= 0, "có bảng " + mh.bang);
     const cuoi = app.indexOf("\n};", dau);
@@ -559,8 +571,9 @@ ca("bảng phụ thuộc (DEPS) chỉ chứa thứ KHÔNG import được từ l
     for (const dong of than.split(NL)) {
       const t = dong.trim();
       if (!t || t.indexOf("const ") === 0) continue;
-      // Một khoá có thể viết tắt (`$$,`) hoặc có giá trị (`mauChoices: MAU_CHOICES`), và
-      // nhiều khoá có thể nằm chung một dòng — nên tách theo dấu phẩy rồi cắt ở dấu hai chấm.
+      // Một khoá thường viết tắt (`render,`); chỉ những khoá trả về HÀM MỚI mới có giá trị
+      // (`mauCotTruyen: () => ...`). Nhiều khoá có thể nằm chung một dòng — nên tách theo dấu
+      // phẩy rồi cắt ở dấu hai chấm.
       for (const phan of t.split(",")) {
         let k = phan.trim();
         if (!k) continue;
@@ -587,6 +600,57 @@ ca("bảng phụ thuộc (DEPS) chỉ chứa thứ KHÔNG import được từ l
       ok(tatCaKhoaDeps.indexOf(x) >= 0, f + " gọi D." + x + " nhưng bảng phụ thuộc không có khoá đó");
     }
   }
+});
+
+ca("bảng phụ thuộc (DEPS) khớp HAI CHIỀU với đúng những tệp dùng nó", async (bd) => {
+  // Luật của dự án (Đợt 6c nâng từ một chiều lên hai chiều): một bảng phụ thuộc vừa không được
+  // KHAI THỪA (khoá không tệp nào gọi — bảng phình ra thành túi đồ nghề chung), vừa không được
+  // THIẾU (tầng giao diện gọi `D.x` mà bảng không có — lỗi chỉ hiện khi bấm nút). Và vì một
+  // khoá viết dạng `k: TÊN` bị công cụ đếm thành HAI tên (đúng lỗi đã xảy ra với
+  // `mauChoices: MAU_CHOICES`), khoá có giá trị chỉ được nhận giá trị là HÀM.
+  const app = await bd.doc("src/app.js");
+  const ui = await dsTepUi(bd);
+  let soBang = 0;
+  for (const mh of BANG_DEPS) {
+    soBang += 1;
+    const dau = app.indexOf("const " + mh.bang + " = {");
+    ok(dau >= 0, "có bảng " + mh.bang);
+    const cuoi = app.indexOf("\n};", dau);
+    const than = app.slice(dau, cuoi);
+    const khoa = [];
+    for (const dong of than.split(NL)) {
+      const t = dong.trim();
+      if (!t || t.indexOf("const ") === 0) continue;
+      for (const phan of t.split(",")) {
+        let k = phan.trim();
+        if (!k) continue;
+        let giaTri = "";
+        const i = k.indexOf(":");
+        if (i >= 0) {
+          giaTri = k.slice(i + 1).trim();
+          k = k.slice(0, i).trim();
+        }
+        if (!laTenDinhDanh(k)) continue;
+        khoa.push(k);
+        if (giaTri) {
+          const laHam = giaTri.slice(0, 1) === "(" || giaTri.indexOf("function ") === 0 || giaTri.indexOf("async ") === 0;
+          ok(laHam, mh.bang + " · khoá " + k + " có giá trị phải là hàm (trùng tên thì viết tắt)");
+        }
+      }
+    }
+    // Những tên mà tầng giao diện của màn này THẬT SỰ gọi qua `D.`.
+    const refs = [];
+    for (const f of ui) {
+      let thuoc = false;
+      for (const d of mh.tep) if (f.indexOf(d + "/") === 0) thuoc = true;
+      if (!thuoc) continue;
+      for (const x of dsGoiQuaDeps(await bd.doc(f))) if (refs.indexOf(x) < 0) refs.push(x);
+    }
+    ok(refs.length > 0, mh.bang + " được tầng giao diện gọi thật (" + refs.length + " tên)");
+    for (const k of khoa) ok(refs.indexOf(k) >= 0, mh.bang + " khai thừa: không tệp nào gọi D." + k);
+    for (const x of refs) ok(khoa.indexOf(x) >= 0, mh.bang + " khai thiếu: cần khoá cho D." + x);
+  }
+  ok(soBang >= 6, "có ≥ 6 bảng phụ thuộc (đang " + soBang + ")");
 });
 
 ca("không hàm nào trong src/ui/ dài quá 150 dòng", async (bd) => {

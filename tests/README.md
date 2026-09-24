@@ -39,12 +39,19 @@ tách ra từ `app.js`:
     src/ui/nhanVat/nhanVatForm.js logic THUẦN, KHÔNG DOM — cổng 18+ theo tuổi, có test Node
     src/ui/taoTruyen/index.js     vỏ màn "Cốt truyện mới" (thân hàm ≤ 150 dòng, chỉ nối)
     src/ui/taoTruyen/taoTruyenFlow.js  logic THUẦN, KHÔNG DOM — đối số createStory
+    src/ui/tuyChonTruyen/index.js vỏ màn "Tuỳ chọn truyện"
+    src/ui/tuyChonTruyen/tuyChonTruyenFlow.js  logic THUẦN — ngưỡng, nhãn nút, chụp/khôi phục
+    src/ui/lorebook/index.js      vỏ màn "Sổ tri thức"
+    src/ui/lorebook/lorebookFlow.js  logic THUẦN — parse/xếp/lọc mục lore, có test Node
+    src/ui/suKien/index.js        gopBangSuKien(D) + BANG_CON — gộp 7 bảng sự kiện
+    src/ui/suKien/*.js            mỗi tệp MỘT bảng "data-act" ⇒ hàm xử lý (theo tính năng)
     src/ui/cong18.js              cửa 18+ DÙNG CHUNG: câu chữ + ai được ghi cờ (THUẦN)
 
-Ba màn đã tách khỏi `app.js` là `taoAnh/` (tạo ảnh) · `nhanVat/` (sửa nhân vật) ·
-`taoTruyen/` (cốt truyện mới). Mỗi màn: `index.js` là VỎ (chỉ nối, **thân hàm** ≤ 150
-dòng — không phải số dòng tệp) và `*Form.js`/`*Flow.js` là **quyết định THUẦN, KHÔNG DOM**
-nên kiểm được ở tầng Node. `cong18.js` là cửa 18+ dùng chung cho cả ba màn.
+Sáu màn đã tách khỏi `app.js` là `taoAnh/` (tạo ảnh) · `nhanVat/` (sửa nhân vật) ·
+`taoTruyen/` (cốt truyện mới) · `tuyChonTruyen/` (tuỳ chọn truyện) · `lorebook/` (sổ tri thức) và
+`suKien/` (bảng xử lý sự kiện toàn cục). Mỗi màn: `index.js` là VỎ (chỉ nối, **thân hàm** ≤ 150
+dòng — không phải số dòng tệp) và `*Form.js`/`*Flow.js` là **quyết định THUẦN, KHÔNG DOM** nên
+kiểm được ở tầng Node. `cong18.js` là cửa 18+ dùng chung cho mọi màn.
 
 ## Luật không được vi phạm
 
@@ -96,6 +103,14 @@ nên kiểm được ở tầng Node. `cong18.js` là cửa 18+ dùng chung cho 
    đó chỉ chứa hàm **còn lại của app**; mọi thứ khác lấy thẳng từ lõi. Đừng biến nó thành túi đồ
    nghề chung. Luật 150 dòng áp cho **mọi** hàm trong `src/ui/**`, kể cả hàm con bên trong tệp, và
    `goi-chung.test.mjs` đếm cả chúng.
+13. **MỘT điểm đăng ký sự kiện toàn cục duy nhất.** Chỉ `bindGlobalEvents` (trong `app.js`) được
+   gọi `addEventListener`; phần **xử lý** chia theo tính năng ở `src/ui/suKien/*` (mỗi tệp export
+   một map `"data-act" ⇒ hàm`) và gộp bằng `gopBangSuKien(D)` — trùng tên giữa các bảng là **lỗi
+   ném ra**, và **mọi** `data-act` xuất hiện trong HTML của app phải có hàm xử lý. Có ca Node ghim
+   cả hai chiều; đừng thêm `addEventListener("click")` ở chỗ khác.
+14. **Bảng `*_DEPS` khớp HAI CHIỀU.** Mọi `D.<tên>` mà tệp của màn gọi phải có trong bảng, VÀ mọi
+   tên trong bảng phải được dùng ít nhất một lần; khai thừa là lỗi, khoá có giá trị chỉ được là
+   HÀM. `goi-chung.test.mjs` soát tự động cho **cả sáu** màn — đừng khai thêm cho "chắc ăn".
 
 ## Không đổi hành vi — cách đo (bắt buộc mỗi lần tách hàm khỏi `app.js`)
 
@@ -268,6 +283,34 @@ Luật import `src/ui/` cũng được nới **đúng mức**: cho phép `../` (
 Tổng tầng Node sau Đợt 6b: **15 tệp, 2 710 khẳng định, 0 không đạt** (Giai đoạn 6: 12 tệp,
 2 012 khẳng định). Con số này là hệ quả của việc thêm ca, nên **đừng** ghim nó vào tài liệu như
 một mốc cứng — nó sẽ đổi mỗi lần thêm ca.
+
+### Đợt 6c (tách `openStoryMenu` + `openLorebook` + `bindGlobalEvents`)
+
+Ba hàm dài nhất còn lại của `app.js` (`bindGlobalEvents` 319 · `openLorebook` 299 ·
+`openStoryMenu` 245 dòng) nay chỉ còn **vỏ 3 dòng**; `app.js` **8 397 → 7 578 dòng**. Đợt này có
+ba điểm luật mới (luật 13, 14 ở trên) và một bẫy đo mới.
+
+| Tệp Node | Phủ gì |
+|---|---|
+| `suKien.test.mjs` (324 khẳng định) | Bảng sự kiện toàn cục: **66 khoá = 66 `data-act` cũ**, **không trùng tên** giữa các bảng con, `gopBangSuKien` **NÉM LỖI** khi trùng (ghim bằng bảng giả), mọi giá trị phải là HÀM, và **mọi `data-act` trong HTML do app sinh ra đều có hàm xử lý** (đọc chuỗi HTML của các màn) — ghép lại đúng **một** điểm đăng ký |
+| `lorebookFlow.test.mjs` (85 khẳng định) | Logic THUẦN của sổ tri thức: `soBat`/`bangKhop` (đếm mục bật, khớp từ khoá), `mucTuForm` + `thieuNoiDung`, `tenFileXuat`, các câu hỏi xác nhận (thay thế / xoá sổ / xoá mục) và **mã lỗi file** (file rỗng, JSON hỏng, không mục nào dùng được) — câu chữ ghim **nguyên văn** |
+| `tuyChonTruyenFlow.test.mjs` (91 khẳng định) | Logic THUẦN của màn Tuỳ chọn truyện: mặc định (nhịp/chế độ/emoji/tên người chơi), `nguongChonDuoc`, nhãn nút Giao kèo/Sổ tri thức theo trạng thái, `giaTriSapLuu`, `chupTrangThai`/`khoiPhucTrangThai` (hoàn tác), `demNguoiDung`, `lechTen`, `chonConSong` |
+
+`goi-chung.test.mjs` 935 → **1 793 khẳng định**: thêm ca **DEPS HAI CHIỀU** (khai thừa là lỗi,
+khoá có giá trị chỉ được là HÀM, quét cả **sáu** màn) và tổng quát hoá ca "các màn đã tách" cho
+cả màn mới; `khong-ro-ri.test.mjs` 195 → **198**. Tổng tầng Node sau Đợt 6c: **18 tệp,
+4 071 khẳng định, 0 không đạt**.
+
+Tầng trình duyệt **không thêm ca nào** — bằng chứng vẫn là `1077/1077 ca · 31 bộ, 0 cảnh báo`,
+**giống hệt** khi chạy trên `app.js` **CŨ** lẫn **MỚI**, `gd1-tuoi` **94/94** trên cả hai. Kịch
+bản tất định cho JSON **69 456 ký tự giống từng byte** và ba ảnh chụp **phần tử** giống hệt từng
+byte (`#appRoot` 1 874 222 B · `.modal-backdrop` 1 710 081 B · sổ tri thức 1 373 219 B).
+
+**Bẫy mới (quan trọng):** `snapshot.capture()` **cả trang** KHÔNG tất định — cùng một trạng thái,
+hai lần gọi liên tiếp ra hai ảnh khác nhau (đã gặp thật ở đợt này). Từ nay **chỉ** dùng ảnh chụp
+**phần tử** làm bằng chứng pixel, và phải bỏ `maxHeight`/`overflow` của `.modal-box`/`.modal-body`
+trước khi chụp vì modal cao hơn khung nhìn (`GIAN` trong kịch bản). Ghi chú 6b "ảnh cả trang lệch
+206/3 980 673 pixel" vì vậy **không** còn được coi là bằng chứng; đừng dựa vào ảnh cả trang.
 
 ## Thêm một bộ kiểm thử
 

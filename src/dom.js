@@ -1,5 +1,11 @@
 // Truyện Vai — tiện ích DOM dùng chung (không phụ thuộc file nào khác)
 
+// Truy vấn DOM ngắn: `$` một phần tử, `$$` một mảng (theo thứ tự tài liệu). Hai hàm này
+// từng nằm trong `app.js`; Đợt 6c chuyển về đây vì tầng `src/ui/*` cũng cần dùng, và đây
+// mới là nhà của hạ tầng DOM (định nghĩa không đổi một ký tự).
+export const $ = (sel, root = document) => root.querySelector(sel);
+export const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
 export function esc(s) {
   if (s === undefined || s === null) return "";
   return (s + "")

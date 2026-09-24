@@ -14,7 +14,7 @@
 // `deps` (D) chỉ chứa những hàm CÒN LẠI của `app.js` (điều hướng, ghi dữ liệu, giao kèo,
 // tiện ích). Mọi thứ khác lấy thẳng từ lõi để `deps` không phình thành một túi đồ nghề.
 
-import { el, modal } from "../../dom.js";
+import { el, modal, $$ } from "../../dom.js";
 import { giaoKeoMacDinh } from "../../store.js";
 import { htmlThan } from "./taoTruyenHtml.js";
 import { cheDoMacDinh } from "./taoTruyenFlow.js";
@@ -72,8 +72,8 @@ export function openNewStoryModal(opts = {}, D) {
     const cach = e.target.closest(".create-method-btn[data-cach]");
     if (cach) {
       body.dataset.cachTao = cach.dataset.cach;
-      D.$$(".cach-tao .create-method-btn", body).forEach((b) => b.classList.toggle("on", b === cach));
-      D.$$("[data-pane]", body).forEach((p) => { p.hidden = p.dataset.pane !== cach.dataset.cach; });
+      $$(".cach-tao .create-method-btn", body).forEach((b) => b.classList.toggle("on", b === cach));
+      $$("[data-pane]", body).forEach((p) => { p.hidden = p.dataset.pane !== cach.dataset.cach; });
       return;
     }
     if (e.target.closest('[data-act="qc-dung"]')) {
@@ -83,7 +83,7 @@ export function openNewStoryModal(opts = {}, D) {
     const card = e.target.closest(".mode-card");
     if (card) {
       S.mode = card.dataset.mode;
-      D.$$(".mode-card", body).forEach((c) => c.classList.toggle("on", c === card));
+      $$(".mode-card", body).forEach((c) => c.classList.toggle("on", c === card));
       return;
     }
     const optChon = e.target.closest("[data-nv-opt-chon]");
