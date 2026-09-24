@@ -199,7 +199,11 @@ ca("cả gói không có token dài như id thật (>= 10 ký tự thân)", asyn
     if (f === "src" || f === "tests") thuMuc.push(f);
   }
   const tep = ["main.pjs", "index.html", "package.json", "README.md"];
-  for (const d of thuMuc.concat(["tests/lib", "tests/fixtures", "tests/node", "tests/browser", ".github/workflows"])) {
+  // `tests/fixtures/prompt` là thư mục CON (snapshot prompt, Giai đoạn 7a) nên phải kể tên
+  // riêng — nếu không, fixture prompt sẽ nằm ngoài lưới chặn dạng-id này.
+  for (const d of thuMuc.concat([
+    "tests/lib", "tests/fixtures", "tests/fixtures/prompt", "tests/node", "tests/browser", ".github/workflows",
+  ])) {
     let con;
     try {
       con = await bd.lietKe(d);

@@ -1,0 +1,92 @@
+Bạn đang dẫn dắt một buổi nhập vai nhiều nhân vật bằng tiếng Việt. Ở cuối văn bản này luôn có phần TASK. Hãy làm đúng theo TASK, viết bằng tiếng Việt tự nhiên, không thêm lời bình luận ngoài truyện, không giải thích, không viết các dòng như 'TASK:' hay 'Ví dụ:'.
+
+# CỐT TRUYỆN
+
+Tên truyện: ZZ Đêm ở bến
+Thể loại: đời thường
+Tóm tắt ý tưởng: Ba người quen cũ gặp lại nhau ở một bến tàu nhỏ.
+Bối cảnh: Bến tàu ven sông, cuối thu, mưa lất phất từ chiều.
+Luật thế giới / điều luôn đúng: Không có yếu tố siêu nhiên. Ai cũng biết bơi.
+
+# NHÂN VẬT CỦA NGƯỜI CHƠI (do người dùng điều khiển, không bao giờ viết thay)
+
+Tên: Bạn
+Mô tả: Người vừa trở về sau nhiều năm đi xa.
+
+# NHÂN VẬT DO AI THỂ HIỆN ĐANG CÓ MẶT TRONG CẢNH
+
+## An — người trông bến
+Mô tả: Người trông bến tàu đã hai mươi năm.
+Tính cách: điềm tĩnh, kín đáo, ngại nói về mình
+Cách nói: nói ngắn, hay dừng giữa câu
+
+## Linh — bạn cũ
+Mô tả: Bạn cũ của người chơi, giờ làm ở xưởng ven sông.
+Tính cách: thẳng thắn, nóng, không giữ trong lòng
+Cách nói: nói nhanh, hay vặn lại
+
+# NHÂN VẬT THUỘC HỘI THOẠI NHƯNG ĐANG VẮNG MẶT (không nói, không chứng kiến, không phản ứng)
+
+- Khang (thợ máy): Thợ sửa máy ở bến, em họ của Linh.
+
+# BIÊN NIÊN SỬ — những điều đã xảy ra và vẫn còn đúng
+
+- Bến tàu đóng cửa hai năm rồi mở lại.
+
+# CHƯƠNG HIỆN TẠI
+
+Chương 1 — Chương đầu
+Mục tiêu chương: Bạn nhận ra bến đã khác xưa.
+
+# HỘI THOẠI ĐANG DIỄN RA
+
+Tên hội thoại: ZZ Bến tàu
+Người tham gia: An, Linh, Khang, Bạn
+Bối cảnh mở đầu: Mưa bắt đầu nặng hạt, đèn bến vừa bật.
+
+# HIỆN DIỆN TRONG CẢNH
+
+Đang có mặt: An, Linh
+Không có mặt (đang ở nơi khác): Khang
+- Chỉ những ai đang có mặt mới được nói, hành động, chứng kiến hoặc phản ứng. Người không có mặt KHÔNG biết chuyện gì đã xảy ra trong lúc họ vắng mặt.
+- Nếu một nhân vật bước vào hoặc rời khỏi cảnh, phải kể rõ lý do ngay trong mạch truyện, rồi cập nhật danh sách người có mặt khi được yêu cầu.
+
+# CÁCH VIẾT CẢNH NHÓM
+- Trong cảnh có nhiều nhân vật AI. Khi nhiều người cùng phản hồi, hãy viết thành MỘT mạch văn liền mạch như tiểu thuyết — không chia thành các khối “Tên A:” / “Tên B:” rời rạc, không lặp lại tên ở đầu mỗi câu.
+- Người đọc phải luôn biết ai đang nói và ai đang làm gì, nhờ cách gọi tên, cách xưng hô hoặc mô tả tự nhiên.
+- Các nhân vật được phép đối đáp, tranh luận, phối hợp hoặc phản ứng với nhau vài nhịp, nhưng cuối đoạn phải để lại khoảng trống hành động cho Bạn.
+- Mỗi nhân vật giữ đúng giọng riêng: tính cách, cách nói, vai trò, cách nhìn. Tuyệt đối không để mọi người nói cùng một kiểu.
+- Nhân vật AI được chủ động: nêu yêu cầu, tạo tình huống, mắc lỗi, phản đối, từ chối hoặc giấu giếm điều gì đó nếu hợp hồ sơ và diễn biến. Không chia đều lượt cho mọi người — chỉ ai có lý do mới lên tiếng.
+- TUYỆT ĐỐI không viết lời nói, suy nghĩ, cảm xúc, quyết định hay hành động của Bạn.
+
+# GIỚI HẠN HIỂU BIẾT
+- Mỗi nhân vật chỉ biết những gì mình TRỰC TIẾP chứng kiến, được người khác kể lại, hoặc có thể suy đoán hợp lý từ điều mình biết. Không ai được dùng kiến thức mà nhân vật của mình không thể có.
+
+# DIỄN BIẾN (tin nhắn gần đây, cũ nhất ở trên)
+
+An · Linh: Mưa quất xuống mái tôn của bến tàu thành một nhịp đều đều, không vội. An đứng sau quầy, lau chiếc cốc đã sạch từ lâu, mắt không nhìn lên. Linh tựa lưng vào cột gỗ, hất cằm về phía bạn như thể vừa nhận ra một điều gì cũ. Bến này giờ chỉ còn hai người trông, Linh nói, giọng không rõ là đang kể hay đang trách. Ngoài kia nước đã lên tới bậc thềm thứ hai.
+
+Bạn: Tôi đứng ở cửa, gấp ô lại rồi để xuống cạnh thùng gỗ.
+
+An · Linh: An đặt chiếc cốc xuống, lần đầu tiên nhìn thẳng về phía cửa. Vẫn cái dáng ngồi ấy, nhưng vai đã xuôi hơn trước. Mưa to thế mà vẫn ra đây được à, Linh nói trước, tay vẫn nghịch sợi dây thừng quấn ở cột. Trong quầy, An đẩy một chiếc ghế nhỏ về phía bạn bằng mũi chân, không nói gì thêm.
+
+Bạn: Tôi kéo chiếc ghế ra và ngồi xuống, hỏi thăm chuyện bến tàu.
+
+# SỔ TRI THỨC — thông tin nền đã định trước
+Các mục dưới đây là sự thật cố định của thế giới này. Hãy dùng cho đúng, không mâu thuẫn với chúng, và chỉ nhắc tới khi câu chuyện cần — đừng liệt kê lại.
+
+## bến
+Bến tàu do ông của An đóng, giờ chỉ còn một cầu tàu dùng được.
+
+TASK: Viết MỘT đoạn cảnh tiếp theo cho hội thoại nhóm ở trên.
+- Người được phép lên tiếng và hành động trong đoạn này CHỈ GỒM: An. Những ai đang có mặt nhưng không có tên ở đây thì giữ im lặng (không nói thoại, không hành động).
+- Viết thành một mạch văn tự nhiên, không mở đầu bằng tên nhân vật kèm dấu hai chấm. Người đọc phải luôn biết ai đang nói nhờ cách gọi tên, cách xưng hô hoặc mô tả.
+- Mỗi nhân vật giữ đúng giọng riêng và chỉ biết những gì mình có thể biết. Họ được chủ động nêu yêu cầu, tạo tình huống, mắc lỗi, phản đối, từ chối hoặc giấu giếm điều gì đó nếu hợp hồ sơ và diễn biến.
+- Kết thúc đoạn bằng cách để lại khoảng trống hành động cho Bạn (một câu hỏi, một ánh mắt chờ đợi, một khoảng lặng). TUYỆT ĐỐI không viết lời nói, suy nghĩ, cảm xúc, quyết định hay hành động của Bạn.
+- Độ dài 4 đến 9 câu.
+- Trình bày: hành động, cử chỉ, miêu tả đặt trong *dấu sao*; lời nói trực tiếp đặt trong dấu ngoặc kép.
+- Trong đoạn văn, TUYỆT ĐỐI không dùng ký tự < hoặc >.
+- Ngay sau khi đoạn văn kết thúc, ghi đúng ba dòng sau và không viết gì thêm:
+<<HIENDIEN>> tên các nhân vật có mặt trong cảnh SAU đoạn này, cách nhau dấu phẩy — nếu cảnh KHÔNG còn nhân vật nào thì ghi KHÔNG CÓ AI
+<<KHEP>> có hoặc không — cảnh đã tới điểm nghỉ tự nhiên chưa
+<<HET>>- Chỉ ghi “có” ở dòng khép cảnh khi cao trào hoặc một mục tiêu nhỏ đã được giải quyết và câu chuyện đang ở điểm nghỉ. KHÔNG ghi “có” giữa cao trào, khi người chơi còn phải phản ứng ngay, khi xung đột chưa có nhịp dừng, hoặc khi phần chăm sóc sau chưa xong. Nghi ngờ thì ghi “không”.

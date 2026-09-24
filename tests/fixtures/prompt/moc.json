@@ -1,0 +1,101 @@
+{
+  "phienBan": 1,
+  "soLuot": 5,
+  "ghiChu": "Mốc prefix-cache của 3 truyện mẫu hư cấu (Giai đoạn 7a). Ca Node ĐỎ nếu tỉ lệ tiền tố chung nhỏ nhất của bất kỳ mẫu nào giảm quá 5 điểm phần trăm so với mốc. Tạo lại bằng: node tests/lib/tao-prompt-fixture.mjs (ghi cả fixture từng lượt).",
+  "donVi": "byte UTF-8; tyLe = tiền tố chung / độ dài prompt sau",
+  "mau": {
+    "nhom": {
+      "ten": "nhóm thường",
+      "nhoNhat": 0.5647,
+      "trungBinh": 0.6175,
+      "cap": [
+        {
+          "cap": "1-2",
+          "chung": 4052,
+          "dai": 7176,
+          "tyLe": 0.5647
+        },
+        {
+          "cap": "2-3",
+          "chung": 4621,
+          "dai": 7514,
+          "tyLe": 0.615
+        },
+        {
+          "cap": "3-4",
+          "chung": 5104,
+          "dai": 7961,
+          "tyLe": 0.6411
+        },
+        {
+          "cap": "4-5",
+          "chung": 5549,
+          "dai": 8548,
+          "tyLe": 0.6492
+        }
+      ]
+    },
+    "rieng": {
+      "ten": "cảnh riêng",
+      "nhoNhat": 0.7004,
+      "trungBinh": 0.7288,
+      "cap": [
+        {
+          "cap": "1-2",
+          "chung": 4066,
+          "dai": 5805,
+          "tyLe": 0.7004
+        },
+        {
+          "cap": "2-3",
+          "chung": 4513,
+          "dai": 6312,
+          "tyLe": 0.715
+        },
+        {
+          "cap": "3-4",
+          "chung": 5020,
+          "dai": 6778,
+          "tyLe": 0.7406
+        },
+        {
+          "cap": "4-5",
+          "chung": 5486,
+          "dai": 7227,
+          "tyLe": 0.7591
+        }
+      ]
+    },
+    "daodien": {
+      "ten": "chế độ Đạo diễn",
+      "nhoNhat": 0.1929,
+      "trungBinh": 0.6018,
+      "cap": [
+        {
+          "cap": "1-2",
+          "chung": 7291,
+          "dai": 10335,
+          "tyLe": 0.7055
+        },
+        {
+          "cap": "2-3",
+          "chung": 7789,
+          "dai": 10787,
+          "tyLe": 0.7221
+        },
+        {
+          "cap": "3-4",
+          "chung": 2484,
+          "dai": 12876,
+          "tyLe": 0.1929
+        },
+        {
+          "cap": "4-5",
+          "chung": 10475,
+          "dai": 13311,
+          "tyLe": 0.7869
+        }
+      ]
+    }
+  }
+}

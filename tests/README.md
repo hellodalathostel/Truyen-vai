@@ -19,8 +19,12 @@ gọi `chayTatCa()` — xem `tests/browser/runner.js` để biết cách đăng 
     tests/
       lib/h.js                  khung kiểm thử tối giản, dùng CHUNG cho cả hai tầng
       lib/moi-truong.js         dựng window.TRUYEN_VAI_ROOT giả trước khi nạp src/*
+      lib/prompt.mjs            BA truyện mẫu HƯ CẤU + đường chạy prompt THẬT (AI giả)
+      lib/tao-prompt-fixture.mjs công cụ SNAPSHOT: ghi fixtures/prompt/*.txt + moc.json
       fixtures/*.mjs            dữ liệu mẫu HƯ CẤU (truyện, phiếu, kế hoạch, vắng mặt,
                                 phien-ban-cu: hình dạng cũ theo TỪNG PHIEN_BAN_*)
+      fixtures/prompt/*.txt     3 mẫu × 5 lượt prompt, so TỪNG BYTE (Giai đoạn 7a)
+      fixtures/prompt/moc.json  mốc prefix-cache (tỉ lệ tiền tố chung) để bắt hồi quy
       node/*.test.mjs           tầng Node — hàm thuần, không DOM
       browser/*.js              tầng trình duyệt — mỗi tệp là một "bộ"
       browser/runner.js         DANH_MUC + bộ chạy + báo cáo
@@ -115,6 +119,26 @@ kiểm được ở tầng Node. `cong18.js` là cửa 18+ dùng chung cho mọi
 14. **Bảng `*_DEPS` khớp HAI CHIỀU.** Mọi `D.<tên>` mà tệp của màn gọi phải có trong bảng, VÀ mọi
    tên trong bảng phải được dùng ít nhất một lần; khai thừa là lỗi, khoá có giá trị chỉ được là
    HÀM. `goi-chung.test.mjs` soát tự động cho **cả tám** màn — đừng khai thêm cho "chắc ăn".
+15. **Snapshot prompt: đổi prompt thì phải cập nhật fixture trong CÙNG một lần commit.**
+   `tests/fixtures/prompt/*.txt` là prompt THẬT của 3 truyện mẫu × 5 lượt, do
+   `node tests/lib/tao-prompt-fixture.mjs` ghi ra; ca Node so **từng byte**. Muốn đổi prompt
+   (có chủ đích) thì chạy lại công cụ đó rồi commit **fixture mới + `moc.json` mới + một dòng
+   LÝ DO** (trong thông điệp commit hoặc mục Giai đoạn tương ứng ở tệp này). **Không** sửa
+   tay fixture cho khớp, và không được để ca này đỏ rồi bỏ qua.
+16. **Mốc prefix-cache không được tụt quá 5 điểm phần trăm.** `moc.json` ghi tỉ lệ tiền tố
+   chung nhỏ nhất/trung bình của từng mẫu; ca Node ĐỎ nếu tụt quá ngưỡng — nghĩa là có nội
+   dung động trôi lên ĐẦU prompt và máy chủ mất phần cache dùng chung. Hạ mốc chỉ được phép
+   khi đó là thay đổi có chủ đích kèm lý do (ghi rõ trong mục Giai đoạn), **không** hạ cho
+   vừa lòng test.
+17. **Chỉ xoá bản ghi kiểm thử THEO ID — không bao giờ theo TÊN.** Mọi chỗ dọn dẹp
+   (`donHoSoTest` ở các bộ `nh-*`, `donTruyenTest`, `donTest` trong `runner.js`) chỉ được xoá
+   bản ghi có id test (`nhz_*`, `ct_zz*`, `ht_z*`, `nv_z*`…). **Không** lọc theo `tenChinh`/`ten`:
+   người dùng hoàn toàn có thể đặt tên hồ sơ/truyện trùng tên kiểm thử (Linh, Sara, Khoa…), nên
+   xoá theo tên là xoá **dữ liệu thật** — đã xảy ra thật ở Giai đoạn 7a. Hồ sơ do FORM tạo ra
+   mang id do app sinh (`nh_*`), không nhận ra được bằng tiền tố: bộ nào tạo hồ sơ qua form thì
+   phải **xoá ngay theo đúng id vừa lưu** (xem `nh-lib.js` mục 3). Chạy bị ngắt (F5) vẫn có thể
+   để lại rác mang id app sinh — cách xử lý: tìm hồ sơ đó và xoá qua giao diện app, rồi chạy lại
+   lượt đầy đủ trước khi đóng gói.
 
 ## Không đổi hành vi — cách đo (bắt buộc mỗi lần tách hàm khỏi `app.js`)
 
@@ -350,6 +374,62 @@ rò rỉ**). Bằng chứng "không đổi hành vi": kịch bản tất định
   `ab` giữa hai nháy vẫn khớp; ca tự kiểm sai và luôn ĐỎ. Nay nó khẳng định trên **chính bộ
   mẫu** (mọi mẫu ≥ 4 ký tự, không mẫu nào là từ thông dụng) + một ca riêng cho ranh giới từ.
 
+### Giai đoạn 7a (snapshot prompt + đo prefix-cache)
+
+Ba truyện mẫu **hư cấu** (`tests/lib/prompt.mjs`): **nhóm thường** · **cảnh riêng** · **chế độ
+Đạo diễn**. Mỗi truyện chạy **5 lượt liên tiếp** qua ĐÚNG đường dựng prompt của app (AI giả cắm
+vào `aiTextPlugin`, nên chuỗi bắt được chính là `instruction` mà app thật sự gửi đi):
+`replyAsGroup` cho cảnh nhóm (lượt 1 là lượt MỞ ĐẦU `moDau`), `replyAs` cho cảnh riêng (tin nhắn
+mang dấu `rieng`), và mẫu Đạo diễn có **một lần duyệt Khép cảnh thật** ở lượt 4. Prompt từng lượt
+được ghim vào `tests/fixtures/prompt/<mẫu>-<lượt>.txt` (15 tệp, so **từng byte**), mốc đo ở
+`moc.json`. Tạo lại: `node tests/lib/tao-prompt-fixture.mjs`.
+
+| Mẫu | 1-2 | 2-3 | 3-4 | 4-5 | nhỏ nhất | trung bình | prompt (byte) |
+|---|---|---|---|---|---|---|---|
+| nhóm thường | 56,5% | 61,5% | 64,1% | 64,9% | **56,5%** | 61,8% | 5 874 → 8 548 |
+| cảnh riêng | 70,0% | 71,5% | 74,1% | 75,9% | **70,0%** | 72,9% | 5 358 → 7 227 |
+| chế độ Đạo diễn | 70,5% | 72,2% | **19,3%** | 78,7% | **19,3%** | 60,2% | 9 104 → 13 311 |
+
+Đo bằng **byte UTF-8**; tỉ lệ = tiền tố chung / độ dài prompt SAU (prompt thật sự gửi đi). Ca Node
+ĐỎ nếu nhỏ nhất HOẶC trung bình của mẫu nào giảm quá **5 điểm phần trăm** so với `moc.json`.
+
+**Phát hiện (chỉ BÁO, chưa sửa — đúng phạm vi 7a):** tỉ lệ leo dần theo lượt ở hai mẫu đầu là
+đúng thiết kế: `buildPrompt` đặt tiền tố tĩnh → nhật ký chỉ-nối-thêm → sổ tri thức → `TASK`, nên
+phần dùng chung lớn dần; mẫu nhóm thấp hơn vì prompt ngắn (5,9 → 8,5 KB) nên nhật ký chiếm tỉ lệ
+nhỏ, và lượt 1 có nhật ký RỖNG (`(chưa có tin nhắn nào)`). **Bất thường thật là cặp 3-4 của mẫu
+Đạo diễn (19,3%)**: một lần duyệt Khép cảnh đổi *hai khối nằm SỚM trong `buildContext`* — khối
+NỘI TÂM & QUAN HỆ (`buildTrangThai`) và khối ĐÍNH CHÍNH/HƯỚNG PHÁT TRIỂN (`buildDaoDien`) — nên
+toàn bộ ~12,9 KB còn lại bị tính lại từ chỗ đó thay vì dùng cache. Cùng cơ chế đó, một nhân vật
+bước vào/rời cảnh sẽ làm khối HIỆN DIỆN TRONG CẢNH (cũng trong `buildContext`) đổi theo. **Đề
+xuất cho đợt sau (không làm ở 7a):** chuyển hai khối động xuống NGAY TRƯỚC `TASK` (sau nhật ký),
+hoặc chỉ gửi phần ĐỔI so với lượt trước; khi đó phải đo lại mốc và cập nhật fixture theo luật
+15/16.
+
+**Kiểm chứng 7a:** tầng Node **23 tệp · 5 415 khẳng định · 0 không đạt** (mốc 6d: 22 tệp ·
+5 233); riêng `prompt.test.mjs` **75 khẳng định** (so từng byte, mốc prefix-cache, chạy-lại-giống-
+hệt, kiểm kê fixture). Tầng trình duyệt **1 082/1 082 ca · 32 bộ · 0 cảnh báo**; ca quét ngược
+**5/5** và **0 tệp rò rỉ** trên **165 tệp của gói** (đã gồm 15 fixture `.txt` mới). Dữ liệu thật
+của người dùng **giống từng byte** trước/sau lượt chạy — so cả thư viện ngoại hình, không chỉ tập
+khoá. Đối chứng âm (bản sao tạm của cây gói, dựng trong phiên rồi xoá): sửa một ký tự trong một
+fixture `.txt` và nâng khống một mốc trong `moc.json` làm `prompt.test.mjs` **3 ca ĐỎ đúng chỗ**
+(báo tệp, vị trí ký tự, ngữ cảnh ngắn, mức tụt so với mốc) — phép kiểm thật sự có tác dụng, không
+phải ca trang trí. Cách dựng lại đối chứng: chép cả cây gói sang chỗ khác, sửa một ký tự trong
+`tests/fixtures/prompt/nhom-1.txt`, nâng `mau.nhom.nhoNhat` trong `moc.json` lên 0.95, rồi chạy
+tầng Node trỏ vào bản sao đó — phải thấy đúng 3 ca đỏ.
+
+**Sự cố thật đã gặp ở 7a (và cách sửa):** lượt chạy trình duyệt ĐẦU TIÊN của 7a bị ngắt giữa
+chừng (người dùng phải F5 vì tab treo), để lại trong kv một hồ sơ ngoại hình do **form** tạo (id do
+app sinh `nh_*`, tên trùng tên kiểm thử — `nh-lib` mục 3 lưu hồ sơ qua form để kiểm luồng nháp AI).
+Lượt chạy đầy đủ sau đó cho **25 ca quét ngược ĐỎ trên 24 tệp**: bộ quét đọc hồ sơ rác ấy như DỮ
+LIỆU THẬT, mà cái tên đó lại nằm sẵn trong câu văn của gói (ví dụ trong phần mô tả thể loại ở
+`main.pjs`) nên khớp hàng loạt — **báo oan**, không phải rò rỉ thật. Nặng hơn: chính bộ dọn dẹp của
+`nh-lib`/`nh-io` xoá hồ sơ **theo TÊN**, nên nó đã xoá hồ sơ đó — và cùng cách ấy nó có thể xoá hồ
+sơ THẬT của người dùng nếu người dùng đặt tên trùng tên kiểm thử. Đã sửa theo **luật 17**: mọi chỗ
+dọn dẹp chỉ xoá theo id; hồ sơ do form tạo ở `nh-lib` mục 3 được xoá ngay theo đúng id vừa lưu;
+`nh-visual-setup` và `nh-fix5` cũng bỏ lọc theo tên. Sau khi sửa: chạy đầy đủ **1 082/1 082**,
+**0 cảnh báo**, thư viện ngoại hình của người dùng **không đổi một byte**. Ghi lại đây để lần sau
+không ai "dọn cho sạch" bằng cách lọc theo tên lần nữa.
+
 ## Thêm một bộ kiểm thử
 
 1. Viết `tests/browser/<tên>.js`, dùng `import { test, ok, eq, eqSau } from "../lib/h.js"`.
@@ -363,6 +443,9 @@ rò rỉ**). Bằng chứng "không đổi hành vi": kịch bản tất định
 - **Nguồn sự thật: repo GitHub `https://github.com/hellodalathostel/Truyen-vai`.** Gói zip trên
   uploads.dev chỉ là bản dự phòng. Mỗi giai đoạn: agent đóng gói zip → chủ dự án đẩy lên repo →
   **CI phải xanh** thì giai đoạn đó mới coi là xong.
+- **ĐỦ BỐN ĐIỀU mới coi là xong** (luật thường trực, ghi cả ở `src/CONTEXT.md`): (1) hai tầng
+  test **XANH**; (2) **quét ngược tên thật 0 rò rỉ**; (3) gói phát hành **không chứa `.git`**;
+  (4) **CI GitHub xanh**. Báo cáo cho chủ dự án luôn theo dạng **x/y**.
 - CI (`.github/workflows/test.yml`) chạy `npm test` trên **Node 22**. `package.json` dùng
   `node --test tests/node/*.test.mjs`: dạng **thư mục** (`node --test tests/node/`) hỏng trên
   Node ≥21.

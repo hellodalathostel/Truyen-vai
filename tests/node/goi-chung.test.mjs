@@ -103,11 +103,17 @@ const TEP_NODE = [
   "gd4.test.mjs", "goi-chung.test.mjs",
   "khong-ro-ri.test.mjs", "lore.test.mjs", "lorebookFlow.test.mjs", "ngoaiHinh.test.mjs", "nhanVatForm.test.mjs",
   "nhap.test.mjs",
+  "prompt.test.mjs",
   "schema.test.mjs", "store.test.mjs", "suaNgoaiHinhFlow.test.mjs", "suKien.test.mjs", "taoAnhFlow.test.mjs",
   "taoTruyenFlow.test.mjs",
   "thoiGian.test.mjs", "trangThai.test.mjs", "tuyChonTruyenFlow.test.mjs",
 ];
 const TEP_FIXTURE = ["ke-hoach.mjs", "phien-ban-cu.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
+// Snapshot prompt (Giai đoạn 7a): 3 truyện mẫu × 5 lượt + mốc prefix-cache. Nằm trong thư mục
+// con nên không lẫn với TEP_FIXTURE; tên tệp ở đây phải khớp tests/lib/prompt.mjs.
+const TEP_PROMPT = ["moc.json"];
+const TEP_PROMPT_KEY = ["nhom", "rieng", "daodien"];
+const SO_LUOT_PROMPT = 5;
 const SRC_CHO_PHEP = MODULE_SRC.concat(["styles.css", "README.md", "CONTEXT.md", "ui"]);
 const GOC_CHO_PHEP = ["main.pjs", "index.html", "package.json", "README.md", "LICENSE", ".git", ".gitignore", ".github", "src", "tests"];
 
@@ -125,12 +131,49 @@ function ca(ten, fn) {
 
 ca("gói có đủ tệp bắt buộc", async (bd) => {
   const oGoc = ["main.pjs", "index.html", "package.json", "tests/README.md", ".github/workflows/test.yml"];
-  const oLib = ["tests/lib/h.js", "tests/lib/moi-truong.js", "tests/browser/runner.js"];
+  const oLib = [
+    "tests/lib/h.js", "tests/lib/moi-truong.js", "tests/lib/prompt.mjs", "tests/lib/tao-prompt-fixture.mjs",
+    "tests/browser/runner.js",
+  ];
   for (const f of oGoc.concat(oLib)) ok(await bd.co(f), "có: " + f);
   for (const m of MODULE_SRC) ok(await bd.co("src/" + m), "có: src/" + m);
   ok(await bd.co("src/styles.css"), "có: src/styles.css");
   for (const f of TEP_FIXTURE) ok(await bd.co("tests/fixtures/" + f), "có: tests/fixtures/" + f);
   for (const f of TEP_NODE) ok(await bd.co("tests/node/" + f), "có: tests/node/" + f);
+});
+
+ca("tests/node khớp đúng danh sách bộ kiểm thử, không có tệp bị bỏ quên", async (bd) => {
+  // Bộ chạy Node suy danh sách từ THƯ MỤC, còn ca này ghim danh sách bằng tay: lệch một
+  // trong hai chiều nghĩa là có tệp kiểm thử không ai chạy, hoặc danh sách trỏ vào hư không.
+  const ds = (await bd.lietKe("tests/node")).filter((f) => f.slice(-9) === ".test.mjs").sort();
+  const mong = TEP_NODE.slice().sort();
+  for (const f of ds) ok(mong.indexOf(f) >= 0, "tệp kiểm thử có trong danh sách: " + f);
+  for (const f of mong) ok(ds.indexOf(f) >= 0, "danh sách trỏ tới tệp có thật: " + f);
+  eq(ds.length, mong.length, "số bộ kiểm thử Node bằng số tệp trong thư mục");
+});
+
+ca("snapshot prompt có đủ fixture và mốc (Giai đoạn 7a)", async (bd) => {
+  // Đổi prompt mà quên cập nhật fixture thì ca byte ở tests/node/prompt.test.mjs sẽ đỏ; ở đây
+  // chỉ ghim phần KIỂM KÊ: đủ 3 mẫu × 5 lượt, có mốc, và mốc có đúng 3 mẫu × 4 cặp lượt.
+  const ds = await bd.lietKe("tests/fixtures/prompt");
+  for (const key of TEP_PROMPT_KEY) {
+    for (let i = 1; i <= SO_LUOT_PROMPT; i++) {
+      const ten = key + "-" + i + ".txt";
+      ok(ds.indexOf(ten) >= 0, "có fixture prompt: " + ten);
+    }
+  }
+  for (const f of TEP_PROMPT) ok(ds.indexOf(f) >= 0, "có fixture prompt: " + f);
+  eq(ds.length, TEP_PROMPT_KEY.length * SO_LUOT_PROMPT + TEP_PROMPT.length, "thư mục fixture prompt không có tệp lạ");
+  const moc = JSON.parse(await bd.doc("tests/fixtures/prompt/moc.json"));
+  eq(moc.soLuot, SO_LUOT_PROMPT, "mốc ghi đúng số lượt");
+  for (const key of TEP_PROMPT_KEY) {
+    ok(!!moc.mau[key], "mốc có mẫu " + key);
+    if (!moc.mau[key]) continue;
+    eq(moc.mau[key].cap.length, SO_LUOT_PROMPT - 1, "mốc mẫu " + key + " có " + (SO_LUOT_PROMPT - 1) + " cặp lượt");
+    for (const c of moc.mau[key].cap) {
+      ok(typeof c.chung === "number" && c.chung >= 0 && c.tyLe > 0 && c.tyLe <= 1, "mốc " + key + " · cặp " + c.cap + " hợp lệ");
+    }
+  }
 });
 
 ca("gốc gói không có tệp lạ, và không nhét bản zip cũ vào trong", async (bd) => {

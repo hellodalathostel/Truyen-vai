@@ -23,10 +23,9 @@ function anhMau(w, h) {
 const mkH = (ten, tuoi, moTa, tranh, anh) =>
   T.chuanHoaHoSo({ id: T.newNgoaiHinh().id.replace(/^nh_/, "nhz_"), tenChinh: ten, tuoi: tuoi, moTa: moTa, tranh: tranh, anh: anh });
 
-// Dọn hồ sơ do các lần chạy trước để lại (id test hoặc tên test).
-const TEN_T = ["Sara", "Minh", "Teen", "Linh", "Xau", "Khoa", "Sara Mới", "Khong Luu Duoc", "A1", "A2", "cùng tên nhưng khác người", "Sara Nguyễn", "Minh Trần", "Khoa Phạm"];
-// CHỈ xoá hồ sơ kiểm thử (`nhz_*`). Id hồ sơ THẬT là `nh_*` — không bao giờ lọc `^nh_`.
-for (const h of T.dsNgoaiHinh().slice()) if (/^nhz/.test(h.id) || TEN_T.indexOf(h.tenChinh) >= 0) await T.xoaNgoaiHinh(h.id).catch(() => {});
+// Dọn hồ sơ do các lần chạy trước để lại: CHỈ theo id test (`nhz_*`). Không lọc `^nh_` (id hồ sơ
+// THẬT cũng là `nh_*`) và không xoá theo TÊN (tên người dùng có thể trùng tên kiểm thử).
+for (const h of T.dsNgoaiHinh().slice()) if (/^nhz/.test(h.id)) await T.xoaNgoaiHinh(h.id).catch(() => {});
 await T.loadNgoaiHinh();
 
 await A.taoZZ({ id: "ct_zz1", ten: "ZZ bố cục" });

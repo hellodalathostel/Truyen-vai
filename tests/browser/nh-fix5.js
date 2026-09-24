@@ -28,11 +28,11 @@ const setV = (el2, v) => { el2.value = v; el2.dispatchEvent(new Event("input", {
 const ANH_1PX = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==";
 const mk = (ten, moTa, tranh) => T.chuanHoaHoSo({ id: S.uid("nhz"), tenChinh: ten, moTa: moTa || "mô tả kiểm thử", tranh: tranh || "" });
 
-const TEN_T = ["Fix A1", "Fix A2", "Fix B dùng", "Fix B chưa dùng", "Fix C", "Fix E"];
 const donHoSoTest = async () => {
   for (const h of T.dsNgoaiHinh().slice()) {
-    // CHỈ xoá hồ sơ kiểm thử (`nhz_*`). Id hồ sơ THẬT là `nh_*` — không bao giờ lọc `^nh_`.
-    if (/^nhz/.test(h.id) || TEN_T.indexOf(h.tenChinh) >= 0) await T.xoaNgoaiHinh(h.id).catch(() => {});
+    // CHỈ xoá hồ sơ kiểm thử (`nhz_*`). Không lọc `^nh_` (id hồ sơ THẬT cũng là `nh_*`) và
+    // không xoá theo TÊN (tên người dùng có thể trùng tên kiểm thử — xem tests/README.md).
+    if (/^nhz/.test(h.id)) await T.xoaNgoaiHinh(h.id).catch(() => {});
   }
   await T.loadNgoaiHinh();
 };

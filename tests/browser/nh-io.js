@@ -202,10 +202,9 @@ try {
   A.xoaLoi();
   chk("7.7 xoá hỏng ⇒ ném lỗi và hồ sơ vẫn còn nguyên", nemXoa && !!T.getNgoaiHinh(hX.id), nemXoa + " | " + !!T.getNgoaiHinh(hX.id));
 
-  // dọn hồ sơ test + truyện test
-  const TEN_T = ["Sara", "Minh", "Teen", "Linh", "Xau", "Khoa", "Sara Mới", "Khong Luu Duoc", "A1", "A2", "cùng tên nhưng khác người"];
-  // CHỈ xoá hồ sơ kiểm thử (`nhz_*`). Id hồ sơ THẬT là `nh_*` — không bao giờ lọc `^nh_`.
-  for (const h of T.dsNgoaiHinh().slice()) if (/^nhz/.test(h.id) || TEN_T.indexOf(h.tenChinh) >= 0) await T.xoaNgoaiHinh(h.id).catch(() => {});
+  // dọn hồ sơ test + truyện test — CHỈ xoá theo id test (`nhz_*`), KHÔNG bao giờ xoá theo TÊN
+  // (tên do người dùng đặt có thể trùng tên kiểm thử ⇒ xoá mất dữ liệu thật; xem tests/README.md).
+  for (const h of T.dsNgoaiHinh().slice()) if (/^nhz/.test(h.id)) await T.xoaNgoaiHinh(h.id).catch(() => {});
   await T.loadNgoaiHinh();
   for (const id of ["ct_zz1", "ct_zz2"]) await A.xoaZZ(id).catch(() => {});
 } catch (e) { chk("PHẦN 7 không chạy hết", false, e && e.stack); }

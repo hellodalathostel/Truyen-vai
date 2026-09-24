@@ -1084,8 +1084,10 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 **NGUỒN SỰ THẬT: repo GitHub `https://github.com/hellodalathostel/Truyen-vai`.** Tải repo là
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
-**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Đợt 6c**
-`https://user.uploads.dev/file/5b6804aec274c1a3c22f9df24be6af39.zip` (Đợt 6b:
+**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Đợt 6d**
+`https://user.uploads.dev/file/c6dc4cdf96e660ac34a552a07b11dd15.zip` (Đợt 6c:
+`https://user.uploads.dev/file/5b6804aec274c1a3c22f9df24be6af39.zip` — mốc tách `openStoryMenu` +
+`openLorebook` + `bindGlobalEvents`; Đợt 6b:
 `https://user.uploads.dev/file/1da7f265676235f0bec0b2f49915d55a.zip` — mốc tách
 `openCharacterEditor` + `openNewStoryModal`; Giai đoạn 6:
 `https://user.uploads.dev/file/c5eb29483e0383f59ced780c56a74d2a.zip` — mốc tách `openTaoAnh`;
@@ -1587,6 +1589,64 @@ trạng, mọi khoá test đã dọn. `src/CONTEXT.md` = **10 198 byte** (≤ 10
 
 **Luật đóng gói mới:** gói phát hành **KHÔNG** chứa thư mục `.git`; bước kiểm sau khi tải lại URL
 phải khẳng định gói giải nén **không có `.git`**.
+
+## Giai đoạn 7a — đo "thân thiện cache" của prompt + snapshot chống hồi quy
+
+**Vì sao:** chi phí mỗi lượt nhập vai phụ thuộc mạnh vào việc **phần ĐẦU prompt có ổn định hay
+không** — máy chủ dùng *tiền tố dùng chung* để cache, nên nội dung động trôi lên đầu prompt là trả
+tiền lại từ chỗ đó. Muốn biết prompt có thân thiện cache không thì phải **đo trên chuỗi thật**, và
+muốn thấy hồi quy thì phải có **mốc**.
+
+**Ba truyện mẫu hư cấu** (`tests/lib/prompt.mjs`): **nhóm thường** · **cảnh riêng** · **chế độ Đạo
+diễn**. Mỗi truyện chạy **5 lượt liên tiếp** qua ĐÚNG đường dựng prompt của app — AI giả cắm vào
+`aiTextPlugin`, nên chuỗi bắt được chính là `instruction` mà app thật sự gửi đi: `replyAsGroup` cho
+cảnh nhóm (lượt 1 là lượt MỞ ĐẦU), `replyAs` cho cảnh riêng (tin nhắn mang dấu `rieng`), mẫu Đạo
+diễn có **một lần duyệt Khép cảnh thật** ở lượt 4. Mọi tên/id là hư cấu; **không** `Date.now`/
+`Math.random` — nên chạy lại phải ra y hệt **từng byte**.
+
+Prompt từng lượt được ghim vào `tests/fixtures/prompt/<mẫu>-<lượt>.txt` (15 tệp, so từng byte), mốc
+đo ở `tests/fixtures/prompt/moc.json`. Tạo lại (chỉ khi prompt đổi CÓ CHỦ ĐÍCH):
+`node tests/lib/tao-prompt-fixture.mjs`.
+
+| Mẫu | 1-2 | 2-3 | 3-4 | 4-5 | nhỏ nhất | trung bình | prompt (byte) |
+|---|---|---|---|---|---|---|---|
+| nhóm thường | 56,5% | 61,5% | 64,1% | 64,9% | **56,5%** | 61,8% | 5 874 → 8 548 |
+| cảnh riêng | 70,0% | 71,5% | 74,1% | 75,9% | **70,0%** | 72,9% | 5 358 → 7 227 |
+| chế độ Đạo diễn | 70,5% | 72,2% | **19,3%** | 78,7% | **19,3%** | 60,2% | 9 104 → 13 311 |
+
+Đo bằng **byte UTF-8**; tỉ lệ = tiền tố chung / độ dài prompt SAU (prompt thật sự gửi đi). Ca Node
+ĐỎ nếu nhỏ nhất HOẶC trung bình của mẫu nào giảm quá **5 điểm phần trăm** so với mốc.
+
+**Phát hiện (chỉ BÁO, KHÔNG sửa prompt trong đợt này):**
+
+- Tỉ lệ leo dần theo lượt ở hai mẫu đầu là **đúng thiết kế**: `buildPrompt` xếp tiền tố tĩnh → nhật
+  ký chỉ-nối-thêm → sổ tri thức → `TASK`, nên phần dùng chung lớn dần. Mẫu nhóm thấp hơn vì prompt
+  ngắn (5,9 → 8,5 KB) nên nhật ký chiếm tỉ lệ nhỏ, và lượt 1 có nhật ký RỖNG.
+- **Bất thường thật là cặp 3-4 của mẫu Đạo diễn (19,3%)**: một lần duyệt Khép cảnh đổi *hai khối
+  nằm SỚM trong `buildContext`* — khối NỘI TÂM & QUAN HỆ (`buildTrangThai`) và khối ĐÍNH
+  CHÍNH/HƯỚNG PHÁT TRIỂN (`buildDaoDien`) — nên toàn bộ ~12,9 KB còn lại bị tính lại thay vì dùng
+  cache. Cùng cơ chế đó, một nhân vật bước vào/rời cảnh làm khối HIỆN DIỆN TRONG CẢNH (cũng trong
+  `buildContext`) đổi theo.
+- **Đề xuất cho đợt sau (không làm ở 7a):** chuyển hai khối động xuống NGAY TRƯỚC `TASK` (sau nhật
+  ký), hoặc chỉ gửi phần ĐỔI so với lượt trước; khi đó phải đo lại mốc và cập nhật fixture.
+
+**Kiểm chứng 7a:** tầng Node **23 tệp · 5 415 khẳng định · 0 không đạt** (mốc 6d: 22 tệp ·
+5 233), riêng `prompt.test.mjs` **75 khẳng định**; tầng trình duyệt **1 082/1 082 ca · 32 bộ · 0
+cảnh báo**, ca quét ngược **5/5** và **0 tệp rò rỉ** trên **165 tệp của gói**. Dữ liệu thật của
+người dùng **giống từng byte** trước/sau lượt chạy (so cả thư viện ngoại hình, không chỉ tập khoá).
+Đối chứng âm: bản sao cố ý hỏng (sửa một ký tự fixture + nâng khống mốc) làm `prompt.test.mjs` **3 ca
+ĐỎ đúng chỗ** — phép kiểm thật sự có tác dụng.
+
+**Một lỗi DỮ LIỆU THẬT của bộ kiểm thử đã lộ ra và đã sửa (đọc kỹ trước khi "dọn cho sạch"):** lượt
+chạy trình duyệt đầu tiên của 7a bị ngắt giữa chừng (tab treo, người dùng phải F5), để lại trong kv
+một hồ sơ ngoại hình do **form** tạo (`nh-lib` mục 3 kiểm luồng nháp AI rồi lưu thật). Lượt chạy đầy
+đủ sau đó cho **25 ca quét ngược ĐỎ trên 24 tệp** — bộ quét đọc hồ sơ rác ấy như dữ liệu thật, mà
+cái tên đó lại nằm sẵn trong câu văn của gói (ví dụ trong phần mô tả thể loại ở `main.pjs`) nên khớp
+hàng loạt: **báo oan**, không phải rò rỉ. Nặng hơn: bộ dọn dẹp của `nh-lib`/`nh-io` xoá hồ sơ
+**theo TÊN**, nên cùng cách ấy nó **có thể xoá hồ sơ THẬT của người dùng** nếu người dùng đặt tên
+trùng tên kiểm thử. Đã sửa (luật 17 trong `tests/README.md`): mọi chỗ dọn dẹp chỉ xoá **theo id**
+(`nhz_*` / id vừa lưu), hồ sơ do form tạo được xoá ngay theo đúng id của nó. Sau khi sửa: chạy đầy
+đủ **1 082/1 082**, **0 cảnh báo**, thư viện ngoại hình của người dùng **không đổi một byte**.
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

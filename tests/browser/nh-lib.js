@@ -28,17 +28,15 @@ const F = (f) => { const b = bodyTren(); return b ? b.querySelector('[data-f="' 
 const ANH_1PX = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==";
 const mkHoSo = (ten, moTa, tranh) => T.chuanHoaHoSo({ id: S.uid("nhz"), tenChinh: ten, moTa: moTa, tranh: tranh || "" });
 
-// Dọn hồ sơ do bộ kiểm thử tạo ra ở các lần chạy trước:
-//  • id bắt đầu bằng "nhz" (mọi hồ sơ do test dựng — dựng tay hay qua form đều được đặt id
-//    `nhz_*`, xem `mkHoSo`);
-//  • hoặc trùng một trong các tên test đã biết.
-// KHÔNG lọc theo `^nh_`: hồ sơ THẬT của người dùng cũng có id `nh_*`.
-const TEN_TEST = ["Sara", "Minh", "Teen", "Linh", "Xau", "Khoa", "Sara Mới", "Khong Luu Duoc", "A1", "A2", "cùng tên nhưng khác người"];
+// Dọn hồ sơ do bộ kiểm thử tạo ra ở các lần chạy trước: CHỈ theo id test (`nhz_*`, xem `mkHoSo`).
+//  • KHÔNG lọc theo `^nh_`: hồ sơ THẬT của người dùng cũng có id `nh_*`.
+//  • KHÔNG xoá THEO TÊN (luật: xem tests/README.md). Hồ sơ do FORM tạo ra (mục 3 dưới đây) có id
+//    do app sinh (`nh_*`), không nhận ra được bằng tiền tố — nhưng tên thì người dùng cũng đặt
+//    được, nên lọc theo tên là xoá dữ liệu thật (đã xảy ra thật một lần: gói/hồ sơ bị xoá oan).
+//    Vì vậy hồ sơ do form tạo ra được xoá NGAY theo đúng id vừa lưu, ngay sau khi dùng xong.
 const donHoSoTest = async () => {
   for (const h of T.dsNgoaiHinh().slice()) {
-    // CHỈ xoá hồ sơ kiểm thử (`nhz_*` + vài tên đã biết). TUYỆT ĐỐI không lọc `^nh_`:
-    // id hồ sơ THẬT cũng bắt đầu bằng `nh_`, lọc như vậy là xoá mất thư viện của người dùng.
-    if (/^nhz/.test(h.id) || TEN_TEST.indexOf(h.tenChinh) >= 0) await T.xoaNgoaiHinh(h.id).catch(() => {});
+    if (/^nhz/.test(h.id)) await T.xoaNgoaiHinh(h.id).catch(() => {});
   }
   await T.loadNgoaiHinh();
 };
@@ -189,6 +187,13 @@ try {
   AI.mode = "ok";
   await bamFoot("Huỷ");
   await cho(120);
+
+  // Xoá NGAY hồ sơ mà mục 3 vừa lưu qua form, theo ĐÚNG id của nó. Hồ sơ do form tạo ra mang id
+  // do app sinh (`nh_*`), không nhận ra được bằng tiền tố như `nhz_*`. Không làm bước này thì một
+  // lần chạy bị ngắt (F5) sẽ để lại hồ sơ "Linh" trong kv; lần chạy sau, bộ quét ngược
+  // (rr-ten-that) đọc nó như DỮ LIỆU THẬT và báo rò rỉ khắp gói (đã xảy ra thật).
+  await T.xoaNgoaiHinh(daLuu.id).catch(() => {});
+  await T.loadNgoaiHinh();
 
   // ảnh tham chiếu: nút chọn ảnh + ghi chú trung thực
   await bamBody('[data-nh2="tu-mota"]');
