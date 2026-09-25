@@ -1427,3 +1427,58 @@ button:focus-visible, .btn:focus-visible, .tool:focus-visible, .icon-btn:focus-v
   .vg-status-acts .btn { flex: 1 1 auto; justify-content: center; }
   .vg-nhip-toggle { font-size: 12.2px; }
 }
+
+
+/* ------------------------------------------------------------------ viết thành truyện */
+.vt-than { display: flex; flex-direction: column; gap: 0.85rem; text-align: left; }
+.vt-khoi { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); padding: 0.75rem 0.85rem 0.85rem; }
+.vt-khoi-head { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem; }
+.vt-khoi-head h3 { font-family: Georgia, serif; font-size: 15.5px; font-weight: 500; margin: 0; }
+.vt-khoi-head .ic { color: var(--gold-soft); }
+.vt-tien-do-so { margin-left: auto; font-size: 11.6px; color: var(--text-3); }
+.vt-nguon { display: grid; gap: 0.4rem; margin: 0.55rem 0 0.15rem; }
+.vt-nguon-o {
+  display: grid; grid-template-columns: auto 1fr; grid-template-areas: "r t" "r m";
+  column-gap: 0.5rem; align-items: center; border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); background: var(--panel); padding: 0.5rem 0.65rem; cursor: pointer;
+}
+.vt-nguon-o.on { border-color: rgba(212, 162, 76, 0.55); background: var(--panel-3); }
+.vt-nguon-o input { grid-area: r; width: 15px; height: 15px; accent-color: var(--gold); cursor: pointer; }
+.vt-nguon-ten { grid-area: t; font-size: 13.2px; font-weight: 600; color: var(--text); }
+.vt-nguon-mo { grid-area: m; font-size: 11.8px; color: var(--text-3); line-height: 1.45; }
+.vt-dem { margin: 0.5rem 0 0.6rem; font-size: 12.4px; color: var(--text-2); }
+.vt-chay { width: 100%; justify-content: center; }
+.vt-chan {
+  display: flex; gap: 0.35rem; align-items: flex-start; margin-top: 0.55rem; padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(239, 90, 90, 0.4); border-radius: var(--radius-sm);
+  background: rgba(239, 90, 90, 0.08); color: var(--text); font-size: 12.4px; line-height: 1.5;
+}
+.vt-chan .ic { color: var(--danger); margin-top: 0.15rem; }
+.vt-rong { margin-top: 0.5rem; font-size: 12.6px; color: var(--text-2); line-height: 1.55; }
+.vt-bar { height: 7px; border-radius: 100px; background: var(--panel-3); overflow: hidden; border: 1px solid var(--line-soft); }
+.vt-bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold-soft), var(--gold)); border-radius: 100px; transition: width 0.35s ease; }
+.vt-tien-do-dong { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.55rem; font-size: 12.6px; color: var(--text-2); }
+.vt-tien-do-dong .btn { margin-left: auto; }
+.vt-ds { display: flex; flex-direction: column; gap: 0.6rem; }
+.vt-muc { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); padding: 0.55rem 0.65rem 0.6rem; }
+.vt-muc-dangChay { border-color: rgba(212, 162, 76, 0.5); }
+.vt-muc-loi { border-color: rgba(239, 90, 90, 0.4); }
+.vt-muc-head { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+.vt-chip { font-size: 10.8px; padding: 0.06rem 0.45rem; border-radius: 100px; border: 1px solid var(--line); color: var(--text-3); white-space: nowrap; }
+.vt-chip-xong { border-color: rgba(120, 200, 140, 0.5); color: #79c98c; }
+.vt-chip-dangChay { border-color: rgba(212, 162, 76, 0.55); color: var(--gold-soft); }
+.vt-chip-loi { border-color: rgba(239, 90, 90, 0.5); color: var(--danger); }
+.vt-muc-ten { font-size: 13.2px; color: var(--text); font-weight: 600; }
+.vt-muc-meta { font-size: 11.4px; color: var(--text-3); }
+.vt-muc-nut { margin-left: auto; display: inline-flex; gap: 0.25rem; align-items: center; }
+.vt-muc-nut .btn { padding: 0.2rem 0.45rem; font-size: 11.8px; }
+.vt-muc-khong { font-size: 11.4px; color: var(--text-3); }
+.vt-van {
+  margin-top: 0.45rem; max-height: 15rem; overflow: auto; border-top: 1px dashed var(--line);
+  padding-top: 0.45rem; font-size: 13px; line-height: 1.7; color: var(--text);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.vt-loi { margin-top: 0.45rem; display: flex; gap: 0.35rem; align-items: flex-start; font-size: 12.4px; color: var(--danger); line-height: 1.5; }
+.vt-loi .ic { margin-top: 0.15rem; flex: none; }
+html[data-theme="sang"] .vt-chip-xong { color: #2f7a45; }
+html[data-theme="sang"] .vt-chip-loi { color: #a8342a; }

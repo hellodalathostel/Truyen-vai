@@ -1085,11 +1085,12 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
 **Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Giai đoạn 8
-Đợt 2 (logic thuần: chọn nguồn · chia lô · nén prose)**
-`https://user.uploads.dev/file/96a47ab75c79525dc6d95fe0d120566f.zip`
-(167 tệp, 822 KB — gồm `src/` byte-for-byte, `tests/**` với fixture prompt, `main.pjs`,
+Đợt 3 (ba nguyên tắc prompt + cổng 18+ trước khi chạy)**
+`https://user.uploads.dev/file/f5c50cadf66e76eb509d30848a45949d.zip`
+(167 tệp, 828 KB — gồm `src/` byte-for-byte, `tests/**` với fixture prompt, `main.pjs`,
 `index.html`, `package.json`, CI; **không** chứa `.git`; đã chạy lại tầng Node trên chính gói tải
-về: **5 683 khẳng định · 0 không đạt**). Các gói trước: Giai đoạn 8 Đợt 1
+về: **5 747 khẳng định · 0 không đạt**). Các gói trước: Giai đoạn 8 Đợt 2
+`https://user.uploads.dev/file/96a47ab75c79525dc6d95fe0d120566f.zip`; Giai đoạn 8 Đợt 1
 `https://user.uploads.dev/file/fe2502abb3b5d7f78e83cb6d58309abe.zip`; Giai đoạn 7a (bản 2 — thêm ca
 CẤU TRÚC) `https://user.uploads.dev/file/7261be153032279f469cbb7c728fb272.zip`; Giai đoạn 7a (bản 1)
 `https://user.uploads.dev/file/ad04085a3aa71e7c6ea53697cf4a68aa.zip`; Đợt 6d
@@ -1763,6 +1764,48 @@ CỤM TỪ KHOÁ đặc trưng nên không giòn khi sửa câu chữ) + khối 
 ghi chú người lớn · ghi chú chỉ xuất hiện khi `giaoKeo.bat` (đúng cờ `store.js` dùng) và luôn nằm
 SAU khối tĩnh · cổng chặn **⟺** `chanNoiDungNguoiLon` trả khác rỗng (quét cả ca thiếu truyện, so
 `loiNeu` với nguyên văn hàm thật) và cổng không sửa gì trong truyện.
+
+### Đợt 4 — ba tệp màn `ui/vietTruyen/`: khung + trạng thái GIẢ để kiểm bố cục (đã xong)
+
+Màn "Viết thành truyện" được tách đúng khuôn của các màn đã tách ở Đợt 6b–6d (xem §2 CONTEXT.md):
+`vietTruyenFlow.js` (đã xong ở Đợt 1–3) quyết định DỮ LIỆU · `vietTruyenHtml.js` chỉ TRÌNH BÀY ·
+`index.js` là VỎ dựng modal và giữ trạng thái màn. Cổng chặn 18+ lấy từ `vietTruyenFlow.js`
+(Đợt 3), không chép lại câu chữ vào vỏ — ca Node ghim đúng điều đó.
+
+| Tệp | Việc | Nối vào |
+|---|---|---|
+| `src/ui/vietTruyen/vietTruyenHtml.js` | Chuỗi HTML của ba khối + các hàm trình bày THUẦN (`trangThaiCua`, `nhanTrangThai`, `nhanNguon`, `moTaNguon`, `phanTramTienDo`, `tenTepMd`, `tenHoiThoai`, `htmlDem`, `htmlNguon`, `htmlTienDo`, `htmlMuc`, `htmlKetQua`, `htmlThan`). Không đọc DOM, không giữ trạng thái ⇒ tầng Node kiểm được bằng chuỗi. | `esc()` + `icon()` + `timeAgo()` từ `src/dom.js` |
+| `src/ui/vietTruyen/index.js` | VỎ **140 dòng** (trần 150): `openVietTruyen(D)`, `bamVietTruyen`, `dungVietTruyen`, `chonNguonVietTruyen`, `xuatVietTruyen`, `chepVietTruyen`. Số đoạn nguồn / số lô tính bằng hàm THUẦN của Flow trên chính hội thoại đang mở. | `modal/el/toast` (`dom.js`) · `getMessages` (`store.js`) · `countTokens/idealMaxTokens` (`ai.js`) · `vietTruyenFlow.js` · `vietTruyenHtml.js` |
+| `src/ui/suKien/vietTruyen.js` | Bảng sự kiện của màn: `viet-truyen` (mở từ menu ⋯ của khung chat) · `vt-chay` · `vt-dung` · `vt-nguon` · `vt-xuat` · `vt-chep`. Xuất đúng MỘT hàm `bangVietTruyen(D)`, KHÔNG tự `addEventListener` (luật §7.3). | gộp vào `src/ui/suKien/index.js` (`BANG_CON` giờ 8 bảng) |
+
+Ba khối đúng bố cục đã chốt: (a) chọn nguồn (`tho` / `canhKhep`) + dòng `đã đọc X/Y đoạn nguồn` + nút
+full-width đổi vai **Viết thành truyện ↔ Dừng** theo trạng thái (cùng khuôn với nút gửi/dừng của app);
+(b) khối `Tiến độ` với **thanh tiến độ là phần tử thật** (`.vt-bar > i`, bề rộng theo `phanTramTienDo`)
++ dòng `Đang viết lô X/Y …` + nút **Dừng ngay** — khối này bị `hidden` khi nghỉ; (c) từng mục của
+`truyenVietRa` với chip trạng thái, văn xuôi và hai nút **Xuất .md** / **Sao chép**.
+
+**Trạng thái GIẢ (KHÔNG phải luồng thật).** Đợt 4 CHƯA nối AI: `openVietTruyen` mở màn ở trạng thái
+NGHỈ, còn mảng `truyenVietRa` là dữ liệu MẪU có đủ ba trạng thái (`dangChay` / `xong` / `loi`) để nhìn
+thấy ngay cả ba kiểu thẻ. Bấm `vt-chay` chỉ nhích một lượt giả theo `setTimeout` (`TOC_GIA` 1,4 giây
+mỗi lô) rồi gắn `VAN_GIA_MOI` — mọi thứ đó nằm trong một khối duy nhất, có biển `GIẢ — XOÁ Ở ĐỢT 5`
+ngay trên đầu, ở cuối `vietTruyenHtml.js`. Ba trạng thái lạ KHÔNG được rơi về "đang viết" (giao diện
+sẽ quay vô hạn — quy ước của `store.js`): `trangThaiCua` ép về `loi`.
+
+Ca Node mới `tests/node/vietTruyenUi.test.mjs` (**93 khẳng định**, 5 ca): vỏ ≤ 150 dòng + không tự gắn
+listener + không chép lại câu chữ 18+ · mọi `data-act` của màn ⟺ khoá bảng sự kiện (và bảng gộp nạp
+nó) · `htmlThan` render đủ ba khối ở cả ba trạng thái, thanh tiến độ đúng bề rộng, nút đổi vai, nguồn
+rỗng / cổng 18+ khoá nút, trạng thái lạ ⇒ "lỗi" · chịu `ctx` thiếu/None mà không ném lỗi · **mọi giá
+trị động đi qua `esc()`**: payload phá ngữ cảnh thành CHỮ, không thành phần tử/thuộc tính thật.
+
+**Kiểm chứng Đợt 4:** tầng Node **25 tệp, 5 961 khẳng định, 0 không đạt** (mốc Đợt 3: 24 tệp,
+5 747); tầng trình duyệt **1 083/1 083 ca · 0 cảnh báo** (một lượt 39 bước, cộng một lượt riêng cho
+`gy-goi-y` — bộ này phải chạy riêng vì trạng thái nút ✨ do các bộ `nh-*` để lại). Bộ `esc-bat-bien`
+lên **30 khẳng định** (thêm màn mới vào danh sách rà). Đợt 4 còn sửa một **báo oan** của `rr-ten-that`:
+dữ liệu thật trong kv có thể trùng NGUYÊN một NHÃN mặc định của app (gặp thật: một nhóm tin nhắn còn
+mang tiêu đề mặc định), nên nhãn mặc định được đưa vào danh sách bỏ qua — xem `tests/README.md`.
+
+Đã kiểm bố cục bằng ảnh chụp ở **1100×820** (khối nghỉ và khối đang chạy) và **390×844** (điện thoại):
+ba khối xếp dọc, không tràn ngang (`scrollWidth == clientWidth` ở mọi phần tử của màn).
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

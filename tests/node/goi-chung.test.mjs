@@ -106,7 +106,7 @@ const TEP_NODE = [
   "prompt.test.mjs",
   "schema.test.mjs", "store.test.mjs", "suaNgoaiHinhFlow.test.mjs", "suKien.test.mjs", "taoAnhFlow.test.mjs",
   "taoTruyenFlow.test.mjs",
-  "thoiGian.test.mjs", "trangThai.test.mjs", "tuyChonTruyenFlow.test.mjs", "vietTruyenFlow.test.mjs",
+  "thoiGian.test.mjs", "trangThai.test.mjs", "tuyChonTruyenFlow.test.mjs", "vietTruyenFlow.test.mjs", "vietTruyenUi.test.mjs",
 ];
 const TEP_FIXTURE = ["ke-hoach.mjs", "phien-ban-cu.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
 // Snapshot prompt (Giai đoạn 7a): 3 truyện mẫu × 5 lượt + mốc prefix-cache. Nằm trong thư mục
@@ -551,7 +551,7 @@ ca("import trong src/ui/ đều tương đối và trỏ đúng tệp có thật
 });
 
 // Các màn đã tách khỏi app.js: tạo ảnh (Giai đoạn 6), Cốt truyện mới + Sửa nhân vật (Đợt 6b),
-// Tuỳ chọn truyện + Sổ tri thức (Đợt 6c). Mỗi màn là một VỎ ngắn trong app.js + một bảng phụ
+// Tuỳ chọn truyện + Sổ tri thức (Đợt 6c), Viết thành truyện (Giai đoạn 8 · Đợt 4). Mỗi màn là một VỎ ngắn trong app.js + một bảng phụ
 // thuộc tường minh, thân nằm ở src/ui/. `tep` = thư mục chứa thân màn (để ca "DEPS hai chiều"
 // đối chiếu bảng với ĐÚNG những tệp dùng nó).
 const MAN_HINH = [
@@ -563,6 +563,7 @@ const MAN_HINH = [
   { ten: "Chế độ Đạo diễn", khaiBao: "function openDaoDien() {", goi: "moDaoDien(DAO_DIEN_DEPS)", bang: "DAO_DIEN_DEPS", nhap: 'from "./ui/daoDien/index.js"', tep: ["src/ui/daoDien"] },
   { ten: "Bảng điều khiển", khaiBao: "function renderDashboard(story) {", goi: "moBangDieuKhien(story, BANG_DIEU_KHIEN_DEPS)", bang: "BANG_DIEU_KHIEN_DEPS", nhap: 'from "./ui/bangDieuKhien/index.js"', tep: ["src/ui/bangDieuKhien"] },
   { ten: "Sửa hồ sơ ngoại hình", khaiBao: "function openSuaNgoaiHinh(id, onXong, opts = {}) {", goi: "moSuaNgoaiHinh(id, onXong, opts, SUA_NGOAI_HINH_DEPS)", bang: "SUA_NGOAI_HINH_DEPS", nhap: 'from "./ui/suaNgoaiHinh/index.js"', tep: ["src/ui/suaNgoaiHinh"] },
+  { ten: "Viết thành truyện", khaiBao: "function openVietTruyen() {", goi: "moVietTruyen(VIET_TRUYEN_DEPS)", bang: "VIET_TRUYEN_DEPS", nhap: 'from "./ui/vietTruyen/index.js"', tep: ["src/ui/vietTruyen"] },
 ];
 
 // Bảng phụ thuộc của SỰ KIỆN TOÀN CỤC (Đợt 6c): không phải một "màn" mà là bảy bảng con ở

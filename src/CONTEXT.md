@@ -5,7 +5,7 @@ duy nhất**, phần còn lại do AI viết. Chữ hiển thị **tiếng Việ
 không tự ý làm nhẹ đi.
 
 Tệp này chỉ chứa **luật + bảng tra**. Chi tiết: `src/README.md` (lịch sử từng đợt) và
-`tests/README.md` (chạy test, luật viết test, đóng gói). Đọc đúng mục cần.
+`tests/README.md` (chạy test, đóng gói). Đọc đúng mục cần.
 
 ## 1. Module + chiều import (DAG, không vòng)
 
@@ -17,7 +17,7 @@ dom.js · schema.js · ngoaiHinh.js (không import gì)
 
 `ui/<màn>/*` = màn đã tách khỏi `app.js`: `index.js` là VỎ ≤150 dòng; `*Form|*Flow.js` giữ **quyết
 định THUẦN, không DOM**. Có `taoAnh/`·`nhanVat/`·`taoTruyen/`·`tuyChonTruyen/`·`lorebook/`·`suKien/`
-·`daoDien/`·`bangDieuKhien/`·`suaNgoaiHinh/`; `ui/cong18.js` = **cửa 18+ dùng chung**.
+·`daoDien/`·`bangDieuKhien/`·`suaNgoaiHinh/`·`vietTruyen/`; `ui/cong18.js` = **cửa 18+ dùng chung**.
 
 | Tệp | Vai trò (vài hàm chính) |
 |---|---|
@@ -71,6 +71,7 @@ Một chỗ duy nhất: `LUAT_NGON_NGU` (`ai.js`). Máy vẽ ảnh → **tiếng
 | Ngoại hình cố định trong prompt ảnh | `ngoaiHinh.js` · `ghepPromptNgoaiHinh` |
 | Ba màn: tạo ảnh (cổng 18+) · sửa nhân vật · cốt truyện mới | `ui/taoAnh/` (`taoAnhFlow.js`) · `ui/nhanVat/` (`nhanVatForm.js`) · `ui/taoTruyen/` (`taoTruyenFlow.js`) |
 | Tuỳ chọn truyện · Sổ tri thức | `ui/tuyChonTruyen/` · `ui/lorebook/` |
+| Màn viết thành truyện | `ui/vietTruyen/` (`vietTruyenFlow.js`) |
 | Bảng điều khiển · Đạo diễn · Sửa hồ sơ ngoại hình | `ui/bangDieuKhien/` · `ui/daoDien/` · `ui/suaNgoaiHinh/` |
 | Sự kiện toàn cục (`data-act` → hàm) | `ui/suKien/*`; `app.js` · `bindGlobalEvents` |
 | Dịch ngoại hình sang EN · dọn `[ ] { }` | `ai.js` · `dichNgoaiHinh` · `thoatPerchance` |
@@ -109,7 +110,7 @@ thì cập nhật fixture + `moc.json` CÙNG commit kèm lý do; mốc không t�
 2. **Không hàm nào dài quá 150 dòng** (TOÀN `src/**`, kể cả `app.js`). Màn quá dài thì tách ra
    `ui/<màn>/`: `app.js` giữ VỎ nối qua bảng `*_DEPS` (chỉ chứa hàm **còn lại của app**; còn lại
    import thẳng từ lõi). Bảng phải khớp **HAI CHIỀU** với `D.*` mà tệp của màn gọi — thừa/thiếu đều
-   là lỗi. Đã tách 8 màn + `capIdMoi` → `nhap.js` (tên màn: §4 và `tests/README.md`).
+   là lỗi. Đã tách 9 màn + `capIdMoi` → `nhap.js` (tên màn: §4 và `tests/README.md`).
 3. **MỘT điểm đăng ký sự kiện toàn cục**: chỉ `bindGlobalEvents` (`app.js`) gọi `addEventListener`;
    xử lý chia theo TÍNH NĂNG ở `ui/suKien/*` (bảng `"data-act": hàm`), gộp bằng `gopBangSuKien` —
    trùng tên NÉM LỖI, mọi `data-act` phải có hàm xử lý.
@@ -123,7 +124,7 @@ thì cập nhật fixture + `moc.json` CÙNG commit kèm lý do; mốc không t�
 
 Dữ liệu **thật** của người dùng **chỉ** được đọc/so **trong bộ nhớ lúc chạy test**; **không** ghi
 thành tệp, **không** đóng gói/upload. **Không** id/tên thật trong `src/`, `tests/` hay gói upload —
-id test có tiền tố riêng, duy nhất mỗi lượt (`ct_zz…`, `ht_z…`, `nhz_…`, tiêu đề `ZZ…`). Luật tự
+id test có tiền tố riêng, duy nhất mỗi lượt (`ct_zz…`, `nhz_…`, tiêu đề `ZZ…`). Luật tự
 động chỉ bắt **dạng id**; ca **quét ngược** (`rr-ten-that`, tầng trình duyệt) bắt cả TÊN bằng cách
 so với dữ liệu thật trong kv — **BẮT BUỘC chạy trước mỗi lần đóng gói** (`tests/README.md`).
 

@@ -546,6 +546,40 @@ lượt, rồi `gy-goi-y` **một lượt riêng** (46/46) — tổng đúng b�
 được thì bộ này phải **chờ nút bật** (`!el.disabled`) trước khi bấm, hoặc chờ app hết `streaming`;
 việc sửa bộ kiểm đó để chủ dự án quyết.
 
+**Đợt 4 — ba tệp màn `ui/vietTruyen/` (khung + trạng thái GIẢ) (đã xong, đã kiểm chứng):**
+
+Không thêm bộ trình duyệt mới (màn dùng lại đúng cơ chế `data-act` của các màn đã tách, nên bộ
+`esc-bat-bien` phủ nó chỉ bằng MỘT dòng). Cái mới là tệp Node `vietTruyenUi.test.mjs`:
+
+| Ca (5) | Ghim điều gì |
+|---|---|
+| vỏ màn | `src/ui/vietTruyen/index.js` **≤ 150 dòng** (cùng cách đếm với `goi-chung.test.mjs`), nối đủ ba mảnh (`vietTruyenFlow.js` · `vietTruyenHtml.js` · `htmlThan`/`htmlDem`/`htmlTienDo`), **KHÔNG** có `addEventListener`, và **không chép lại câu chữ 18+** (cổng chặn phải lấy từ `kiemVietTruyenTruocKhiChay`) |
+| nút đi qua bảng sự kiện | mọi `data-act` **của thân màn** đều có khoá trong `src/ui/suKien/vietTruyen.js` và ngược lại; nút MỞ màn (`viet-truyen`) nằm ở `app.js`; bảng xuất đúng MỘT hàm dựng, không tự đăng ký; bảng gộp `ui/suKien/index.js` nạp nó |
+| ba khối, ba trạng thái | `htmlThan` render đủ ba khối với `ctx` đang chạy / đang nghỉ / trạng thái lạ / nguồn rỗng / có cổng 18+, không ném lỗi; thanh tiến độ `width:50%` cho lô 2/4; nút chính đổi vai; trạng thái lạ ⇒ "lỗi" |
+| chịu đầu vào thiếu | `htmlThan({})`, `null`, `undefined`, `ds` có `null`/số/chuỗi… đều không ném lỗi |
+| `esc()` | payload phá ngữ cảnh thành CHỮ (`&lt;i id=&quot;…&gt;`, `&amp;`, `&#039;`), không tạo phần tử/thuộc tính thật |
+
+**Bẫy gặp ở Đợt 4 (đừng vấp lại):**
+- **`data-act` phải là chuỗi literal HOÀN CHỈNH trong mã nguồn.** Ca "mọi `data-act` có hàm xử lý"
+  quét mã theo CHUỖI (không dùng regex), nên một `data-act` ghép từ biểu thức ba ngôi
+  (`data-act="' + (x ? "a" : "b") + '"`) bị đọc thành rác. Muốn nút đổi vai thì viết HAI nhánh rời.
+- **Đừng quét `app.js` rồi đòi mọi `data-act` phải có trong bảng của màn này.** `app.js` chứa
+  `data-act` của hàng chục màn khác (mỗi màn một bảng riêng); chỉ soi `viet-truyen` ở `app.js`.
+- **Trạng thái để kiểm cổng 18+ phải là lúc NGHỈ.** Nút Dừng không bao giờ bị khoá, nên khi
+  `chay` khác `null` thì không còn `data-act="vt-chay"` nào để mà khoá — ca phải truyền `chay: null`.
+- **`rr-ten-that` từng báo OAN vì một NHÃN mặc định của app.** Dữ liệu THẬT trong kv có thể trùng
+  nguyên một nhãn do chính app sinh ra (gặp thật: một nhóm tin nhắn còn mang tiêu đề mặc định). Bộ
+  quét lấy mẫu từ kv rồi tìm trong gói, nên nó bắt được cả những chuỗi như vậy và báo rò rỉ. Đã bổ
+  sung một mục **NHÃN MẶC ĐỊNH** trong `TU_THUONG` của `tests/browser/rr-ten-that.js`; thêm nhãn mới
+  vào đó khi app có thêm nhãn, **tuyệt đối không thêm tên riêng**. (Một tên thật TRÙNG ĐÚNG một nhãn
+  mặc định sẽ lọt lưới — chấp nhận có ý thức: báo oan sẽ khiến cả bộ bị tắt.)
+
+**Kiểm chứng Đợt 4:** tầng Node **25 tệp · 5 961 khẳng định · 0 không đạt** (Đợt 3: 5 747). Tầng
+trình duyệt **1 083/1 083 khẳng định · 0 cảnh báo** = một lượt **39 bước** (39 tên trong `DANH_MUC`
+trừ `gy-goi-y`) **1 037/1 037**, cộng `gy-goi-y` **một lượt riêng** (46/46) — lý do chạy riêng vẫn như
+Đợt 3 (bộ này phụ thuộc trạng thái nút ✨ do các bộ `nh-*` để lại). `rr-ten-that` 5/5 trên 171 tệp.
+`esc-bat-bien` lên **30 khẳng định** (thêm màn mới vào danh sách rà).
+
 ## Thêm một bộ kiểm thử
 
 1. Viết `tests/browser/<tên>.js`, dùng `import { test, ok, eq, eqSau } from "../lib/h.js"`.

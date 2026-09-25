@@ -24,7 +24,7 @@ const NH = String.fromCharCode(34);
 const NHAY = String.fromCharCode(39);
 
 const SU_KIEN = "src/ui/suKien";
-const TEP_BANG = ["anh.js", "canh.js", "chat.js", "chung.js", "lorebook.js", "nguoiLon.js", "vangMat.js"];
+const TEP_BANG = ["anh.js", "canh.js", "chat.js", "chung.js", "lorebook.js", "nguoiLon.js", "vangMat.js", "vietTruyen.js"];
 
 // ------------------------------------------------------------------ đọc tệp (giống goi-chung)
 let fsMod = null;
@@ -168,7 +168,7 @@ function coXuLy(text, act) {
 }
 
 // ------------------------------------------------------------------ luật 2: bảng theo tính năng
-test("bảy bảng sự kiện chia theo tính năng, không hành động nào trùng tên", async () => {
+test("tám bảng sự kiện chia theo tính năng, không hành động nào trùng tên", async () => {
   const bd = await boDoc();
   if (!bd) {
     ok(true, "(bỏ qua — môi trường không đọc được tệp)");

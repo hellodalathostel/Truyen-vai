@@ -21,10 +21,11 @@ import { bangCanh } from "./canh.js";
 import { bangNguoiLon } from "./nguoiLon.js";
 import { bangVangMat } from "./vangMat.js";
 import { bangLorebook } from "./lorebook.js";
+import { bangVietTruyen } from "./vietTruyen.js";
 
-// Bảy bảng con, theo thứ tự gộp. Xuất ra để ca kiểm thử tĩnh soi được TỪNG bảng (trùng tên
+// Tám bảng con, theo thứ tự gộp. Xuất ra để ca kiểm thử tĩnh soi được TỪNG bảng (trùng tên
 // giữa hai bảng, thiếu tệp, tệp lạ không ai gọi).
-export const BANG_CON = [bangChung, bangChat, bangAnh, bangCanh, bangNguoiLon, bangVangMat, bangLorebook];
+export const BANG_CON = [bangChung, bangChat, bangAnh, bangCanh, bangNguoiLon, bangVangMat, bangLorebook, bangVietTruyen];
 
 // `dsBang` có giá trị mặc định là `BANG_CON` (app.js gọi `gopBangSuKien(SU_KIEN_DEPS)` như cũ).
 // Tham số thứ hai chỉ để ca kiểm thử Node ghim được luật "trùng tên thì phải NÉM LỖI" bằng hai

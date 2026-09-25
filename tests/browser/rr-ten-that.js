@@ -47,6 +47,11 @@ const TU_THUONG = [
   "bản sao", "sự kiện", "kết quả", "trạng thái", "thời gian", "tính năng", "chi tiết",
   "ghi chú", "ví dụ", "dữ liệu", "đoạn", "bước", "màn", "hộp", "nút", "khối", "dòng", "tệp",
   "thiết lập", "tuỳ chọn", "chọn", "hiển thị", "cài đặt", "thông báo", "đồng ý", "huỷ",
+  // NHÃN MẶC ĐỊNH của ứng dụng (đợt 4 gặp thật): dữ liệu thật trong kv có thể TRÙNG NGUYÊN một
+  // nhãn do chính app sinh ra — vd một nhóm tin nhắn còn mang tiêu đề mặc định. Chuỗi như vậy nằm
+  // sẵn trong mã vì đó là NHÃN, không phải vì rò rỉ, nên phải bỏ qua. Thêm nhãn mặc định mới vào
+  // đây khi app có thêm nhãn — KHÔNG thêm tên riêng nào.
+  "hội thoại mới", "hội thoại đã xoá", "chưa có tiêu đề", "không có tiêu đề",
 ];
 
 const PAT = new Set();

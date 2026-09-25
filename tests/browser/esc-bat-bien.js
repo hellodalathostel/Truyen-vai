@@ -176,6 +176,7 @@ await bam("chat · ghi biên niên", '[data-act="facts-msg"]', 700, H_CHAT);
 await bam("chat · khép cảnh", '[data-act="khep-canh"]', 900, H_CHAT);
 await bam("chat · dựng ảnh", '[data-act="tao-anh-msg"]', 900, H_CHAT);
 await bam("chat · gợi ý lời đáp", '[data-act="suggest"]', 800, H_CHAT);
+await bam("chat · viết thành truyện", '[data-act="viet-truyen"]', 800, H_CHAT);
 await bam("chat · menu", '[data-act="toggle-chat-menu"]', 500, H_CHAT);
 
 dongHet();

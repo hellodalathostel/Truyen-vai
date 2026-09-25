@@ -60,6 +60,8 @@ import { openDaoDien as moDaoDien } from "./ui/daoDien/index.js";
 import { renderDashboard as moBangDieuKhien } from "./ui/bangDieuKhien/index.js";
 // Đợt 6d — sửa hồ sơ ngoại hình: thân màn nằm ở `src/ui/suaNgoaiHinh/`.
 import { openSuaNgoaiHinh as moSuaNgoaiHinh } from "./ui/suaNgoaiHinh/index.js";
+// Giai đoạn 8 · Đợt 4 — "Viết thành truyện": thân màn nằm ở `src/ui/vietTruyen/`.
+import { openVietTruyen as moVietTruyen } from "./ui/vietTruyen/index.js";
 import { gopBangSuKien } from "./ui/suKien/index.js";
 
 const app = {
@@ -2011,6 +2013,7 @@ function renderChat(story, conv) {
         '<button class="icon-btn chat-more-btn" data-act="toggle-chat-menu" aria-label="Thao tác khác" aria-haspopup="menu" aria-expanded="false" title="Thao tác khác">' + icon("menu", 18) + "</button>" +
         '<div class="chat-menu" role="menu" hidden>' +
           '<button class="chat-menu-item" role="menuitem" data-act="tao-anh">' + icon("image", 15) + "<span>Dựng ảnh cho cảnh này</span></button>" +
+          '<button class="chat-menu-item" role="menuitem" data-act="viet-truyen">' + icon("scroll", 15) + "<span>Viết thành truyện</span></button>" +
           '<button class="chat-menu-item" role="menuitem" data-act="edit-conv">' + icon("edit", 15) + "<span>Sửa hội thoại</span></button>" +
           '<button class="chat-menu-item" role="menuitem" data-act="chronicle-from-conv">' + icon("pin", 15) + "<span>Ghi vào biên niên sử</span></button>" +
           lbItem +
@@ -5208,6 +5211,35 @@ function openLorebook() {
   return moLorebook(LOREBOOK_DEPS);
 }
 
+// ------------------------------------------------------------------ viết thành truyện
+// Bảng phụ thuộc của màn "Viết thành truyện" (Giai đoạn 8 · Đợt 4): CHỈ hàm CÒN LẠI của app.
+// Nguồn/chia lô/nén/nguyên tắc prompt/cổng 18+ nằm ở `src/ui/vietTruyen/vietTruyenFlow.js` (thuần,
+// đã có ca Node từ đợt 1–3). Ca "bảng DEPS hai chiều" ghim bảng này khớp ĐÚNG ba hàm màn gọi:
+// hai hàm đọc dữ liệu hiện tại, và một hàm tải tệp văn bản cho nút xuất .md.
+const VIET_TRUYEN_DEPS = {
+  currentStory, currentConv, taiXuong,
+};
+
+function openVietTruyen() {
+  return moVietTruyen(VIET_TRUYEN_DEPS);
+}
+
+// Tải một chuỗi thành TỆP VĂN BẢN (nút "Xuất .md" của màn trên). Không dùng `download` của
+// `dom.js` vì hàm đó cố định `application/json` cho các tệp dữ liệu (sao lưu/xuất truyện) —
+// còn đây là văn bản cho người đọc.
+function taiXuong(tenFile, noiDung) {
+  const blob = new Blob([String(noiDung === undefined || noiDung === null ? "" : noiDung)], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = tenFile || "truyen-vai.md";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  return true;
+}
+
 // ------------------------------------------------------------------ giao kèo
 function openGiaoKeo() {
   const story = currentStory();
@@ -5879,6 +5911,7 @@ const SU_KIEN_DEPS = {
   openConvEditor, openDaoDien, openGiaoKeo, openHienDien, openKhepCanh,
   openLorebook, openNewStoryModal, openSettings, openStory, openStoryMenu,
   openTaoAnh, xuatTatCa, boQuaVangMat, capNhatConv, doiMucDo,
+  openVietTruyen,
   dongCanhRieng, endChapter, factsFromMessage, generateTurn, giaoDichApp,
   hoiVoHieuCanh, maybeCompact, moThuVienAnh, moVietLaiTinGiua, moXemAnh,
   moXemAnhId, nvtsCuaTin, onContinueAi, onOpening, onSend,
