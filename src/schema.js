@@ -248,7 +248,7 @@ export const MIGRATION_TRUYEN = [
   { phienBan: 5, ten: "Chế độ Đạo diễn", moTa: "Truyện có `daoDien` (`dinhChinh` = lớp phủ đính chính đảo ngược được, `huong` = hướng phát triển kèm tiến độ)." },
   { phienBan: 6, ten: "Thời gian vắng mặt", moTa: "Truyện có `thoiGian` (chế độ/ngưỡng vắng mặt + phiên gần nhất) và `ngoaiManHinh` (sự kiện xảy ra khi người chơi vắng mặt, kèm ai biết và mức hé lộ)." },
   { phienBan: 7, ten: "Liên kết hồ sơ ngoại hình", moTa: "Nhân vật và người chơi có `ngoaiHinhId` + `bietDanh`; ảnh cảnh có `hoSoIds`. Liên kết chỉ theo id, không bao giờ tự suy theo tên." },
-  { phienBan: 8, ten: "Bản viết thành truyện", moTa: "Truyện có `truyenVietRa`: các bản văn xuôi dẫn xuất từ một hội thoại (từ log thô hoặc từ cảnh đã khép), lưu riêng và KHÔNG ghi ngược vào dữ liệu nhập vai." },
+  { phienBan: 8, ten: "Bản viết thành truyện", moTa: "Truyện có `truyenVietRa`: các bản văn xuôi dẫn xuất từ một hội thoại (từ log thô hoặc từ cảnh đã khép), lưu riêng và KHÔNG ghi ngược vào dữ liệu nhập vai. Đợt 5 bổ sung (không đổi số phiên bản vì trường tuỳ chọn, bản cũ bỏ qua): mục bị bấm Dừng giữa chừng có thêm cờ `daDung` — phần văn đã viết vẫn được giữ và `trangThai` vẫn là `xong`." },
 ];
 
 export const MIGRATION_HO_SO = [

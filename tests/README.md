@@ -580,6 +580,45 @@ trừ `gy-goi-y`) **1 037/1 037**, cộng `gy-goi-y` **một lượt riêng** (4
 Đợt 3 (bộ này phụ thuộc trạng thái nút ✨ do các bộ `nh-*` để lại). `rr-ten-that` 5/5 trên 171 tệp.
 `esc-bat-bien` lên **30 khẳng định** (thêm màn mới vào danh sách rà).
 
+**Đợt 5 — NỐI LUỒNG THẬT (gọi AI, nút thật, xuất tệp thật) (đã xong, đã kiểm chứng):**
+
+Khối GIẢ của Đợt 4 đã bị xoá. Luồng thật nằm ở `chayVietTruyen()`; phần "chạm ra ngoài" (vẽ modal,
+gọi `AI.streamText`, áp kết quả + lưu) tách sang tệp MỚI `src/ui/vietTruyen/vietTruyenChay.js`, nên
+`vietTruyenFlow.js` vẫn THUẦN và tầng Node chạy được TRỌN một lượt bằng `viet`/`nen` GIẢ.
+
+| Ca (8 mới, cùng `vietTruyenFlow.test.mjs`) | Ghim điều gì |
+|---|---|
+| luồng chạy thật | nguồn giả nhiều lô ⇒ `viet` được gọi ĐÚNG số lần = số lô (và `nen` 0 lần khi văn còn ngắn); mỗi prompt có khối TĨNH ở ĐẦU và dòng TASK ở CUỐI (`indexOf` khối tĩnh < `indexOf` TASK, TASK là đoạn cuối); `proseDaViet` nối đúng thứ tự, không trùng/thiếu lô nào |
+| lỗi giữa chừng | `viet` ném ở lô 2/3 ⇒ `trangThai === "loi"`, `loiNeu` nêu đúng số lô, `proseDaViet` **giữ nguyên nội dung lô 1** (không mất, không rollback về rỗng) — kể cả phần chữ đã stream dở của lô hỏng cũng được giữ |
+| dừng giữa chừng | `choPhepDung()` trả true sau lô 1 ⇒ lô đang gọi **không bị cắt ngang** (gọi đủ 1 lần rồi mới thoát), `daDung === true`, `trangThai === "xong"`, văn lô 1 nguyên vẹn |
+| nén kích hoạt | dựng `proseDaViet` vượt 0,6 ngân sách token ⇒ lô kế tiếp **dùng bản đã nén** (`nen` được gọi 1 lần, prompt chứa nhãn TÓM TẮT + ĐUÔI và KHÔNG chứa nguyên văn dài), `soLanNen === 1` |
+| cổng 18+ chặn | `story` có `chanNoiDungNguoiLon` khác rỗng ⇒ `choPhep === false`, `trangThai === "loi"`, và **`viet`/`nen` KHÔNG được gọi lần nào** |
+| `demDoanDaDoc` | đếm theo ĐOẠN chứ không theo MẢNH: một đoạn dài bị `chiaLoNguon` cắt làm nhiều mảnh vẫn chỉ tính là 1 đoạn đã đọc |
+| `dsVietRa` | mới nhất lên đầu, là bản SAO (sửa mảng trả về không đụng `story.truyenVietRa`), bỏ phần tử không phải đối tượng |
+| `noiDungDeXuat` | thuần: cắt khoảng trắng, trả `""` cho mục rỗng/thiếu, không ném lỗi với `null`/`undefined` |
+
+Ba khẳng định phụ trong `vietTruyenUi.test.mjs` ghim **lớp chip riêng của bản bị dừng**
+(`vt-chip-daDung`): có ở mục có cờ `daDung`, gắn THÊM vào lớp trạng thái nền
+(`class="vt-chip vt-chip-xong vt-chip-daDung"`), và **không** có ở mục "đã xong" bình thường. Lý do:
+chip xanh của "đã xong" đọc như *thành công*, còn bản viết dở thì không được trông y hệt.
+
+**Bẫy gặp ở Đợt 5 (đừng vấp lại):**
+- **`eq` của `tests/lib/h.js` KHÔNG so mảng** (so theo tham chiếu). So mảng/thứ tự lô phải dùng
+  `eqSau` (so sâu) — dùng nhầm `eq` là ca xanh giả.
+- **`const` không hoist.** `henLuuVietTruyen` (debounce trong `app.js`) phải khai báo TRƯỚC bảng
+  `VIET_TRUYEN_DEPS`, nếu không `boot()` ném `ReferenceError` ngay lúc nạp.
+- **`daDung` là trường TUỲ CHỌN, không tăng `PHIEN_BAN_TRUYEN`.** `chuanHoaTruyen` dùng
+  `Object.assign({}, v, {…})` nên giữ trường lạ; ca schema chỉ cần thấy mô tả v8 nói tới `truyenVietRa`
+  (đã nối thêm vế `daDung`).
+- **Chạy THẬT cần `AI.moPhienSinh()`** trước khi vào luồng (xoá cờ dừng còn sót của lượt nhập vai
+  trước, luật của `ai.js`); thiếu là lô đầu bị dừng ngay.
+
+**Kiểm chứng Đợt 5:** tầng Node **25 tệp · 6 088 khẳng định · 0 không đạt** (Đợt 4: 5 961). Tầng
+trình duyệt **1 083/1 083 khẳng định · 0 cảnh báo** = một lượt **39 bước** (39 tên trong `DANH_MUC`
+trừ `gy-goi-y`) **1 037/1 037**, cộng `gy-goi-y` **một lượt riêng** (46/46) — lý do chạy riêng vẫn như
+Đợt 3/4. `rr-ten-that` **5/5** trên **172 tệp** (thêm `vietTruyenChay.js`). Ngoài ra đã chạy THẬT
+trong preview với **AI thật** (không mock) cả ca xong lẫn ca dừng — xem `src/README.md`, mục Đợt 5.
+
 ## Thêm một bộ kiểm thử
 
 1. Viết `tests/browser/<tên>.js`, dùng `import { test, ok, eq, eqSau } from "../lib/h.js"`.

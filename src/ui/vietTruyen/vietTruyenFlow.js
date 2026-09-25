@@ -254,3 +254,218 @@ export function kiemVietTruyenTruocKhiChay(story) {
   const loiNeu = chuoi(chanNoiDungNguoiLon(story));
   return { choPhep: loiNeu === "", loiNeu };
 }
+
+// ==========================================================================
+// 6. LẮP PROMPT TỪNG LÔ (Đợt 5)
+// ==========================================================================
+// Thứ tự các khối là BẮT BUỘC, theo đúng nguyên tắc "đầu ổn định, cuối TASK thay đổi" của `ai.js`:
+//   [nguyên tắc tĩnh] → [văn đã viết (hoặc bản đã nén + đoạn đuôi giữ nguyên)] → [TASK + nguồn lô]
+// Nhờ vậy phần đầu dùng chung giữa mọi lô (prefix cache dùng lại được), còn phần đổi theo lô nằm ở
+// cuối. KHÔNG đảo thứ tự này, kể cả khi thấy "đọc tự nhiên hơn" — đảo là mất cache và làm model
+// bám theo đoạn nguồn cũ.
+export const NHAN_DA_VIET = "VĂN XUÔI ĐÃ VIẾT (nối tiếp mạch văn này, KHÔNG viết lại phần đã có):";
+export const NHAN_TOM_TAT = "TÓM TẮT PHẦN XA ĐÃ VIẾT TRƯỚC ĐÓ (phần này đã được nén lại, vẫn là sự thật đã kể):";
+export const NHAN_DUOI = "PHẦN VĂN VỪA VIẾT (giữ nguyên, bản viết tiếp phải nối liền ngay sau đây):";
+export const NHAN_NGUON = "NGUỒN CỦA LÔ NÀY (viết lại thành văn xuôi, chỉ được dùng đúng sự thật trong đây):";
+
+// Dòng TASK — phần ĐỔI theo lô nên nằm CUỐI prompt. Nhắc lại ba việc dễ hỏng nhất của một lô (nối
+// mạch, không sót đoạn, không viết lại) và luật chương của bản văn xuôi (mục 5 của bản chỉ đạo):
+// heading chương là của BẢN PROSE NÀY, không đụng `story.chuongs` của phần nhập vai.
+export function nhanTaskLo(lo, tongLo) {
+  const n = Math.max(0, Math.floor(Number(tongLo) || 0));
+  const i = Math.max(0, Math.floor(Number(lo) || 0));
+  return (
+    "TASK: Viết tiếp thành văn xuôi kể chuyện cho " +
+    (n > 1 ? "lô nguồn thứ " + i + "/" + n + " ở dưới" : "toàn bộ nguồn ở dưới") +
+    ".\n" +
+    "- Viết nối liền mạch với phần văn phía trên; KHÔNG viết lại và KHÔNG tóm tắt lại phần đã viết.\n" +
+    "- Viết đủ MỌI đoạn nguồn trong lô này thành cảnh thật (có hành động, lời nói, cảm xúc cụ thể), không bỏ sót đoạn nào.\n" +
+    '- Khi nội dung đã dài hoặc chuyển sang bối cảnh lớn khác, tự chèn heading chương theo mẫu "## Chương <số>: <tiêu đề ngắn>" — đây là chương của BẢN VĂN XUÔI NÀY (không phải chương của bản nhập vai).\n' +
+    "- Chỉ trả về phần văn xuôi, không lời dẫn, không ghi chú, không giải thích."
+  );
+}
+
+// Prompt đầy đủ của MỘT lô. `tomTat` chỉ có khi lô này dùng bản đã nén (khi đó `duoi` là phần văn
+// giữ nguyên để nối mạch); nếu không nén thì đưa TOÀN BỘ văn đã viết (`proseDaViet`) — hai đường
+// loại trừ nhau, không bao giờ đưa cả hai (đưa cả hai là nhân đôi ngữ cảnh).
+export function dungPromptVietLo({ nguyenTac, proseDaViet, tomTat, duoi, doanLo, lo, tongLo }) {
+  const parts = [chuoi(nguyenTac).trim()];
+  const tt = chuoi(tomTat).trim();
+  const cuoi = chuoi(duoi).trim();
+  if (tt) parts.push(NHAN_TOM_TAT + "\n" + tt + (cuoi ? "\n\n" + NHAN_DUOI + "\n" + cuoi : ""));
+  else if (chuoi(proseDaViet).trim()) parts.push(NHAN_DA_VIET + "\n" + chuoi(proseDaViet).trim());
+  parts.push(nhanTaskLo(lo, tongLo) + "\n\n" + NHAN_NGUON + "\n" + (Array.isArray(doanLo) ? doanLo : []).map(chuoi).join("\n\n"));
+  return parts.filter((x) => x.trim() !== "").join("\n\n");
+}
+
+// Prompt của lượt gọi AI PHỤ dùng để nén phần đầu văn đã viết (mục 3 của bản chỉ đạo). Đây là dữ
+// liệu TẠM trong lúc sinh — bản tóm tắt KHÔNG được lưu vào truyện.
+export function dungPromptNenProse(phanDau) {
+  return (
+    "TÓM TẮT PHẦN VĂN XUÔI Ở DƯỚI thành MỘT đoạn ngắn 4-6 câu, tiếng Việt tự nhiên.\n" +
+    "- Giữ lại: tên riêng, sự kiện đã xảy ra, lời hứa, bí mật đã lộ, cảm xúc dai dẳng, thay đổi trong quan hệ.\n" +
+    "- Không thêm chi tiết không có trong phần văn đó; không nhận xét, không mở bài, không kết luận.\n" +
+    "- Chỉ trả về đoạn tóm tắt.\n\n" +
+    "PHẦN VĂN XUÔI CẦN NÉN:\n" + chuoi(phanDau)
+  );
+}
+
+// Nội dung xuất/copy của một mục `truyenVietRa`. Thuần: chỉ ĐỌC mục và trả CHUỖI (rỗng nếu chưa có
+// gì) — phần gọi clipboard/tải tệp mới cần DOM, nằm ở vỏ màn.
+export function noiDungDeXuat(muc) {
+  return chuoi(muc && muc.noiDung).trim();
+}
+
+// Danh sách mục để HIỆN: mới nhất lên đầu (bản vừa viết xong nằm ngay trên, không phải cuộn xuống
+// đáy), và là bản SAO của mảng trong truyện — màn không được cầm một mảng có thể bị `store.js` thay
+// thế trong lúc đang chạy.
+export function dsVietRa(story) {
+  return (Array.isArray(story && story.truyenVietRa) ? story.truyenVietRa : [])
+    .filter((m) => m && typeof m === "object")
+    .slice()
+    .sort((a, b) => (Number(b.taoLuc) || 0) - (Number(a.taoLuc) || 0));
+}
+
+// Số ĐOẠN NGUỒN đã đọc HẾT sau khi xử lý xong các mảnh `manhDaXong`. Vì `chiaLoNguon` chỉ CẮT chứ
+// không đảo chữ, mỗi mảnh luôn là một phần ĐẦU của đoạn đang đọc — nên chỉ cần bám con trỏ: hết
+// đoạn khi tổng số ký tự đã lấy bằng đúng phần còn lại của đoạn đó. (Đếm theo mảnh là SAI: một
+// đoạn dài bị cắt thành nhiều mảnh sẽ bị tính thành nhiều đoạn.)
+export function demDoanDaDoc(nguon, manhDaXong) {
+  const goc = (Array.isArray(nguon) ? nguon : []).map(chuoi).filter((t) => t !== "");
+  if (!goc.length) return 0;
+  let i = 0;
+  let con = goc[0].length;
+  let n = 0;
+  for (const m of Array.isArray(manhDaXong) ? manhDaXong : []) {
+    let dai = chuoi(m).length;
+    while (dai > 0 && i < goc.length) {
+      if (dai >= con) {
+        dai -= con;
+        i += 1;
+        n += 1;
+        con = i < goc.length ? goc[i].length : 0;
+      } else {
+        con -= dai;
+        dai = 0;
+      }
+    }
+    if (i >= goc.length) break;
+  }
+  return n;
+}
+
+// ==========================================================================
+// 7. LUỒNG CHẠY THẬT (Đợt 5)
+// ==========================================================================
+// Chạy cả một lượt "viết thành truyện": cổng 18+ → chia lô → với mỗi lô: (nén nếu cần) → lắp prompt
+// → gọi AI → nối prose → báo tiến độ → kiểm xem người dùng có xin dừng không.
+//
+// Vì sao hai lời gọi AI được TRUYỀN VÀO (`viet`/`nen`) chứ không import `ai.js`: cùng lý do như
+// `countTokens` — tầng Node cắm bản GIẢ nên kiểm được ĐÚNG số lần gọi, ĐÚNG thứ tự khối prompt và
+// ĐÚNG cách nối prose, mà không tốn quota (mục 9 của bản chỉ đạo). Hàm này KHÔNG đụng DOM, không
+// đọc kv, không ghi truyện: nó chỉ trả về kết quả, còn vỏ màn lo phần lưu/hiện.
+//
+//      viet(prompt, khiChunk, thongTin) → Promise<{ text, stopReason }>   (dạng `streamText` ai.js)
+//      nen(prompt)                      → Promise<{ text }>
+//      choPhepDung()                    → boolean  (đọc giữa hai lô, KHÔNG cắt ngang lô đang gọi)
+//      khiChunk(vanTinhDenDay, {lo, tongLo}) — văn xuôi cập nhật dần trong lúc model trả chữ
+//      khiMoiLo({lo, tongLo, proseDaViet, daDoc, tongDoan}) — xong một lô (vỏ màn lưu tiến độ ở đây)
+//
+// Kết quả: `trangThai` chỉ nhận "xong" hoặc "loi" (đúng ba giá trị của schema, KHÔNG bao giờ để mục
+// kẹt ở "dangChay"), `daDung` = người dùng bấm dừng giữa hai lô, `loiNeu` = lý do cho giao diện.
+export async function chayVietTruyen(opts) {
+  const o = opts || {};
+  const kq = {
+    choPhep: true, trangThai: "xong", daDung: false, loiNeu: "", proseDaViet: "",
+    soLo: 0, soLoDaXong: 0, soLanViet: 0, soLanNen: 0, daDoc: 0, tongDoan: 0,
+  };
+  const cong = kiemVietTruyenTruocKhiChay(o.story);
+  kq.choPhep = cong.choPhep;
+  if (!cong.choPhep) {
+    kq.trangThai = "loi";
+    kq.loiNeu = cong.loiNeu;
+    return kq;
+  }
+  const nguon = layNguonVietTruyen(o.story, o.hoiThoaiId, o.loaiNguon, o.tinNhan);
+  const dsLo = chiaLoNguon(nguon, gioiHanKyTuChoLo(o.countTokens, o.idealMaxTokens, nguon.join("\n\n")));
+  kq.soLo = dsLo.length;
+  kq.tongDoan = nguon.length;
+  if (!dsLo.length) {
+    kq.trangThai = "loi";
+    kq.loiNeu = "Hội thoại này chưa có đoạn nguồn nào để viết.";
+    return kq;
+  }
+  const nguyenTac = layNguyenTacVietTruyenCho(o.story);
+  const manhDaXong = [];
+  let prose = "";
+  for (let i = 0; i < dsLo.length; i++) {
+    // (a) nén phần xa nếu cần — lô đầu thì chưa có gì để nén.
+    let tomTat = "";
+    let duoi = "";
+    if (i > 0 && canNenProse(prose, o.idealMaxTokens, o.countTokens)) {
+      const nen = typeof o.nen === "function" ? o.nen : null;
+      try {
+        if (!nen) throw new Error("thiếu hàm nén");
+        kq.soLanNen += 1;
+        const r = await nen(dungPromptNenProse(phanDauProseCanNen(prose, TY_LE_GIU_CUOI)));
+        tomTat = chuoi(r && r.text).trim();
+        if (!tomTat) throw new Error("model trả về bản tóm tắt rỗng");
+        duoi = cutProseGiuMachVan(prose, TY_LE_GIU_CUOI);
+      } catch (e) {
+        kq.trangThai = "loi";
+        kq.loiNeu = loiChay("Không nén được phần văn đã viết", i + 1, dsLo.length, e);
+        break;
+      }
+    }
+    // (b) lô này: giữ cả phần chữ đã sinh dở nếu lượt gọi hỏng giữa chừng — người dùng đã nhìn thấy
+    // nó trên màn hình, xoá đi là mất chữ (cùng quy ước với lượt nhập vai bị dừng).
+    let dangViet = "";
+    let res = null;
+    try {
+      kq.soLanViet += 1;
+      res = await o.viet(
+        dungPromptVietLo({ nguyenTac, proseDaViet: prose, tomTat, duoi, doanLo: dsLo[i], lo: i + 1, tongLo: dsLo.length }),
+        o.khiChunk ? (c) => { dangViet += chuoi(c); o.khiChunk(noiThem(prose, dangViet), { lo: i + 1, tongLo: dsLo.length }); } : undefined,
+        { lo: i + 1, tongLo: dsLo.length }
+      );
+      if (!res || res.stopReason === "error") throw new Error("model trả lỗi");
+      if (chuoi(res.text).trim() === "") throw new Error("model không trả về chữ nào");
+    } catch (e) {
+      prose = noiThem(prose, chuoi(res && res.text) || dangViet);
+      kq.trangThai = "loi";
+      kq.loiNeu = loiChay("Không viết được", i + 1, dsLo.length, e);
+      break;
+    }
+    prose = noiThem(prose, res.text);
+    for (const m of dsLo[i]) manhDaXong.push(m);
+    kq.soLoDaXong = i + 1;
+    kq.proseDaViet = prose;
+    kq.daDoc = demDoanDaDoc(nguon, manhDaXong);
+    if (typeof o.khiMoiLo === "function") {
+      o.khiMoiLo({ lo: i + 1, tongLo: dsLo.length, proseDaViet: prose, daDoc: kq.daDoc, tongDoan: kq.tongDoan });
+    }
+    if (typeof o.choPhepDung === "function" && o.choPhepDung()) {
+      kq.daDung = true;
+      break;
+    }
+  }
+  kq.proseDaViet = prose;
+  if (kq.trangThai !== "xong") kq.daDung = false;
+  return kq;
+}
+
+function noiThem(prose, them) {
+  const t = chuoi(them).trim();
+  if (!t) return prose;
+  return prose ? prose + "\n\n" + t : t;
+}
+
+// Lý do cho giao diện. Nói rõ phần đã viết KHÔNG bị xoá — đây là điều người dùng cần biết trước
+// tiên khi một lô hỏng (họ vẫn xem/xuất được phần đã có).
+function loiChay(viec, lo, tongLo, e) {
+  const ly = chuoi(e && e.message).trim();
+  return (
+    viec + " ở lô " + lo + "/" + tongLo + (ly ? " (" + ly + ")" : "") +
+    ". Phần văn đã viết vẫn được giữ nguyên — bạn xem và xuất được ngay."
+  );
+}

@@ -5212,12 +5212,20 @@ function openLorebook() {
 }
 
 // ------------------------------------------------------------------ viết thành truyện
-// Bảng phụ thuộc của màn "Viết thành truyện" (Giai đoạn 8 · Đợt 4): CHỈ hàm CÒN LẠI của app.
-// Nguồn/chia lô/nén/nguyên tắc prompt/cổng 18+ nằm ở `src/ui/vietTruyen/vietTruyenFlow.js` (thuần,
-// đã có ca Node từ đợt 1–3). Ca "bảng DEPS hai chiều" ghim bảng này khớp ĐÚNG ba hàm màn gọi:
-// hai hàm đọc dữ liệu hiện tại, và một hàm tải tệp văn bản cho nút xuất .md.
+// Bảng phụ thuộc của màn "Viết thành truyện" (Giai đoạn 8 · Đợt 4–5): CHỈ hàm CÒN LẠI của app.
+// Nguồn/chia lô/nén/nguyên tắc prompt/cổng 18+/luồng chạy nằm ở `src/ui/vietTruyen/vietTruyenFlow.js`
+// (thuần, đã có ca Node từ đợt 1–3 và đợt 5). Ca "bảng DEPS hai chiều" ghim bảng này khớp ĐÚNG bốn
+// hàm màn gọi: hai hàm đọc dữ liệu hiện tại, một hàm tải tệp văn bản (nút xuất .md), một hàm lưu
+// có giảm nhịp (ghi tiến độ dở dang sau mỗi lô).
+// Lưu cốt truyện có GIẢM NHỊP cho màn "Viết thành truyện": mỗi lô viết xong là một mốc tiến độ, mà
+// văn xuôi thì dài dần — ghi kv liên tục vừa phí vừa dễ chồng nhau. Gộp các lần gọi trong 900ms
+// thành MỘT lần ghi; `luuTruyen` đã tự báo lỗi và tự giữ cổng 18+ nên ở đây không cần xử lý gì thêm.
+// Khai báo TRƯỚC bảng DEPS bên dưới: `const` không được hoist như `function`, mà bảng thì lấy giá trị
+// ngay lúc tạo.
+const henLuuVietTruyen = debounce((story) => { luuTruyen(story, "viết thành truyện"); }, 900);
+
 const VIET_TRUYEN_DEPS = {
-  currentStory, currentConv, taiXuong,
+  currentStory, currentConv, taiXuong, henLuuVietTruyen,
 };
 
 function openVietTruyen() {

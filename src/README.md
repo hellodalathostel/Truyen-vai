@@ -1085,11 +1085,12 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
 **Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Giai đoạn 8
-Đợt 3 (ba nguyên tắc prompt + cổng 18+ trước khi chạy)**
-`https://user.uploads.dev/file/f5c50cadf66e76eb509d30848a45949d.zip`
-(167 tệp, 828 KB — gồm `src/` byte-for-byte, `tests/**` với fixture prompt, `main.pjs`,
+Đợt 4 (ba tệp màn `ui/vietTruyen/` — khung + trạng thái GIẢ để kiểm bố cục)**
+`https://user.uploads.dev/file/ab513deff4c541e4838ef68a00d932a8.zip`
+(171 tệp, 847 KB — gồm `src/` byte-for-byte, `tests/**` với fixture prompt, `main.pjs`,
 `index.html`, `package.json`, CI; **không** chứa `.git`; đã chạy lại tầng Node trên chính gói tải
-về: **5 747 khẳng định · 0 không đạt**). Các gói trước: Giai đoạn 8 Đợt 2
+về: **5 961 khẳng định · 0 không đạt**). Các gói trước: Giai đoạn 8 Đợt 3
+`https://user.uploads.dev/file/f5c50cadf66e76eb509d30848a45949d.zip`; Giai đoạn 8 Đợt 2
 `https://user.uploads.dev/file/96a47ab75c79525dc6d95fe0d120566f.zip`; Giai đoạn 8 Đợt 1
 `https://user.uploads.dev/file/fe2502abb3b5d7f78e83cb6d58309abe.zip`; Giai đoạn 7a (bản 2 — thêm ca
 CẤU TRÚC) `https://user.uploads.dev/file/7261be153032279f469cbb7c728fb272.zip`; Giai đoạn 7a (bản 1)
@@ -1104,8 +1105,9 @@ Giai đoạn 5: `https://user.uploads.dev/file/6d32cb23b2b5d3fdb6c28bea8b310f16.
 `https://user.uploads.dev/file/29c20b8b44adbddd616bca6b2fbef024.zip`).
 
 *Lưu ý quy trình:* gói zip **không thể** chứa URL của chính nó, nên `src/README.md` **bên trong
-gói** vẫn trỏ tới **Giai đoạn 8 Đợt 2**; dòng vừa cập nhật ở trên chỉ có ở workspace (và ở repo
-sau khi chủ dự án đẩy lên).
+gói** vẫn trỏ tới **Giai đoạn 8 Đợt 4** (lần đóng TRƯỚC); dòng vừa cập nhật ở trên (Đợt 5) chỉ có
+ở workspace (và ở repo sau khi chủ dự án đẩy lên). Vì thế bước kiểm sau khi tải lại URL chỉ được
+phép thấy ĐÚNG khối URL này khác nhau giữa gói và workspace.
 
 - Tầng Node: `npm test` (không cần trình duyệt, không tốn quota, chạy trên CI).
 - Tầng trình duyệt: mở generator rồi nạp `tests/browser/runner.js` và gọi `chayTatCa()`.
@@ -1806,6 +1808,87 @@ mang tiêu đề mặc định), nên nhãn mặc định được đưa vào da
 
 Đã kiểm bố cục bằng ảnh chụp ở **1100×820** (khối nghỉ và khối đang chạy) và **390×844** (điện thoại):
 ba khối xếp dọc, không tràn ngang (`scrollWidth == clientWidth` ở mọi phần tử của màn).
+
+### Đợt 5 — NỐI LUỒNG THẬT: gọi AI, nút thật, xuất tệp thật (đã xong)
+
+Khối GIẢ của Đợt 4 (`TOC_GIA`/`LOI_GIA`/`VAN_GIA*` + biển `GIẢ — XOÁ Ở ĐỢT 5` trong
+`vietTruyenHtml.js`) đã bị **XOÁ SẠCH**. Màn giờ chạy bằng luồng thật: chia lô nguồn → gọi AI từng
+lô → nối văn xuôi → lưu tiến độ dở dang sau MỖI lô → xuất `.md`/sao chép bằng nội dung thật.
+
+**Nguyên tắc giữ nguyên từ Đợt 1–3:** không sửa hàm nào đã có; prompt vẫn theo đúng trật tự "đầu ổn
+định, cuối TASK thay đổi" của `ai.js`; cổng 18+ vẫn là MỘT nguồn duy nhất
+(`kiemVietTruyenTruocKhiChay`).
+
+**Tệp mới `src/ui/vietTruyen/vietTruyenChay.js` (81 dòng)** — tách riêng ba việc "chạm ra ngoài" để
+`vietTruyenFlow.js` vẫn THUẦN và tầng Node vẫn kiểm được trọn một lượt chạy:
+
+| Hàm | Việc |
+|---|---|
+| `ctxCua(s)` · `veThan(s)` | Dựng lại thân màn từ chuỗi HTML của `vietTruyenHtml.js` |
+| `veDem(s)` | Cập nhật TẠI CHỖ riêng khối đếm + khối tiến độ (`[data-vt-dem]`, `[data-vt-tien-do]`) — không dựng lại cả màn nên giữ vị trí cuộn |
+| `veVan(s, text)` | Đẩy văn xuôi chạy dần vào thẻ đang viết; gộp mẩu chữ đến dồn dập (≤ ~8 lần/giây); cuối mỗi lô vỏ màn vẽ lại từ dữ liệu nên không sót mẩu cuối |
+| `goiAI` · `vietBangAI` · `nenBangAI` | Bọc `AI.streamText({instruction, loai, onChunk})` → `{text, stopReason}`. Hai nhãn nhật ký LLM: `viết thành truyện` và `viết thành truyện · nén phần đã viết` |
+| `ketThucLuot(s, muc, kq)` | Áp kết quả một lượt: mục RỖNG thì bỏ hẳn khỏi `truyenVietRa`; mục có chữ thì LUÔN giữ (kể cả khi lỗi/dừng); gắn `daDung` khi bị dừng; toast theo từng đuôi; vẽ lại; `s.D.henLuuVietTruyen(story)` |
+
+**Thêm vào `vietTruyenFlow.js` (mục 6+7):**
+
+| Hàm / hằng | Việc |
+|---|---|
+| `NHAN_DA_VIET` · `NHAN_TOM_TAT` · `NHAN_DUOI` · `NHAN_NGUON` | Nhãn bốn khối của prompt, tách thành hằng để ca test bám vào mà không giòn |
+| `nhanTaskLo(lo, tongLo)` | Dòng TASK — phần ĐỔI theo lô nên nằm CUỐI. Nhắc nối mạch / không sót đoạn / không viết lại, **và** luật chương của bản văn xuôi (mục 5 của bản chỉ đạo): `## Chương <số>: <tiêu đề ngắn>` là của BẢN PROSE, không đụng `story.chuongs` |
+| `dungPromptVietLo({nguyenTac, proseDaViet, tomTat, duoi, doanLo, lo, tongLo})` | `[nguyên tắc tĩnh] → [văn đã viết HOẶC bản đã nén + đuôi giữ nguyên] → [TASK + nguồn lô]`. Hai đường văn-context **loại trừ nhau** — không bao giờ đưa cả hai (đưa cả hai là nhân đôi ngữ cảnh) |
+| `dungPromptNenProse(phanDau)` | Prompt lượt gọi PHỤ để nén phần đầu; bản tóm tắt là dữ liệu TẠM, không lưu vào truyện |
+| `noiDungDeXuat(muc)` | Nội dung để xuất/copy — THUẦN, chỉ đọc mục và trả chuỗi; phần gọi clipboard/tải tệp nằm ở vỏ |
+| `dsVietRa(story)` | Mảng mục để HIỆN: mới nhất lên đầu, và là bản SAO (màn không cầm mảng mà `store.js` có thể thay thế) |
+| `demDoanDaDoc(nguon, manhDaXong)` | Đếm ĐOẠN nguồn đã đọc hết. **Đếm theo MẢNH là sai**: một đoạn dài bị `chiaLoNguon` cắt thành nhiều mảnh sẽ bị tính thành nhiều đoạn |
+| `chayVietTruyen(opts)` | Luồng chạy trọn một lượt (async). Xem dưới |
+
+`chayVietTruyen` **không import `ai.js`**: hai lời gọi AI (`viet`, `nen`), `countTokens`,
+`idealMaxTokens` đều TRUYỀN VÀO — cùng lý do như các hàm thuần, để tầng Node cắm bản GIẢ mà kiểm
+đúng SỐ lần gọi, đúng THỨ TỰ khối prompt, đúng cách nối prose, không tốn quota. Hàm không đụng DOM,
+không đọc kv, không ghi truyện — chỉ TRẢ VỀ kết quả, vỏ màn lo phần lưu/hiện. Thứ tự cắm:
+`viet(prompt, khiChunk, thongTin)` · `nen(prompt)` · `choPhepDung()` · `khiChunk(van, {lo, tongLo})` ·
+`khiMoiLo({lo, tongLo, proseDaViet, daDoc, tongDoan})`. Trả
+`{choPhep, trangThai, daDung, loiNeu, proseDaViet, soLo, soLoDaXong, soLanViet, soLanNen, daDoc, tongDoan}`.
+
+Bốn quyết định đáng ghim (đều có ca test):
+
+1. **Chữ sinh dở được GIỮ.** Lô đang gọi mà model lỗi giữa chừng thì phần chữ đã stream ra vẫn được
+   nối vào `proseDaViet` (người dùng đã NHÌN THẤY nó trên màn hình; xoá là mất chữ) — cùng quy ước
+   với lượt nhập vai bị dừng. Vì thế trong `catch` có `prose = noiThem(prose, res.text || dangViet)`.
+2. **Dừng thì giữ, không bỏ.** Nút Dừng (và việc ĐÓNG màn giữa chừng) chỉ ĐẶT CỜ; luồng dừng ở ranh
+   giới lô kế tiếp — **không cắt ngang lô đang gọi model**. `trangThai` vẫn là `"xong"` và mục được
+   gắn thêm cờ `daDung` (nhãn hiện "đã dừng"). *Đây là chỗ ĐỔI quyết định tạm của Đợt 4* ("nút Dừng
+   bỏ luôn bản viết dở") — nay giữ, vì đã có cơ chế lưu dở dang. `daDung` là trường TUỲ CHỌN nên
+   **không tăng `PHIEN_BAN_TRUYEN`** (bản cũ bỏ qua; `chuanHoaTruyen` dùng `Object.assign({}, v, …)`
+   nên giữ được trường lạ).
+3. **Lỗi ở bất kỳ lô nào** ⇒ `trangThai = "loi"`, `loiNeu` nói rõ lô + lý do **và** nói rõ phần đã
+   viết KHÔNG bị xoá (điều người dùng cần biết trước tiên). `trangThai` chỉ nhận `"xong"`/`"loi"` —
+   không bao giờ để mục kẹt ở `"dangChay"` (giao diện sẽ quay vô hạn).
+4. **Lưu dở dang sau MỖI lô** (mục 8 của thiết kế): vỏ màn thêm mục vào `truyenVietRa` NGAY khi bắt
+   đầu (để lô đầu xong là lưu được), rồi `khiMoiLo` gọi `D.henLuuVietTruyen(story)` — một `debounce`
+   900ms đặt trong `app.js` (khai báo TRƯỚC bảng `VIET_TRUYEN_DEPS` — `const` không hoist) và truyền
+   vào qua `VIET_TRUYEN_DEPS` thay vì import thẳng, giữ đúng khuôn DI của các màn đã tách.
+
+**`src/ui/vietTruyen/index.js` (126 dòng, trần 150)** — bốn khoá dùng từ `D`:
+`currentStory` · `currentConv` · `taiXuong` · `henLuuVietTruyen`. `bamVietTruyen` mở phiên sinh độc
+lập (`AI.moPhienSinh()`) rồi `await chayVietTruyen(...)` (chống bấm chồng bằng `s.chay`); `dungVietTruyen`
+chỉ đặt cờ; `chonNguonVietTruyen` tính lại dòng `đã đọc X/Y đoạn nguồn` bằng nguồn THẬT;
+`xuatVietTruyen` gọi `D.taiXuong(tenTepMd(...), noiDungDeXuat(muc))`; `chepVietTruyen` dùng
+`navigator.clipboard` (không có thì báo bôi đen copy tay).
+
+Chi tiết giao diện đáng chú ý: mục bị bấm Dừng mang **lớp chip riêng** (`vt-chip-daDung`, xám trung
+tính) — chip xanh của "đã xong" đọc như THÀNH CÔNG, nên bản viết dở không được trông y hệt bản đã
+viết hết. Lớp này gắn THÊM vào lớp trạng thái nền (`vt-chip-xong`), và chỉ mục có cờ `daDung` mới có.
+
+**Kiểm chứng Đợt 5:** tầng Node **25 tệp, 6 088 khẳng định, 0 không đạt** (mốc Đợt 4: 5 961; 8 ca
+mới trong `vietTruyenFlow.test.mjs`: gọi đúng số lô · thứ tự khối prompt · nối prose không trùng/thiếu
+· lỗi lô 2/3 giữ nguyên lô 1 + chữ dở · dừng giữa chừng không cắt ngang · nén kích hoạt · cổng 18+
+chặn thì **0 lời gọi AI** · `demDoanDaDoc`/`dsVietRa`/`noiDungDeXuat`). Tầng trình duyệt
+**1 083/1 083 ca · 0 cảnh báo** (39 bước + một lượt riêng cho `gy-goi-y`), `rr-ten-that` 5/5. Chạy
+THẬT trong preview với AI THẬT (không mock): nguồn 4 đoạn → 1 lô → 8 giây → `xong`, văn 706 ký tự
+chứa đủ cả ba mốc nguồn; **xuất `.md` thật** (blob `text/markdown` khớp `noiDung`) và **clipboard
+thật** đều đúng nội dung; ca DỪNG thật (2 lô) giữ đúng văn lô 1 (2 004 ký tự), chip "đã dừng".
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

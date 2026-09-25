@@ -30,7 +30,10 @@ const DS = [
   { id: "vt_zzloi", hoiThoaiId: "ht_zz9", loaiNguon: "tho", taoLuc: 0, trangThai: "loi", noiDung: "", loiNeu: "Không gọi được model: " + P },
   { id: "vt_zzla", hoiThoaiId: "ht_zz1", loaiNguon: "la", taoLuc: 0, trangThai: "la", noiDung: P, loiNeu: "" },
 ];
-const CHAY = { id: "vt_zzdang", lo: 2, tongLo: 4, daDoc: 3, tongDoan: 5, ten: "hội thoại " + P, dang: true, hen: null };
+// `lo` = số lô ĐÃ XONG (đợt 5 đổi nghĩa cho khớp luồng chạy thật): 2 lô xong trên 4 ⇒ thanh 50%,
+// dòng chữ nói lô ĐANG viết là 3/4, và dòng đếm đọc được 3/5 đoạn nguồn.
+const CHAY = { id: "vt_zzdang", lo: 2, tongLo: 4, daDoc: 3, tongDoan: 5, ten: "hội thoại " + P, dang: true, dungYeuCau: false };
+const CHAY_DUNG = Object.assign({}, CHAY, { dungYeuCau: true });
 const BANG_TEN = { ht_zz1: "Hội thoại " + P };
 function ctx(them) {
   return Object.assign({ ds: DS, loaiNguon: "tho", tongDoan: 5, chan: "", chay: CHAY, tenHoiThoai: BANG_TEN }, them || {});
@@ -102,7 +105,9 @@ test("vỏ màn ≤ 150 dòng, nối đúng ba mảnh, KHÔNG tự gắn listene
   ok(demDong(text) <= 150, "vỏ ≤ 150 dòng (đang " + demDong(text) + ")");
   ok(text.indexOf("addEventListener") < 0, "vỏ KHÔNG tự gắn listener (luật §7.3)");
   ok(text.indexOf("document.querySelector(") >= 0, "vỏ vẫn tự chống mở hai lần bằng lớp modal");
-  for (const x of ["htmlThan", "htmlDem", "htmlTienDo", "vietTruyenFlow.js", "vietTruyenHtml.js"]) {
+  // Đợt 5: phần VẼ vào modal + gọi model dời sang `vietTruyenChay.js`, nên vỏ phải nối vào CẢ BỐN
+  // mảnh (Flow quyết định · Html chuỗi · Chay vẽ/gọi model · bảng sự kiện ở `ui/suKien/`).
+  for (const x of ["chayVietTruyen", "layNguonVietTruyen", "tenTepMd", "vietTruyenFlow.js", "vietTruyenHtml.js", "vietTruyenChay.js"]) {
     ok(text.indexOf(x) >= 0, "vỏ nối vào " + x);
   }
   // Không hard-code câu chữ 18+: cổng chặn của màn này là kết quả của hàm dùng chung.
@@ -161,9 +166,18 @@ test("htmlThan render đủ ba khối ở cả ba trạng thái, không ném l�
   ok(out.indexOf('class="vt-chip vt-chip-loi"') >= 0, "nhãn trạng thái lỗi");
   // Lượt đang chạy: thanh tiến độ THẬT (phần tử riêng + bề rộng theo lô), không chỉ chữ.
   ok(out.indexOf('class="vt-bar"') >= 0, "có thanh tiến độ (phần tử thật)");
-  ok(out.indexOf("width:50%") >= 0, "bề rộng thanh = lô 2/4");
-  ok(out.indexOf("Đang viết lô 2/4") >= 0, "dòng \\\"đang viết lô X/Y\\\"");
+  ok(out.indexOf("width:50%") >= 0, "bề rộng thanh = 2 lô đã xong trên 4");
+  ok(out.indexOf("Đang viết lô 3/4") >= 0, "dòng \\\"đang viết lô X/Y\\\" chỉ đúng lô ĐANG viết");
+  ok(out.indexOf("lô 3/4") >= 0, "nhãn cạnh tiêu đề Tiến độ khớp dòng đang viết");
   ok(out.indexOf("Dừng ngay") >= 0, "nút dừng NGAY trong khối tiến độ");
+  ok(out.indexOf('data-act="vt-dung" disabled') < 0, "chưa xin dừng thì nút dừng vẫn bấm được");
+  // Đã xin dừng: luồng CHỈ dừng ở ranh giới lô, nên giao diện phải nói rõ đang chờ hết lô và khoá nút
+  // (bấm thêm không có tác dụng gì) — nếu không, người dùng tưởng nút hỏng.
+  const dangDung = H.htmlTienDo({ chay: CHAY_DUNG });
+  ok(dangDung.indexOf("Sẽ dừng sau khi lô 3/4") >= 0, "đã xin dừng ⇒ nói rõ sẽ dừng sau lô đang viết");
+  ok(dangDung.indexOf("Đang dừng") >= 0, "đã xin dừng ⇒ nhãn nút đổi thành Đang dừng");
+  ok(dangDung.indexOf('data-act="vt-dung" disabled') >= 0, "đã xin dừng ⇒ nút dừng bị khoá");
+  ok(dangDung.indexOf("Dừng ngay") < 0, "đã xin dừng ⇒ không còn nhãn Dừng ngay");
   ok(out.indexOf("đã đọc 3/5 đoạn nguồn") >= 0, "dòng đếm của khối (a) khớp tiến độ");
   // Nút chạy đổi thành nút dừng, đúng khuôn ▶️/🛑 của app.
   ok(out.indexOf("data-act=" + NH + "vt-dung" + NH) >= 0, "đang chạy ⇒ nút chính là nút Dừng");
@@ -177,6 +191,19 @@ test("htmlThan render đủ ba khối ở cả ba trạng thái, không ném l�
   // Trạng thái LẠ không được rơi về \"đang viết\" (không thì giao diện quay vô hạn).
   ok(out.indexOf("vt-muc-la") < 0, "trạng thái lạ không tạo lớp trạng thái lạ");
   ok(H.nhanTrangThai("la") === "lỗi" && H.nhanTrangThai(undefined) === "lỗi", "trạng thái lạ ⇒ coi như lỗi");
+  // Mục bị NGƯỜI DÙNG bấm dừng: `trangThai` vẫn là một trong ba giá trị của schema (nên không phải
+  // sửa schema) nhưng nhãn phải nói đúng chuyện đã xảy ra, không được gọi là "đã xong".
+  eq(H.nhanTrangThai("xong", { daDung: true }), "đã dừng", "bấm dừng ⇒ nhãn ĐÃ DỪNG");
+  eq(H.nhanTrangThai("xong", { daDung: false }), "đã xong", "không có cờ dừng ⇒ nhãn đã xong");
+  eq(H.trangThaiCua({ trangThai: "xong", daDung: true }), "xong", "cờ dừng KHÔNG đổi giá trị schema");
+  const theDung = H.htmlMuc({ id: "vt_zzdung", trangThai: "xong", daDung: true, noiDung: "văn còn lại", loiNeu: "" }, ctx());
+  ok(theDung.indexOf("đã dừng") > 0, "thẻ của mục bị dừng hiện nhãn đã dừng");
+  // ...và phải mang thêm lớp riêng: chip xanh của “đã xong” đọc như THÀNH CÔNG, còn bản bị dừng thì
+  // không được trông y hệt. Chỉ mục CÓ cờ dừng mới được thêm lớp này.
+  ok(theDung.indexOf("vt-chip-daDung") > 0, "mục bị dừng có lớp chip riêng");
+  ok(theDung.indexOf('class="vt-chip vt-chip-xong vt-chip-daDung"') > 0, "lớp dừng gắn THÊM vào lớp trạng thái nền");
+  ok(H.htmlMuc({ id: "vt_zzxong", trangThai: "xong", noiDung: "văn xong" }, ctx()).indexOf("vt-chip-daDung") < 0,
+    "mục đã xong bình thường KHÔNG có lớp dừng");
   // Nguồn rỗng: nút chạy bị khoá kèm lời giải thích, không có lượt nào.
   const trong = H.htmlThan(ctx({ tongDoan: 0, chay: null }));
   ok(trong.indexOf("chưa có đoạn nguồn nào để viết") >= 0, "nguồn rỗng ⇒ nói rõ chưa có gì để viết");

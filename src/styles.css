@@ -1468,6 +1468,9 @@ button:focus-visible, .btn:focus-visible, .tool:focus-visible, .icon-btn:focus-v
 .vt-chip-xong { border-color: rgba(120, 200, 140, 0.5); color: #79c98c; }
 .vt-chip-dangChay { border-color: rgba(212, 162, 76, 0.55); color: var(--gold-soft); }
 .vt-chip-loi { border-color: rgba(239, 90, 90, 0.5); color: var(--danger); }
+/* Mục người dùng bấm Dừng giữa chừng: văn vẫn còn (giữ nguyên) nhưng KHÔNG phải "đã xong" —
+   chip xám trung tính, không dùng màu xanh "thành công". */
+.vt-chip-daDung { border-color: rgba(150, 150, 165, 0.55); color: var(--text-2); }
 .vt-muc-ten { font-size: 13.2px; color: var(--text); font-weight: 600; }
 .vt-muc-meta { font-size: 11.4px; color: var(--text-3); }
 .vt-muc-nut { margin-left: auto; display: inline-flex; gap: 0.25rem; align-items: center; }
@@ -1482,3 +1485,4 @@ button:focus-visible, .btn:focus-visible, .tool:focus-visible, .icon-btn:focus-v
 .vt-loi .ic { margin-top: 0.15rem; flex: none; }
 html[data-theme="sang"] .vt-chip-xong { color: #2f7a45; }
 html[data-theme="sang"] .vt-chip-loi { color: #a8342a; }
+html[data-theme="sang"] .vt-chip-daDung { border-color: rgba(90, 90, 105, 0.45); color: #4d4d59; }

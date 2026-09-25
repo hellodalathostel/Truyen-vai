@@ -39,7 +39,11 @@ export function trangThaiCua(muc) {
   return TRANG_THAI.indexOf(tt) >= 0 ? tt : "loi";
 }
 
-export function nhanTrangThai(tt) {
+// `muc` (tuỳ chọn) để phân biệt một mục NGƯỜI DÙNG BẤM DỪNG giữa chừng: nó đã xong việc theo ý
+// người dùng (nên `trangThai` vẫn là một trong ba giá trị của schema) nhưng KHÔNG phải "đã xong" —
+// nhãn phải nói đúng chuyện đã xảy ra, cùng quy ước với nhãn "đã dừng" của lượt nhập vai bị dừng.
+export function nhanTrangThai(tt, muc) {
+  if (muc && muc.daDung === true) return "đã dừng";
   return NHAN_TRANG_THAI[TRANG_THAI.indexOf(tt) >= 0 ? tt : "loi"];
 }
 
@@ -120,23 +124,31 @@ export function htmlNguon(ctx) {
   );
 }
 
-// ---------------------------------------------------------------- (b) tiến độ nhiều lượt
+// `ctx.chay` = lượt đang chạy: `lo` là số lô ĐÃ XONG (thanh tiến độ = lo/tong), `daDoc` là số đoạn
+// nguồn đã đọc hết, `dang` = đang trong một lời gọi model, `dungYeuCau` = người dùng đã xin dừng
+// (dừng sau khi lô đang viết xong).
 export function htmlTienDo(ctx) {
   const c = ctx && ctx.chay;
   if (!c) return '<section class="vt-khoi vt-tien-do" data-vt-tien-do hidden></section>';
-  const lo = Number(c.lo) || 0;
+  const lo = Number(c.lo) || 0; // số lô ĐÃ XONG (thanh tiến độ = lo/tong); lô đang viết là lo + 1
   const tong = Number(c.tongLo) || 0;
   const pt = phanTramTienDo(c);
   return (
     '<section class="vt-khoi vt-tien-do" data-vt-tien-do>' +
       '<div class="vt-khoi-head">' + icon("clock", 15) + "<h3>Tiến độ</h3>" +
-        '<span class="vt-tien-do-so">' + esc("lô " + lo + "/" + tong) + "</span></div>" +
+        '<span class="vt-tien-do-so">' + esc("lô " + (lo + 1) + "/" + tong) + "</span></div>" +
       '<div class="vt-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + esc(String(pt)) + '">' +
         '<i style="width:' + esc(pt + "%") + '"></i>' +
       "</div>" +
       '<div class="vt-tien-do-dong">' +
-        "<span>" + esc("Đang viết lô " + lo + "/" + tong + " của " + c.ten + "…") + "</span>" +
-        '<button class="btn btn-sm vt-dung" data-act="vt-dung">' + icon("stop", 13) + " Dừng ngay</button>" +
+        "<span>" + esc(
+          c.dungYeuCau
+            ? "Sẽ dừng sau khi lô " + (lo + 1) + "/" + tong + " viết xong — không cắt ngang lô đang gọi model."
+            : "Đang viết lô " + (lo + 1) + "/" + tong + " của " + c.ten + "…"
+        ) + "</span>" +
+        (c.dungYeuCau
+          ? '<button class="btn btn-sm vt-dung" data-act="vt-dung" disabled>' + icon("stop", 13) + " Đang dừng…</button>"
+          : '<button class="btn btn-sm vt-dung" data-act="vt-dung">' + icon("stop", 13) + " Dừng ngay</button>") +
       "</div>" +
     "</section>"
   );
@@ -154,7 +166,7 @@ export function htmlMuc(muc, ctx) {
   return (
     '<article class="vt-muc vt-muc-' + esc(tt) + '" data-vt-muc="' + esc(muc && muc.id) + '">' +
       '<div class="vt-muc-head">' +
-        '<span class="vt-chip vt-chip-' + esc(tt) + '">' + esc(nhanTrangThai(tt)) + "</span>" +
+        '<span class="vt-chip vt-chip-' + esc(tt) + (muc && muc.daDung === true ? " vt-chip-daDung" : "") + '">' + esc(nhanTrangThai(tt, muc)) + "</span>" +
         '<span class="vt-muc-ten">' + esc(tenHoiThoai(ctx, muc && muc.hoiThoaiId)) + "</span>" +
         '<span class="vt-muc-meta">' + esc(meta) + "</span>" +
         '<span class="vt-muc-nut">' +
@@ -185,32 +197,4 @@ export function htmlKetQua(ctx) {
 // ---------------------------------------------------------------- thân modal: ba khối
 export function htmlThan(ctx) {
   return '<div class="vt-than">' + htmlNguon(ctx) + htmlTienDo(ctx) + htmlKetQua(ctx) + "</div>";
-}
-
-// ==========================================================================
-//  GIẢ — XOÁ Ở ĐỢT 5 (khi nối luồng gọi AI thật)
-// ==========================================================================
-// Dữ liệu MẪU để kiểm bố cục: ba bản ở đủ ba trạng thái (để cả ba khối render đúng) cộng nhịp giả
-// của một lượt đang chạy. Văn mẫu dùng từ chung, không có tên riêng nào (luật §8: gói không được
-// chứa tên/id thật — một cái tên "trông như thật" có thể trùng dữ liệu của chủ dự án).
-export const TOC_GIA = 1400;
-export const LOI_GIA = "Không gọi được model: bản giả của đợt 4 chưa nối ra ngoài. Nối luồng thật ở đợt 5 rồi thử lại.";
-export const VAN_GIA_DANG = "## Chương 1\n\nCăn phòng im đi sau khi cánh cửa khép lại. Người đàn ông đứng yên rất lâu…";
-export const VAN_GIA =
-  "## Chương 1\n\nCăn phòng im đi sau khi cánh cửa khép lại. Người đàn ông đứng yên rất lâu, tay vẫn giữ lấy " +
-  "khung cửa như thể buông ra là mất luôn thứ gì đó.\n\n— Anh không cần phải giải thích. — Cô ấy nói rất khẽ, mắt nhìn xuống sàn.\n\n" +
-  "## Chương 2\n\nSáng hôm sau, con hẻm vẫn ướt sau cơn mưa đêm. Hai người đi cạnh nhau, không ai mở lời trước.";
-export const VAN_GIA_MOI =
-  "## Chương 1\n\nÁnh sáng cuối ngày tràn qua ô cửa sổ, đọng thành một vệt dài trên nền gỗ. Bóng người ngồi lặng " +
-  "ở mép giường, hai tay đặt trên đầu gối.\n\n— Nói cho tôi biết anh đang nghĩ gì. — Giọng cô ấy không lớn, nhưng đủ để căn phòng thôi im.\n\n" +
-  "## Chương 2\n\nHọ nói với nhau rất nhiều, và không câu nào trong đó là để thoả thuận. Đến khi trời tắt hẳn, " +
-  "người đàn ông mới đứng dậy, kéo cửa lại, rồi quay về phía bóng tối.";
-
-export function mucGia(hoiThoaiId) {
-  const t = Date.now();
-  return [
-    { id: "vt_gia_dang", hoiThoaiId, loaiNguon: "tho", taoLuc: t - 45 * 1000, trangThai: "dangChay", noiDung: VAN_GIA_DANG, loiNeu: "" },
-    { id: "vt_gia_xong", hoiThoaiId, loaiNguon: "canhKhep", taoLuc: t - 26 * 60 * 60 * 1000, trangThai: "xong", noiDung: VAN_GIA, loiNeu: "" },
-    { id: "vt_gia_loi", hoiThoaiId, loaiNguon: "tho", taoLuc: t - 3 * 24 * 60 * 60 * 1000, trangThai: "loi", noiDung: "", loiNeu: LOI_GIA },
-  ];
 }

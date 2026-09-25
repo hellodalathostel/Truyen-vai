@@ -1,12 +1,16 @@
 // Truyện Vai — tầng kiểm thử Node: logic THUẦN của màn "Viết thành truyện" (Giai đoạn 8).
 //
-// Tệp này kiểm sáu việc mà tính năng `vietTruyen` quyết định TRƯỚC khi gọi model:
+// Tệp này kiểm bảy việc của tính năng `vietTruyen`: sáu việc quyết định TRƯỚC khi gọi model, cộng
+// LUỒNG CHẠY THẬT (đợt 5) — chạy cả một lượt với model GIẢ để ghim số lần gọi, thứ tự khối prompt,
+// cách nối prose, lỗi giữa chừng, dừng giữa chừng và lúc kích hoạt nén:
 //   (1) nguồn để viết (log thô / cảnh đã khép) — đúng lọc, đúng thứ tự;
 //   (2) chia nguồn thành các lô vừa một lượt gọi AI — KHÔNG mất chữ, không lô nào vượt ngưỡng;
 //   (3) khi nào phải nén phần prose đã viết (mốc 0,6 — đo token, không phải đo ký tự);
 //   (4) cắt chỗ nào để giữ nguyên phần cuối (nối liền mạch văn);
 //   (5) khối nguyên tắc ở ĐẦU prompt (tĩnh, cache-able) + ghi chú khi truyện ở chế độ người lớn;
 //   (6) cổng 18+ trước khi chạy — qua cửa chặn DÙNG CHUNG, và KHÔNG hỏi lại 18+.
+//   (7) `chayVietTruyen` — lô nào gọi model nào, prompt lắp thế nào, prose nối ra sao, hỏng/dừng thì
+//       giữ được gì;
 //
 // Mọi dữ liệu ở đây là HƯ CẤU, id có tiền tố test (`zz`). Không có DOM, không kv, không gọi AI —
 // `countTokens`/`idealMaxTokens` được cắm bằng hàm giả để kiểm ĐÚNG ngưỡng.
@@ -21,6 +25,8 @@ import {
   cutProseGiuMachVan, phanDauProseCanNen,
   layNguyenTacVietTruyen, GHI_CHU_MUC_DO_NGUOI_LON, layNguyenTacVietTruyenCho,
   kiemVietTruyenTruocKhiChay,
+  NHAN_DA_VIET, NHAN_TOM_TAT, NHAN_DUOI, NHAN_NGUON, nhanTaskLo, dungPromptVietLo, dungPromptNenProse,
+  demDoanDaDoc, dsVietRa, noiDungDeXuat, chayVietTruyen,
 } from "../../src/ui/vietTruyen/vietTruyenFlow.js";
 import { chanNoiDungNguoiLon } from "../../src/store.js";
 
@@ -379,4 +385,214 @@ test("kiemVietTruyenTruocKhiChay · chặn ĐÚNG theo cửa 18+ DÙNG CHUNG, v�
     eq(typeof kq.choPhep, "boolean", "choPhep là boolean");
     eq(typeof kq.loiNeu, "string", "loiNeu là chuỗi");
   }
+});
+
+// ==========================================================================
+// Đợt 5 — LUỒNG CHẠY THẬT (chayVietTruyen) với model GIẢ
+// ==========================================================================
+// Không tốn quota: hai hàm gọi model được cắm bằng bản giả, nên kiểm được ĐÚNG số lần gọi, ĐÚNG thứ
+// tự khối trong prompt và ĐÚNG cách nối prose — thứ mà chỉ chạy thật mới thấy và không kiểm lại được.
+
+// Nguồn giả 9 đoạn, mỗi đoạn 100 ký tự. Với countTokens giả ở dưới (10 ký tự = 1 token, trần 100
+// token) ngân sách một lô là 400 ký tự ⇒ 3 đoạn một lô, đúng 3 lô.
+function nguonDai(soDoan) {
+  const ra = [];
+  for (let i = 0; i < soDoan; i++) ra.push("ZZ đoạn " + (i + 1) + " " + "x".repeat(80) + " kết thúc.");
+  return ra;
+}
+const DEM_KY_TU = (s) => Math.ceil(String(s || "").length / 10);
+const TRAN_TOKEN = () => 100;
+function tinNhanTuNguon(nguon) {
+  return nguon.map((t, i) => ({ id: "tn_zzvt" + i, vai: i % 2 === 0 ? "nguoi" : "ai", noiDung: t, luc: i + 1 }));
+}
+// Model giả: ghi lại MỌI prompt theo thứ tự, trả về chữ do ca kiểm quyết định.
+function modelGia(dsTra) {
+  const goi = [];
+  let dangGoi = false;
+  const viet = async (prompt, khiChunk) => {
+    dangGoi = true;
+    goi.push({ loai: "viet", prompt });
+    const ra = typeof dsTra === "function" ? dsTra(goi.length - 1, prompt) : dsTra[goi.length - 1];
+    if (khiChunk && ra.text) khiChunk(ra.text);
+    dangGoi = false;
+    return ra;
+  };
+  const nen = async (prompt) => {
+    dangGoi = true;
+    goi.push({ loai: "nen", prompt });
+    dangGoi = false;
+    return { text: "TÓM TẮT GIẢ ĐỊNH" };
+  };
+  return { goi, viet, nen, dangGoiFn: () => dangGoi };
+}
+function truyenCoNguon(nguon) {
+  const s = truyenThuong();
+  s.hoiThoais = [{ id: "ht_zz1", tieuDe: "ZZ hội thoại" }];
+  s.tinNhan = tinNhanTuNguon(nguon);
+  return s;
+}
+function chay(opts) {
+  return chayVietTruyen(Object.assign({
+    hoiThoaiId: "ht_zz1", loaiNguon: "tho", countTokens: DEM_KY_TU, idealMaxTokens: TRAN_TOKEN,
+  }, opts));
+}
+
+test("chayVietTruyen · gọi model ĐÚNG số lô, prompt đúng thứ tự khối, prose nối đúng thứ tự", async () => {
+  const nguon = nguonDai(9);
+  const story = truyenCoNguon(nguon);
+  const m = modelGia([{ text: "LÔ MỘT." }, { text: "LÔ HAI." }, { text: "LÔ BA." }]);
+  const moiLo = [];
+  const chunk = [];
+  const kq = await chay({
+    story, tinNhan: story.tinNhan, viet: m.viet, nen: m.nen,
+    khiChunk: (text, o) => chunk.push(o.lo + ":" + text),
+    khiMoiLo: (o) => moiLo.push(o),
+  });
+  eq(m.goi.length, 3, "gọi model ĐÚNG số lô (3)");
+  eq(kq.soLo, 3, "soLo = 3");
+  eq(kq.soLanViet, 3, "soLanViet = 3");
+  eq(kq.soLanNen, 0, "chưa cần nén");
+  eq(kq.trangThai, "xong", "chạy hết ⇒ xong");
+  eq(kq.daDung, false, "không ai bấm dừng");
+  eq(kq.proseDaViet, "LÔ MỘT." + DOAN + "LÔ HAI." + DOAN + "LÔ BA.", "prose nối đúng thứ tự, không trùng/thiếu lô");
+  eqSau(moiLo.map((o) => o.lo), [1, 2, 3], "báo tiến độ sau từng lô");
+  eq(moiLo[2].proseDaViet, kq.proseDaViet, "mốc cuối bằng đúng prose trả về");
+  eqSau(moiLo.map((o) => o.daDoc), [3, 6, 9], "số đoạn nguồn đã đọc tăng theo lô");
+  eq(moiLo[2].tongDoan, 9, "tổng số đoạn nguồn là 9");
+  eq(chunk[chunk.length - 1], "3:LÔ MỘT." + DOAN + "LÔ HAI." + DOAN + "LÔ BA.", "chữ chạy dần kết thúc đúng bằng cả prose");
+  // Thứ tự khối: khối nguyên tắc TĨNH phải là TIỀN TỐ của MỌI prompt (điều kiện của prefix cache),
+  // rồi tới phần đã viết, rồi TASK, rồi nguồn của lô.
+  const nguyenTac = layNguyenTacVietTruyenCho(story);
+  for (let i = 0; i < m.goi.length; i++) {
+    const p = m.goi[i].prompt;
+    eq(p.indexOf(nguyenTac), 0, "prompt lô " + (i + 1) + ": khối nguyên tắc tĩnh đứng ĐẦU");
+    ok(p.indexOf(NHAN_NGUON) > p.indexOf("TASK:"), "prompt lô " + (i + 1) + ": TASK trước nguồn");
+    if (i === 0) ok(p.indexOf(NHAN_DA_VIET) < 0, "prompt lô 1: chưa có gì để nối ⇒ không có khối đã viết");
+    else ok(p.indexOf(NHAN_DA_VIET) < p.indexOf("TASK:"), "prompt lô " + (i + 1) + ": phần đã viết nằm TRƯỚC TASK");
+  }
+  ok(m.goi[0].prompt.indexOf(nguon[0]) > 0, "prompt lô 1 mang đúng đoạn nguồn của lô 1");
+  ok(m.goi[1].prompt.indexOf("LÔ MỘT.") > 0, "prompt lô 2 mang prose đã viết");
+  ok(m.goi[1].prompt.indexOf(nguon[3]) > 0 && m.goi[1].prompt.indexOf(nguon[0]) < 0, "prompt lô 2 chỉ mang nguồn của lô 2");
+  ok(m.goi[1].prompt.indexOf(nguon[3]) > m.goi[1].prompt.indexOf("TASK:"), "nguồn lô nằm CUỐI prompt");
+});
+
+test("chayVietTruyen · lô giữa hỏng: trangThai loi, lô 1 KHÔNG mất, chữ sinh dở vẫn giữ", async () => {
+  const nguon = nguonDai(9);
+  const story = truyenCoNguon(nguon);
+  const m = modelGia((i) => (i === 0 ? { text: "LÔ MỘT." } : { text: "DỞ DANG", stopReason: "error" }));
+  const kq = await chay({ story, tinNhan: story.tinNhan, viet: m.viet, nen: m.nen });
+  eq(m.goi.length, 2, "dừng ngay ở lô hỏng, không gọi lô 3");
+  eq(kq.trangThai, "loi", "có lô hỏng ⇒ trangThai loi");
+  eq(kq.daDung, false, "lỗi không phải là dừng");
+  eq(kq.soLoDaXong, 1, "mới xong 1 lô");
+  ok(kq.proseDaViet.indexOf("LÔ MỘT.") === 0, "nội dung lô 1 còn NGUYÊN (không rollback về rỗng)");
+  ok(kq.proseDaViet.indexOf("DỞ DANG") > 0, "giữ cả chữ đã sinh dở của lô hỏng (người dùng đã nhìn thấy nó)");
+  ok(kq.loiNeu.indexOf("lô 2/3") > 0, "lý do nói rõ hỏng ở lô nào");
+  ok(kq.loiNeu.indexOf("giữ nguyên") > 0, "lý do nói rõ phần đã viết được giữ");
+  // Không có chữ nào (hỏng ngay lô đầu) ⇒ prose rỗng, vẫn là loi và vẫn có lý do.
+  const m2 = modelGia([{ text: "", stopReason: "error" }]);
+  const kq2 = await chay({ story, tinNhan: story.tinNhan, viet: m2.viet, nen: m2.nen });
+  eq(kq2.trangThai, "loi", "hỏng ngay từ lô đầu ⇒ loi");
+  eq(kq2.proseDaViet, "", "không có chữ nào ⇒ prose rỗng (vỏ màn bỏ mục rỗng)");
+  ok(kq2.loiNeu.trim().length > 0, "vẫn có lý do để hiện");
+});
+
+test("chayVietTruyen · dừng giữa chừng: KHÔNG cắt ngang lô đang gọi, giữ phần đã viết", async () => {
+  const nguon = nguonDai(9);
+  const story = truyenCoNguon(nguon);
+  const m = modelGia([{ text: "LÔ MỘT." }, { text: "LÔ HAI." }, { text: "LÔ BA." }]);
+  let xong = 0;
+  const kq = await chay({
+    story, tinNhan: story.tinNhan, viet: m.viet, nen: m.nen,
+    khiMoiLo: () => { xong += 1; },
+    // Điều kiện dừng được hỏi GIỮA hai lô: lúc đó không lời gọi model nào đang chạy.
+    choPhepDung: () => {
+      eq(m.dangGoiFn(), false, "hỏi dừng khi KHÔNG có lời gọi model nào đang chạy");
+      return xong >= 1;
+    },
+  });
+  eq(m.goi.length, 1, "lô đang gọi vẫn chạy tới xong rồi mới dừng (không cắt ngang)");
+  eq(kq.daDung, true, "có cờ daDung");
+  eq(kq.trangThai, "xong", "dừng theo ý người dùng ⇒ mục không kẹt ở dangChay");
+  eq(kq.soLoDaXong, 1, "ghi nhận 1 lô đã xong");
+  eq(kq.proseDaViet, "LÔ MỘT.", "phần đã viết được GIỮ NGUYÊN (đợt 5 đổi quyết định tạm của đợt 4)");
+});
+
+test("chayVietTruyen · nén kích hoạt: lô kế dùng bản ĐÃ NÉN, không dùng lại cả prose dài", async () => {
+  const nguon = nguonDai(9);
+  const story = truyenCoNguon(nguon);
+  // Lô 1 trả về văn dài quá 60% trần token ⇒ lô 2 và lô 3 phải đi qua bước nén.
+  const dauMoc = "MỐC-ĐẦU-XA";
+  const cuoiMoc = "MỐC-CUỐI-GẦN";
+  const dai = dauMoc + "." + "y".repeat(880) + "." + cuoiMoc + ".";
+  const m = modelGia((i) => (i === 0 ? { text: dai } : { text: "LÔ " + (i + 1) + "." }));
+  const kq = await chay({ story, tinNhan: story.tinNhan, viet: m.viet, nen: m.nen });
+  const nenGoi = m.goi.filter((g) => g.loai === "nen");
+  const vietGoi = m.goi.filter((g) => g.loai === "viet");
+  ok(canNenProse(dai, TRAN_TOKEN, DEM_KY_TU), "mốc: văn của lô 1 THẬT SỰ vượt ngưỡng nén");
+  eq(vietGoi.length, 3, "vẫn gọi model viết đúng số lô");
+  eq(kq.soLanNen, 2, "nén trước lô 2 và trước lô 3 (kiểm lại mỗi lô, theo mục 3)");
+  eq(nenGoi.length, 2, "mỗi lần nén là một lời gọi phụ");
+  ok(nenGoi[0].prompt.indexOf(dauMoc) > 0, "prompt nén mang PHẦN ĐẦU của prose");
+  ok(nenGoi[0].prompt.indexOf(cuoiMoc) < 0, "prompt nén KHÔNG mang phần đuôi giữ nguyên");
+  const p2 = vietGoi[1].prompt;
+  ok(p2.indexOf(NHAN_TOM_TAT) > 0 && p2.indexOf("TÓM TẮT GIẢ ĐỊNH") > 0, "lô 2 dùng bản tóm tắt của lượt nén");
+  ok(p2.indexOf(NHAN_DUOI) > 0 && p2.indexOf(cuoiMoc) > 0, "lô 2 vẫn giữ nguyên đoạn đuôi để nối mạch");
+  ok(p2.indexOf(dauMoc) < 0, "lô 2 KHÔNG nhét lại toàn bộ prose cũ (phần xa đã được nén)");
+  eq(p2.indexOf(NHAN_DA_VIET), -1, "khi có bản nén thì KHÔNG đưa thêm khối đã viết (tránh nhân đôi ngữ cảnh)");
+  eq(kq.proseDaViet.indexOf(dauMoc), 0, "prose trả về vẫn là văn ĐẦY ĐỦ, không phải bản nén");
+  eq(kq.soLoDaXong, 3, "xong cả 3 lô");
+});
+
+test("chayVietTruyen · cổng 18+ chặn: KHÔNG gọi model lần nào", async () => {
+  const nguon = nguonDai(6);
+  const story = truyenCoNguon(nguon);
+  story.nhanVats = truyenChuaXacNhan().nhanVats;
+  story.giaoKeo = { bat: true };
+  const m = modelGia([{ text: "KHÔNG ĐƯỢC GỌI" }]);
+  const kq = await chay({ story, tinNhan: story.tinNhan, viet: m.viet, nen: m.nen });
+  eq(m.goi.length, 0, "bị cổng chặn ⇒ KHÔNG gọi model lần nào");
+  eq(kq.choPhep, false, "choPhep = false");
+  eq(kq.trangThai, "loi", "trạng thái để giao diện hiện lý do");
+  eq(kq.loiNeu, chanNoiDungNguoiLon(story), "lý do là nguyên văn của cửa dùng chung");
+  eq(kq.proseDaViet, "", "không có văn xuôi nào");
+  // Hội thoại không có đoạn nguồn nào: cũng không gọi model, nhưng lý do là chuyện khác.
+  const m2 = modelGia([{ text: "KHÔNG ĐƯỢC GỌI" }]);
+  const kq2 = await chay({ story: truyenCoNguon([]), tinNhan: [], viet: m2.viet, nen: m2.nen });
+  eq(m2.goi.length, 0, "nguồn rỗng ⇒ KHÔNG gọi model");
+  eq(kq2.trangThai, "loi", "nguồn rỗng ⇒ loi");
+  ok(kq2.loiNeu.indexOf("chưa có đoạn nguồn") > 0, "lý do nói rõ chưa có đoạn nguồn");
+  ok(kq2.choPhep, "nguồn rỗng không phải chuyện cổng 18+");
+});
+
+test("demDoanDaDoc · đếm ĐOẠN nguồn, không đếm mảnh của đoạn bị cắt", () => {
+  const nguon = ["A".repeat(10), "B".repeat(30)];
+  const lo = chiaLoNguon(nguon, 20);
+  eq(lo.length, 3, "đoạn 30 ký tự bị cắt thành 2 mảnh ⇒ 3 lô");
+  eq(demDoanDaDoc(nguon, lo[0]), 1, "xong lô 1 (đoạn A) ⇒ 1 đoạn");
+  eq(demDoanDaDoc(nguon, lo[0].concat(lo[1])), 1, "mảnh đầu của đoạn B chưa đủ ⇒ vẫn 1 đoạn");
+  eq(demDoanDaDoc(nguon, lo[0].concat(lo[1], lo[2])), 2, "đủ hai mảnh ⇒ 2 đoạn");
+  eq(demDoanDaDoc(nguon, []), 0, "chưa đọc gì ⇒ 0");
+  eq(demDoanDaDoc([], lo[0]), 0, "nguồn rỗng ⇒ 0");
+  eq(demDoanDaDoc(nguon, ["A".repeat(5)]), 0, "mảnh ngắn hơn đoạn ⇒ chưa xong đoạn nào");
+});
+
+test("dsVietRa · bản mới nhất lên đầu, bỏ phần tử rác, KHÔNG sửa mảng trong truyện", () => {
+  const goc = [
+    { id: "vt_zz1", taoLuc: 10 },
+    null,
+    { id: "vt_zz3", taoLuc: 30 },
+    { id: "vt_zz2", taoLuc: 20 },
+    "rác",
+  ];
+  const story = { truyenVietRa: goc };
+  const ra = dsVietRa(story);
+  eqSau(ra.map((m) => m.id), ["vt_zz3", "vt_zz2", "vt_zz1"], "xếp mới nhất lên đầu");
+  eqSau(goc.map((m) => (m && m.id) || String(m)), ["vt_zz1", "null", "vt_zz3", "vt_zz2", "rác"], "không được sắp xếp lại mảng gốc");
+  ok(ra !== goc, "trả về mảng MỚI (không cầm chung mảng của truyện)");
+  eq(dsVietRa({}).length, 0, "truyện chưa có mục nào ⇒ rỗng");
+  eq(dsVietRa(null).length, 0, "không có truyện ⇒ rỗng");
+  eq(noiDungDeXuat({ noiDung: "  văn  " }), "văn", "nội dung xuất được cắt khoảng trắng thừa");
+  eq(noiDungDeXuat({ noiDung: "   " }), "", "chỉ có khoảng trắng ⇒ coi như chưa có gì");
+  eq(noiDungDeXuat(null), "", "không có mục ⇒ rỗng");
 });
