@@ -104,6 +104,7 @@ const TEP_NODE = [
   "khong-ro-ri.test.mjs", "lore.test.mjs", "lorebookFlow.test.mjs", "ngoaiHinh.test.mjs", "nhanVatForm.test.mjs",
   "nhap.test.mjs",
   "prompt.test.mjs",
+  "reliability.test.mjs",
   "schema.test.mjs", "store.test.mjs", "suaNgoaiHinhFlow.test.mjs", "suKien.test.mjs", "taoAnhFlow.test.mjs",
   "taoTruyenFlow.test.mjs",
   "theNhanVat.test.mjs",

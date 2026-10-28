@@ -82,6 +82,7 @@ export function bangChung(D) {
     "open-settings": () => D.openSettings(),
     "import-all": () => D.nhapTatCa(),
     "export-all": async () => { await D.xuatTatCa(); },
+    "open-recovery": () => D.openPhucHoi(),
     "new-conv": ({ t }) => D.openConvEditor(null, { chuongId: t.dataset.chuong }),
     "open-conv": async ({ t }) => { await D.openConv(t.dataset.id); },
     "edit-conv": ({ conv }) => { if (conv) D.openConvEditor(conv.id); },

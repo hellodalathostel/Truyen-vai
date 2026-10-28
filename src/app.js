@@ -462,6 +462,40 @@ function goLibrary() {
 // ==========================================================================
 //  RENDER: THƯ VIỆN
 // ==========================================================================
+function khoiPhucHoiHtml() {
+  const so = store.truyenCanPhucHoi.length;
+  if (!so) return "";
+  return '<div class="hint" role="status"><b>' + esc(so) + ' bản ghi cần phục hồi.</b> ' +
+    'Bản gốc vẫn được giữ trên máy; các truyện hợp lệ mở bình thường. ' +
+    '<button class="btn btn-sm" data-act="open-recovery">Xem & xuất dữ liệu gốc</button></div>';
+}
+
+function openPhucHoi() {
+  const ds = store.truyenCanPhucHoi;
+  modal({
+    title: "Dữ liệu cần phục hồi",
+    subtitle: "Bản gốc vẫn được giữ trên máy. Các truyện hợp lệ có thể tiếp tục sử dụng.",
+    body: '<div class="hint">Có ' + esc(ds.length) + ' bản ghi chưa thể mở. Tạm dừng dọn dữ liệu và xoá hồ sơ dùng chung để bảo vệ những liên kết chưa đọc được.</div>' +
+      ds.map((x) => '<div class="gl-nhom"><b>' + esc(x.id) + '</b><div>' + esc(x.lyDo.join("; ")) + '</div></div>').join("") +
+      '<p>Tệp cứu dữ liệu chứa bản gốc của truyện, tin nhắn, ảnh và hồ sơ ngoại hình trên máy này, kể cả bản ghi hỏng. Giữ tệp riêng để phục hồi thủ công; tệp này không nhập như bản sao lưu thường.</p>',
+    wide: true,
+    actions: [
+      { label: "Đóng", onClick: (m) => m.close() },
+      { label: "Xuất tệp cứu dữ liệu", primary: true, onClick: () => xuatCuuDuLieu() },
+    ],
+  });
+}
+
+async function xuatCuuDuLieu() {
+  try {
+    const kho = {};
+    // Đọc thẳng mọi khoá để không bỏ sót dữ liệu thuộc bản ghi chưa mở được.
+    for (const ten of ["cotTruyen", "tinNhan", "thuVienAnh", "thuVienNgoaiHinh"]) kho[ten] = await R.kv[ten].entries();
+    download("truyen-vai-cuu-du-lieu.json", JSON.stringify({ type: "truyen-vai-rescue", version: 1, kho }));
+    toast("Đã xuất tệp cứu dữ liệu gốc. Hãy giữ tệp riêng để phục hồi.");
+  } catch (e) { baoLoiLuu(e, "tệp cứu dữ liệu"); }
+}
+
 function renderLibrary() {
   const root = $("#appRoot");
   const stories = store.stories;
@@ -497,6 +531,7 @@ function renderLibrary() {
           '<button class="btn btn-primary" data-act="new-story">' + icon("plus", 16) + " Cốt truyện mới</button>" +
         "</div>" +
       "</header>" +
+      khoiPhucHoiHtml() +
       (stories.length
         ? '<div class="story-grid">' + cards.join("") + "</div>"
         : '<div class="empty-big">' +
@@ -539,6 +574,8 @@ async function choXuatKhiThieuHoSo(nguCanh) {
 
 // Xuất toàn bộ thư viện (mọi truyện + tin nhắn + ảnh) thành một file JSON.
 async function xuatTatCa() {
+  // Sao lưu thường chỉ chứa truyện mở được; không được báo đầy đủ khi còn bản hỏng.
+  if (store.truyenCanPhucHoi.length) { openPhucHoi(); return; }
   const all = { type: "truyen-vai-all", version: PHIEN_BAN_TRUYEN, stories: [], messages: {}, anh: {}, ngoaiHinh: {} };
   const thieu = [];
   try {
@@ -4405,6 +4442,7 @@ function openNgoaiHinh(onXong) {
 }
 
 function xoaHoSoNgoaiHinh(id, onXong) {
+  if (store.truyenCanPhucHoi.length) { openPhucHoi(); return; }
   const h = getNgoaiHinh(id);
   if (!h) return;
   // Đếm CẢ nhân vật liên kết LẪN ảnh cảnh đã dựng có dùng hồ sơ này. Chỉ đếm nhân vật
@@ -5039,10 +5077,12 @@ async function chayTuKiemTra() {
   } catch (e) {
     console.error(e);
   }
-  // Giai đoạn 5: quét TRÊN CẢ bản ghi sai hình dạng — một bản ghi sai hình dạng vẫn có thể chứa tham
-  // chiếu mồ côi đáng báo, và bị chôn ở đó mới chính là rủi ro thật. Việc chịu được dữ liệu sai kiểu
-  // nằm ở `mang()` trong src/store.js.
-  const bc = kiemTraBatBien(store.stories, dsNgoaiHinh(), khoaTn, khoaAnh, thamChieuMo);
+  // TV-02: quét truyện mở được; lỗi của bản cách ly vẫn hiện trong nhóm hình dạng.
+  // Chưa biết đủ tham chiếu của bản cách ly thì không kết luận khoá mồ côi.
+  const canPhucHoi = store.truyenCanPhucHoi.length > 0;
+  // Khi có bản hỏng, chưa thể kết luận khoá nào mồ côi: chúng có thể thuộc bản ấy.
+  const bc = kiemTraBatBien(store.stories, dsNgoaiHinh(), canPhucHoi ? [] : khoaTn, canPhucHoi ? [] : khoaAnh, thamChieuMo);
+  bc.tamDungSua = canPhucHoi;
   // Giai đoạn 5: bản ghi SAI HÌNH DẠNG gặp lúc nạp là một nhóm vấn đề riêng. Chỉ BÁO CÁO —
   // không xoá, không tự sửa (hình dạng là chuyện của đường nạp, không phải của nút "Sửa").
   const hd = docLoiHinhDang();
@@ -5093,13 +5133,14 @@ async function openTuKiemTra() {
   async function veLai() {
     const bc = await chayTuKiemTra();
     const dsNhom = Object.keys(bc.nhom);
-    const suaDuoc = dsNhom.filter((k) => NHOM_SUA_DUOC.indexOf(k) >= 0).reduce((a, k) => a + bc.nhom[k].length, 0);
+    const suaDuoc = bc.tamDungSua ? 0 : dsNhom.filter((k) => NHOM_SUA_DUOC.indexOf(k) >= 0).reduce((a, k) => a + bc.nhom[k].length, 0);
     body.innerHTML =
       '<div class="gl-tk">' +
         "<div><span class=\"muted\">Đã quét</span> <b>" + bc.soTruyen + "</b> truyện · <b>" + bc.soHoSo + "</b> hồ sơ ngoại hình</div>" +
         "<div>" + (bc.soLoi ? '<b class="gl-loi">' + bc.soLoi + " vấn đề</b>" : '<b class="gl-ok">Không thấy vấn đề nào</b>') + "</div>" +
       "</div>" +
       '<div class="hint">Bất biến được soi: mọi tham chiếu phải trỏ tới thứ còn tồn tại; không có khoá tin nhắn / ảnh mồ côi; không có id trùng trong một truyện; và hình dạng bản ghi lúc nạp (bản ghi dị dạng chỉ được BÁO, không bị xoá).</div>' +
+      (bc.tamDungSua ? '<div class="hint">Có bản ghi cần phục hồi. Tạm dừng sửa tự động và kết luận tin nhắn/ảnh mồ côi; hãy xuất tệp cứu dữ liệu từ Thư viện.</div>' : "") +
       (dsNhom.length
         ? dsNhom
             .map((k) =>
@@ -5142,6 +5183,9 @@ async function openTuKiemTra() {
 // Sửa các lỗi "an toàn": xoá khoá mồ côi + gỡ liên kết trỏ vào thứ đã mất. Chạy trong
 // giaoDichKV nên lỗi giữa chừng sẽ trả mọi khoá về nguyên trạng.
 async function suaBatBien(bc) {
+  try { await loadStories(); }
+  catch (e) { return { ok: false, soSua: 0, loi: "Không đọc được dữ liệu để kiểm tra; chưa sửa gì." }; }
+  if (store.truyenCanPhucHoi.length) return { ok: false, soSua: 0, loi: "Cần phục hồi bản ghi hỏng trước khi dọn dữ liệu." };
   const xoaTn = (bc.nhom["tin-nhan-mo-coi"] || []).map((x) => x.id);
   const xoaAnh = (bc.nhom["anh-mo-coi"] || []).map((x) => x.id);
   const truyenIds = ["ho-so-mo", "hoi-thoai-tro-nv", "hien-dien-tro-nv", "canh-rieng-tro-nv"]
@@ -5922,7 +5966,7 @@ const SU_KIEN_DEPS = {
   openCharacterEditor, openCharacterList, openChonCanhRieng, openChronicle, openConv,
   openConvEditor, openDaoDien, openGiaoKeo, openHienDien, openKhepCanh,
   openLorebook, openNewStoryModal, openSettings, openStory, openStoryMenu,
-  openTaoAnh, xuatTatCa, boQuaVangMat, capNhatConv, doiMucDo,
+  openTaoAnh, xuatTatCa, openPhucHoi, boQuaVangMat, capNhatConv, doiMucDo,
   openVietTruyen,
   dongCanhRieng, endChapter, factsFromMessage, generateTurn, giaoDichApp,
   hoiVoHieuCanh, maybeCompact, moThuVienAnh, moVietLaiTinGiua, moXemAnh,
@@ -6833,7 +6877,7 @@ async function boot() {
     currentStory, currentConv, loadStories, getMessages, loadMessages, render,
     luuTruyen, giaoDichApp, xoaHoiThoai, xoaAnhKhoiTruyen, capNhatConv,
     catVaLuuLai, taoNhanhVaLuuLai, apDungHeLo, capIdMoi, vietLaiTinCuoi,
-    xuatTruyen, xuatTatCa, openNhapTruyen, chuanHoaTruyen, chuanNhap: chuanBiNhap,
+    xuatTruyen, xuatTatCa, openPhucHoi, xuatCuuDuLieu, openNhapTruyen, chuanHoaTruyen, chuanNhap: chuanBiNhap,
     openNewStoryModal, giaoKeoOf, xacNhan18Plus, chanGiaoKeo, laNguoiLon, tuoiSo, laDataUrlAnh,
     xacNhan18PlusTruyen, chanNoiDungNguoiLon, laCheDoNguoiLon, dsSeGhiCoNguoiLon, dsChanGhiCo, dauHieuViThanhNien,
     newNgoaiHinh, loadNgoaiHinh, getNgoaiHinh, dsNgoaiHinh, luuNgoaiHinh, xoaNgoaiHinh,
