@@ -256,6 +256,12 @@ try {
     const tn0 = ((await root.kv.tinNhan.get("ht_z1")) || []).length;
     bam('.composer [data-act="send"]');
     const xong = await doiA(async () => (((await root.kv.tinNhan.get("ht_z1")) || []).length) >= tn0 + 2, 12000);
+    // Đồng bộ HẾT lượt gửi: đủ số tin nhắn CHƯA có nghĩa là lượt đã xong — phần dọn dẹp
+    // sau tin nhắn AI cuối (lưu truyện, vẽ lại) vẫn có thể đang chạy, lúc đó nút gợi ý
+    // còn disabled và cú bấm gợi ý kế tiếp sẽ rơi vào khoảng không (flake ca 12: nút tắt
+    // trong khi streaming đã false). Chờ nút BẬT lại rồi mới sang ca 12.
+    const nutBat = await doi(() => { const n = $('.composer [data-act="suggest"]'); return n && !n.disabled; }, 10000);
+    ghi("11 lượt gửi xong hẳn: nút gợi ý bật lại", nutBat);
     const tn1 = ((await root.kv.tinNhan.get("ht_z1")) || []).length;
     ghi("11 gửi tin vẫn chạy (người chơi + phản hồi AI)", xong && tn1 === tn0 + 2, { tn0, tn1 });
     ghi("11 gửi tin xong: danh sách gợi ý được xoá", oThe().length === 0 && APP.suggestions.length === 0 && !$(".goi-y"));

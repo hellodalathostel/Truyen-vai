@@ -12,7 +12,7 @@ import { taoTruyen, taoNhanVat, taoHoiThoai, taoCanhDaKhep, taoTinNhan } from ".
 
 function truyenCoBan() {
   return taoTruyen({
-    nhanVats: [taoNhanVat("nv_a", "Duy"), taoNhanVat("nv_b", "Minh Quân")],
+    nhanVats: [taoNhanVat("nv_a", "Duy"), taoNhanVat("nv_b", "ZzMinh ZzQuân")],
     hoiThoais: [taoHoiThoai("ht_1", "Bếp", ["nv_a", "nv_b"])],
   });
 }
@@ -266,7 +266,7 @@ test("nhipTruocDo: thẻ bắt lại mạch, KHÔNG gọi AI", () => {
   eq(the.camXuc.length, 1, "một nhân vật có cảm xúc còn đọng");
   eq(the.camXuc[0].ten, "Duy", "tên nhân vật có cảm xúc");
   eq(the.choDo.length, 1, "một nhân vật có điều đang chờ");
-  eqSau(the.hienDien, ["Duy", "Minh Quân"], "danh sách người đang có mặt");
+  eqSau(the.hienDien, ["Duy", "ZzMinh ZzQuân"], "danh sách người đang có mặt");
   const theNguoi = nhipTruocDo(s, conv, [taoTinNhan("m1", "nguoi", "Bạn", "tôi đây")]);
   eq(theNguoi.viTri.ten, "Bạn", "lượt cuối là của người chơi");
 });

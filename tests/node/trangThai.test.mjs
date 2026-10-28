@@ -10,11 +10,11 @@ import {
 import { taoTruyen, taoNhanVat, taoHoiThoai, taoCanhDaKhep, taoTinNhan } from "../fixtures/truyen.mjs";
 
 const A = taoNhanVat("nv_a", "Duy");
-const B = taoNhanVat("nv_b", "Minh Quân");
+const B = taoNhanVat("nv_b", "ZzMinh ZzQuân");
 
 function truyenCoBan() {
   return taoTruyen({
-    nhanVats: [taoNhanVat("nv_a", "Duy"), taoNhanVat("nv_b", "Minh Quân")],
+    nhanVats: [taoNhanVat("nv_a", "Duy"), taoNhanVat("nv_b", "ZzMinh ZzQuân")],
     hoiThoais: [taoHoiThoai("ht_1", "Bếp", ["nv_a", "nv_b"]), taoHoiThoai("ht_2", "Bến tàu", ["nv_a"])],
   });
 }
@@ -223,7 +223,7 @@ test("aiBietMacDinh: theo người lên tiếng, hoặc theo cảnh riêng", () 
   const msgs = [
     taoTinNhan("m1", "nguoi", "Bạn", "câu 1"),
     taoTinNhan("m2", "ai", "Duy", "câu 2", { nvIds: ["nv_a"] }),
-    taoTinNhan("m3", "ai", "Minh Quân", "câu 3", { nvId: "nv_b" }),
+    taoTinNhan("m3", "ai", "ZzMinh ZzQuân", "câu 3", { nvId: "nv_b" }),
   ];
   eqSau(aiBietMacDinh(msgs, ""), [ID_NGUOI, "nv_a", "nv_b"], "gom mọi nhân vật đã lên tiếng");
   eqSau(aiBietMacDinh(msgs, "nv_c"), [ID_NGUOI, "nv_c"], "cảnh riêng thì chỉ người chơi và người đó");

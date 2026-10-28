@@ -162,16 +162,105 @@ const viTriDau = (text, p) => {
   }
   return -1;
 };
-const hit = [];
-for (const f of canQuet) {
-  for (const p of PAT) {
-    const i = viTriDau(f.text, p);
-    if (i < 0) continue;
-    hit.push({ tep: f.tep, dong: f.text.slice(0, i).split(NL).length });
-    if (hit.length >= 60) break;
+// ---------------------------------------------------------------- quét
+// MÃ BĂM DÒNG (FNV-1a 32 bit, hex 8 ký tự) — khoá của ngoại lệ theo vị trí. Phải là đúng
+// hàm này (đã dùng lúc rà soát bản chuẩn) thì mã trong `VI_TRI_MIEN` mới khớp dòng đó.
+function bamDong(tep, dong) {
+  let h = 0x811c9dc5;
+  const s = tep + NL + dong;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
   }
-  if (hit.length >= 60) break;
+  return ("0000000" + h.toString(16)).slice(-8);
 }
+
+// NGOẠI LỆ THEO VỊ TRÍ (chủ dự án duyệt từng vị trí, Giai đoạn 9 sửa Đợt 1):
+// mỗi mục là "tệp|mã dòng" của ĐÚNG DÒNG đã rà soát trong bản chuẩn — không chứa chuỗi thật
+// nào (mã là một chiều). Một mẫu trùng ở dòng KHÁC (tệp khác, hoặc cùng tệp nhưng dòng đã
+// sửa) VẪN ĐỎ. Không có ngoại lệ theo tần suất: chép một chuỗi sang ba tệp không chứng minh
+// được đó là dữ liệu mẫu.
+// Bản chất các dòng đã rà soát (chỉ nêu vị trí, không nêu chuỗi):
+//   • văn bản thể loại trong main.pjs + ví dụ tên trong src/README.md: từ thường;
+//   • giao diện + tài liệu + chú thích test (9 dòng): từ thường;
+//   • prompt Đạo diễn + văn bản thể loại + snapshot prompt (8 dòng): từ thường;
+//   • nhãn mặc định của app (10 dòng);
+//   • tiêu đề mục trong hai tệp tài liệu (3 dòng).
+const VI_TRI_MIEN = new Set([
+  "main.pjs|b54244ac", "src/README.md|6b21190e",
+  "tests/node/khong-ro-ri.test.mjs|4b85db80", "tests/node/goi-chung.test.mjs|fc689199",
+  "tests/README.md|1ca5b150", "src/ui/vietTruyen/vietTruyenHtml.js|b6442c40",
+  "src/ui/tuyChonTruyen/tuyChonTruyenHtml.js|700fbfc7", "src/trangThai.js|d2f5ef9c",
+  "src/app.js|4327daf0", "src/README.md|fcd9fce8", "src/README.md|46678830", "main.pjs|7ccece12",
+  "tests/fixtures/prompt/daodien-1.txt|1b741650", "tests/fixtures/prompt/daodien-2.txt|8cf942ac",
+  "tests/fixtures/prompt/daodien-3.txt|5fcaeff2", "tests/fixtures/prompt/daodien-4.txt|7eead586",
+  "tests/fixtures/prompt/daodien-5.txt|c2748b38", "src/ai.js|425d7254",
+  "main.pjs|1a56e90c", "main.pjs|b6649f00",
+  "tests/node/bangDieuKhienFlow.test.mjs|3de0f1ac",
+  "src/ui/bangDieuKhien/bangDieuKhienHtml.js|d2589de8",
+  "src/ui/bangDieuKhien/bangDieuKhienHtml.js|25b954d8",
+  "src/ui/bangDieuKhien/bangDieuKhienHtml.js|c807e2dc",
+  "src/ui/bangDieuKhien/bangDieuKhienFlow.js|a19a8bf1", "src/store.js|6ed22794",
+  "src/app.js|b4d56806", "src/app.js|ce5307f0", "src/app.js|4b8cc314", "src/app.js|88456898",
+  "tests/README.md|7436b3e0", "src/README.md|210b8d8b", "src/README.md|a1fbf038",
+]);
+
+// Quét MỌI vị trí trùng (không dừng ở lần khớp đầu tiên, và KHÔNG giới hạn số lần gặp
+// trên mỗi tệp — giới hạn cũ `dem < 50` từng bỏ sót im lặng: 50 lần nằm trong từ dài hơn
+// rồi một tên đứng riêng ở lần thứ 51 vẫn xanh. Vì mỗi lần gặp phải suy số dòng nên mốc
+// dòng được dựng MỘT lần cho mỗi tệp rồi tra bằng tìm kiếm nhị phân).
+// Ngân sách: nếu một gói quái đản khiến số lần gặp vượt ngân sách, lượt quét DỪNG HẲN và
+// báo CHƯA HOÀN TẤT (đỏ) — không bao giờ kết luận "đạt" trên kết quả quét dở.
+const NGAN_SACH_QUET = 2000000; // số lần gặp mẫu được xem xét tối đa cho cả lượt quét
+let soBuocQuet = 0;
+let quetDoDang = ""; // tệp nơi hết ngân sách (nếu có)
+const hit = [];
+const mienDaDung = new Set();
+let soBoQua = 0;
+// Quét một tệp, trả { hit, boQua, xong } — `xong=false` nghĩa là đã hết ngân sách giữa
+// chừng, lượt quét phải dừng và báo chưa hoàn tất.
+function quetTep(f) {
+  const hitTep = [];
+  let boQuaTep = 0;
+  const moc = [0];
+  for (let k = 0; k < f.text.length; k++) if (f.text[k] === NL) moc.push(k + 1);
+  const dong = f.text.split(NL);
+  const soDongCua = (i) => {
+    let d = 0, c = moc.length - 1;
+    while (d < c) { const g = (d + c + 1) >> 1; if (moc[g] <= i) d = g; else c = g - 1; }
+    return d + 1;
+  };
+  for (const p of PAT) {
+    let i = f.text.indexOf(p);
+    while (i >= 0) {
+      soBuocQuet++;
+      if (soBuocQuet > NGAN_SACH_QUET) { quetDoDang = f.tep; return { hit: hitTep, boQua: boQuaTep, xong: false }; }
+      const truoc = i > 0 ? f.text[i - 1] : "";
+      const sau = i + p.length < f.text.length ? f.text[i + p.length] : "";
+      if (!laChu(truoc) && !laChu(sau)) {
+        const soDong = soDongCua(i);
+        const khoa = f.tep + "|" + bamDong(f.tep, dong[soDong - 1]);
+        if (VI_TRI_MIEN.has(khoa)) {
+          boQuaTep += 1;
+          mienDaDung.add(khoa);
+        } else {
+          hitTep.push({ tep: f.tep, dong: soDong });
+        }
+      }
+      i = f.text.indexOf(p, i + 1);
+    }
+  }
+  return { hit: hitTep, boQua: boQuaTep, xong: true };
+}
+let soTepDaQuet = 0;
+for (const f of canQuet) {
+  const r = quetTep(f);
+  soBoQua += r.boQua;
+  for (const h of r.hit) hit.push(h);
+  if (!r.xong) break;
+  soTepDaQuet++;
+}
+const soBuocQuetThat = soBuocQuet; // chốt trước khi các ca tự kiểm tra chạy thêm lượt quét giả
 const tepBi = [];
 for (const h of hit) if (tepBi.indexOf(h.tep) < 0) tepBi.push(h.tep);
 
@@ -186,10 +275,60 @@ chk("quét ngược: tự kiểm tra — phép quét bắt được mẫu thật
 chk("quét ngược: tự kiểm tra — khớp đúng RANH GIỚI TỪ, và bộ mẫu đã bỏ chuỗi ngắn / từ thông dụng",
   viTriDau("xabcx", "abc") < 0 && viTriDau("x abc", "abc") >= 0 &&
   PAT.size > 0 && Array.from(PAT).every((p) => p.length >= 4 && TU_THUONG.indexOf(p.toLowerCase()) < 0));
+// Hồi quy lỗi từng gặp: giới hạn 50 lần gặp/tệp/mẫu bỏ sót im lặng. Dựng đúng tình huống
+// đó — 50 lần mẫu nằm trong từ dài hơn, lần 51 đứng riêng — trên một "tệp" giả với một
+// mẫu tổng hợp (thêm/tạm vào PAT rồi gỡ, không in ra đâu) rồi đòi phép quét bắt được
+// đúng MỘT lần (mã cũ dừng ở 50 nên được 0).
+{
+  const MAU_GIA = "QqZzKkWwVv";
+  PAT.add(MAU_GIA);
+  const gia = [];
+  for (let k = 0; k < 50; k++) gia.push("xq" + MAU_GIA + "zq");
+  gia.push(" " + MAU_GIA + " ");
+  let r51 = null;
+  try {
+    r51 = quetTep({ tep: "__gia__", text: gia.join(" ") });
+  } finally {
+    PAT.delete(MAU_GIA);
+  }
+  chk("quét ngược: tự kiểm tra — 50 lần trong từ dài hơn không che được lần 51 đứng riêng",
+    !!r51 && r51.xong && r51.hit.length === 1 && r51.hit[0].tep === "__gia__");
+}
+// Cơ chế miễn theo vị trí phải TỰ BẢO VỆ: (a) hàm băm ổn định (đúng hàm đã dùng lúc rà soát
+// bản chuẩn — đổi hàm là mọi mã trong `VI_TRI_MIEN` thành rác); (b) mọi mục đúng định dạng
+// "tệp|mã hex 8 ký tự" và khoá giả không được miễn; (c) mọi mục miễn đều trỏ đúng một dòng
+// đang có trong gói (sửa/xoá/dời dòng là mã cũ thành mồ côi — phải rà soát lại, không được
+// lặng lẽ giữ). Kiểm (c) độc lập với kv: đối chiếu mã với từng dòng của tệp trong gói, nên
+// kv thêm/bớt truyện không làm nó báo oan. Chỉ chạy khi có bản tiêm đầy đủ (`window.__tvGoi`).
+chk("quét ngược: tự kiểm tra — bamDong ổn định (đúng hàm đã dùng lúc rà soát)",
+  bamDong("a", "b") === "28e4c710" && bamDong("a", "b") !== bamDong("a", "c"));
+chk("quét ngược: tự kiểm tra — VI_TRI_MIEN đúng định dạng tệp|mã, khoá giả không được miễn",
+  VI_TRI_MIEN.size > 0 &&
+  Array.from(VI_TRI_MIEN).every((k) => /^[^|]+\|[0-9a-f]{8}$/.test(k)) &&
+  !VI_TRI_MIEN.has("tep-gia-khong-co|00000000"));
+if (window.__tvGoi) {
+  const moiChet = [];
+  for (const khoa of VI_TRI_MIEN) {
+    const i = khoa.indexOf("|");
+    const tep = khoa.slice(0, i), ma = khoa.slice(i + 1);
+    const f = canQuet.find((x) => x.tep === tep);
+    const conDong = f ? f.text.split(NL).some((d) => bamDong(tep, d) === ma) : false;
+    if (!conDong) moiChet.push(khoa);
+  }
+  chk("quét ngược: tự kiểm tra — mọi mục miễn đều trỏ đúng một dòng đang có trong gói" +
+    (moiChet.length ? " — mồ côi: " + moiChet.slice(0, 5).join(", ") : ""),
+    moiChet.length === 0);
+}
+if (soBoQua > 0) chk("quét ngược: đã miễn " + soBoQua + " lượt trùng ở vị trí đã rà soát", true);
+
+chk("quét ngược: quét HẾT mọi vị trí (" + soBuocQuetThat + " lượt gặp trên " + soTepDaQuet + "/" + canQuet.length + " tệp)" +
+  (quetDoDang ? " — DỞ DANG ở " + quetDoDang + ", chưa quét hết nên KHÔNG kết luận đạt" : ""),
+  !quetDoDang && soTepDaQuet === canQuet.length);
 
 chk("quét ngược: đã quét tệp sẽ vào gói (" + nguonTep + ") — " + canQuet.length + " tệp", canQuet.length >= 30);
 for (const h of hit) chk("quét ngược: RÒ RỈ dữ liệu thật trong " + h.tep + " (dòng " + h.dong + ")", false, "tệp này chứa một chuỗi lấy từ kv");
-chk("quét ngược: không tệp nào trong gói chứa tên/id thật" + (tepBi.length ? " — đang bị " + tepBi.length + " tệp" : ""), hit.length === 0);
+chk("quét ngược: không tệp nào trong gói chứa tên/id thật" + (tepBi.length ? " — đang bị " + tepBi.length + " tệp" : "") +
+  (quetDoDang ? " (lượt quét DỞ DANG — chưa đủ cơ sở kết luận)" : ""), hit.length === 0 && !quetDoDang);
 if (!window.__tvGoi) {
   chk("quét ngược: PHẢI tiêm window.__tvGoi (danh sách tệp + nội dung của gói) trước khi đóng gói", false, "chưa tiêm nên chưa quét được tests/**");
 }

@@ -12,6 +12,7 @@
 //   nhanVatAi.js      "Tạo bằng AI" (nghĩ hướng → chọn → viết chi tiết)
 //   nhanVatGiaoKeo.js nút "Bật giao kèo cho truyện này" (qua cửa 18+)
 //   nhanVatLuu.js     bấm Lưu (áp cửa 18+ lần cuối, ghi hỏng thì trả nguyên trạng)
+//   nhanVatThe.js     thẻ nhân vật SillyTavern: nhập/xuất + điền form (Giai đoạn 9)
 //
 // DAG: tệp này (và mọi tệp trong `src/ui/`) ĐƯỢC import lõi; lõi KHÔNG BAO GIỜ import
 // `src/ui/*`. `tests/node/goi-chung.test.mjs` ghim luật đó.
@@ -20,15 +21,16 @@
 // tiện ích). Mọi thứ khác lấy thẳng từ lõi.
 
 import { el, modal, toast } from "../../dom.js";
-import { laNguoiLon, getNgoaiHinh, tuoiSo, newCharacter, charById, giaoKeoOf } from "../../store.js";
+import { getNgoaiHinh, tuoiSo, newCharacter, charById, giaoKeoOf } from "../../store.js";
 import { htmlThan, htmlMauNhanVat } from "./nhanVatHtml.js";
-import { khoaNguoiLonTheoTuoi, tenTrongForm, soThichTuChuoi, doiSoThich } from "./nhanVatForm.js";
+import { khoaNguoiLonTheoTuoi, soThichTuChuoi, doiSoThich } from "./nhanVatForm.js";
 import { lapAvatar, taoAnhDaiDien } from "./nhanVatAvatar.js";
 import { lapLienKet } from "./nhanVatLienKet.js";
 import { lapAi } from "./nhanVatAi.js";
 import { apMauNhanVat } from "./nhanVatMau.js";
 import { batGiaoKeo } from "./nhanVatGiaoKeo.js";
 import { luuNhanVat } from "./nhanVatLuu.js";
+import { dienForm, lapThe } from "./nhanVatThe.js";
 
 export function openCharacterEditor(charId, opts = {}, D) {
   const story = D.currentStory();
@@ -65,16 +67,6 @@ export function openCharacterEditor(charId, opts = {}, D) {
   });
   S.m = m;
 
-  F("ten").value = tenTrongForm(nhap);
-  F("vaiTro").value = nhap.vaiTro || "";
-  F("moTa").value = nhap.moTa || "";
-  F("tinhCach").value = nhap.tinhCach || "";
-  F("cachNoi").value = nhap.cachNoi || "";
-  F("ghiChu").value = nhap.ghiChu || "";
-  if (F("tuoi")) F("tuoi").value = nhap.tuoi || "";
-  // Trạng thái "người trưởng thành" KHÔNG được suy ra từ dữ liệu thiếu: chỉ đúng khi
-  // nhân vật thực sự là người lớn (tuổi số >= 18 hoặc cờ xác nhận tường minh).
-  if (F("nguoiLon")) F("nguoiLon").checked = laNguoiLon(nhap);
   {
     // Tuổi số dưới 18 ⇒ KHOÁ CỨNG: bỏ tích và không cho tích lại. Bỏ trống tuổi thì
     // không mặc định là người lớn — người dùng phải tự xác nhận.
@@ -93,22 +85,13 @@ export function openCharacterEditor(charId, opts = {}, D) {
   lapAvatar(S);
   lapLienKet(S);
   lapAi(S);
-  {
-    // Liên kết hồ sơ ngoại hình + biệt danh riêng của truyện.
-    if (F("bietDanh")) F("bietDanh").value = nhap.bietDanh || "";
-    S.lamMoiLienKet();
-  }
-  {
-    for (const f of ["vaiBdsm", "danhXung", "kinhNghiem", "phongCach", "khauVi", "gioiHan", "gioiHanCung", "luatRieng", "chamSocSau", "tinHieuRieng"]) {
-      if (F(f)) F(f).value = nhap[f] || "";
-    }
-    D.paintNvThich(body);
-  }
+  lapThe(S);
+  // Điền form từ bản nháp — cùng một đường cho lúc mở màn và sau khi nhập thẻ.
+  dienForm(S);
   {
     const sl = body.querySelector("[data-suggest]");
     if (sl) sl.innerHTML = htmlMauNhanVat((D.mauNhanVat && D.mauNhanVat()) || []);
   }
-  S.paintAvatar();
 
   body.addEventListener("click", async (e) => {
     const status = body.querySelector("[data-status]");
@@ -119,6 +102,7 @@ export function openCharacterEditor(charId, opts = {}, D) {
       await batGiaoKeo(S, act);
       return;
     }
+    if (await S.suKienThe(e, actName)) return;
     const nvThich = e.target.closest("[data-nv-thich]");
     if (nvThich) {
       bamThich(S, nvThich);

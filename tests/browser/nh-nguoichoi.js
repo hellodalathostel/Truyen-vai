@@ -41,12 +41,12 @@ try {
   await T.loadNgoaiHinh();
   await A.xoaZZ("ct_zznc1").catch(() => {});
 
-  // ---- dựng cảnh thử: 1 truyện, 2 hồ sơ, 1 nhân vật liên kết, người chơi tên "Quân"
+  // ---- dựng cảnh thử: 1 truyện, 2 hồ sơ, 1 nhân vật liên kết, người chơi tên "ZzQuân"
   await A.taoZZ({ id: "ct_zznc1", ten: "ZZ NC" });
   const st = S.getStory("ct_zznc1");
-  st.nguoiChoi = { ten: "Quân", moTa: "sinh viên năm cuối", ngoaiHinhId: "" };
+  st.nguoiChoi = { ten: "ZzQuân", moTa: "sinh viên năm cuối", ngoaiHinhId: "" };
   const hsA = T.chuanHoaHoSo({ id: "nhz_nc_a", tenChinh: "A", tuoi: "24", moTa: "tóc đen, mắt nâu" });
-  const hsNC = T.chuanHoaHoSo({ id: "nhz_nc_me", tenChinh: "Minh Quân", tuoi: "45", moTa: "vóc dáng đồ sộ, sẹo nhỏ bên má", tranh: "không mũ" });
+  const hsNC = T.chuanHoaHoSo({ id: "nhz_nc_me", tenChinh: "ZzMinh ZzQuân", tuoi: "45", moTa: "vóc dáng đồ sộ, sẹo nhỏ bên má", tranh: "không mũ" });
   await T.luuNgoaiHinh(hsA);
   await T.luuNgoaiHinh(hsNC);
   await T.loadNgoaiHinh();
@@ -57,7 +57,7 @@ try {
   // =========================================================== A. LOGIC THUẦN
   const s0 = S.getStory("ct_zznc1");
   const nc0 = T.nguoiChoiNhuNhanVat(s0);
-  chk("A1 người chơi được bọc thành 'nhân vật' với id quy ước của app", nc0.id === T.ID_NGUOI_CHOI && nc0.id === "nguoi" && nc0.ten === "Quân" && nc0.ngoaiHinhId === "", JSON.stringify(nc0));
+  chk("A1 người chơi được bọc thành 'nhân vật' với id quy ước của app", nc0.id === T.ID_NGUOI_CHOI && nc0.id === "nguoi" && nc0.ten === "ZzQuân" && nc0.ngoaiHinhId === "", JSON.stringify(nc0));
   chk("A2 laNguoiChoi phân biệt được người chơi với nhân vật", T.laNguoiChoi("nguoi") && !T.laNguoiChoi("nv_z1"));
   chk("A3 chưa liên kết ⇒ hoSoNguoiChoi = null", T.hoSoNguoiChoi(s0, T.dsNgoaiHinh()) === null);
   chk("A3b truyện THIẾU hẳn trường nguoiChoi.ngoaiHinhId vẫn an toàn", T.nguoiChoiNhuNhanVat({ nguoiChoi: { ten: "X" } }).ngoaiHinhId === "" && T.hoSoNguoiChoi({ nguoiChoi: { ten: "X" } }, T.dsNgoaiHinh()) === null);
@@ -74,10 +74,10 @@ try {
   const uv = T.ungVienNgoaiHinh(s, conv, T.dsNgoaiHinh());
   chk("A5 ứng viên gồm nhân vật có hồ sơ + NGƯỜI CHƠI", uv.length === 2 && uv[0].nvId === "nv_z1" && uv[1].nvId === "nguoi", JSON.stringify(uv.map((x) => x.nvId)));
   chk("A6 mục của người chơi có cờ riêng và đứng CUỐI", uv[1].laNguoiChoi === true && uv[1].hoSoId === hsNC.id);
-  chk("A7 tên nhận diện gồm cả tên hồ sơ lẫn tên trong truyện", (uv[1].ten || []).indexOf("Minh Quân") >= 0 && (uv[1].ten || []).indexOf("Quân") >= 0, JSON.stringify(uv[1].ten));
+  chk("A7 tên nhận diện gồm cả tên hồ sơ lẫn tên trong truyện", (uv[1].ten || []).indexOf("ZzMinh ZzQuân") >= 0 && (uv[1].ten || []).indexOf("ZzQuân") >= 0, JSON.stringify(uv[1].ten));
   const uv2 = T.ungVienNgoaiHinh(s, s.hoiThoais[1], T.dsNgoaiHinh()); // ht_z2 — nv_z2 chưa liên kết
   chk("A8 hội thoại không có nhân vật liên kết VẪN có người chơi", uv2.length === 1 && uv2[0].laNguoiChoi === true, JSON.stringify(uv2.map((x) => x.nvId)));
-  const nhan = T.nhanDienNgoaiHinh("Quân bước vào, Minh Quân đứng dậy", uv);
+  const nhan = T.nhanDienNgoaiHinh("ZzQuân bước vào, ZzMinh ZzQuân đứng dậy", uv);
   chk("A9 gõ tên người chơi ⇒ tự chọn hồ sơ của họ", nhan.chon.indexOf(hsNC.id) >= 0, JSON.stringify(nhan));
   chk("A10 demLienKetNgoaiHinh tính CẢ người chơi", T.demLienKetNgoaiHinh(S.store.stories, hsNC.id) === 1 && T.demLienKetNgoaiHinh(S.store.stories, hsA.id) === 1, T.demLienKetNgoaiHinh(S.store.stories, hsNC.id) + "/" + T.demLienKetNgoaiHinh(S.store.stories, hsA.id));
   const dung = T.demDungNgoaiHinh(S.store.stories, hsNC.id);
@@ -111,14 +111,14 @@ try {
   chk("C2 ô chọn đang trỏ đúng hồ sơ của người chơi", !!sel && sel.value === hsNC.id, sel ? sel.value : "(không có ô)");
   chk("C3 danh sách đủ hồ sơ trong thư viện + mục “không liên kết”", !!sel && sel.querySelectorAll("option").length === T.dsNgoaiHinh().length + 1, sel ? sel.querySelectorAll("option").length : "?");
   let info = bd ? bd.querySelector("[data-nc-link-info]") : null;
-  chk("C4 tóm tắt nói rõ ai đang dùng (kể cả người chơi)", !!info && /người chơi/.test(info.textContent) && /Minh Quân/.test(info.textContent), info ? info.textContent.slice(0, 140) : "?");
-  chk("C5 cảnh báo lệch tên (bạn “Quân” ≠ “Minh Quân”)", !!info && !!info.querySelector(".nh-info-lech"));
+  chk("C4 tóm tắt nói rõ ai đang dùng (kể cả người chơi)", !!info && /người chơi/.test(info.textContent) && /ZzMinh ZzQuân/.test(info.textContent), info ? info.textContent.slice(0, 140) : "?");
+  chk("C5 cảnh báo lệch tên (bạn “ZzQuân” ≠ “ZzMinh ZzQuân”)", !!info && !!info.querySelector(".nh-info-lech"));
   const nutTen = info ? info.querySelector('[data-act="dong-ten-nguoi-choi"]') : null;
   chk("C6 có nút “Dùng tên chính của hồ sơ”", !!nutTen);
   if (nutTen) nutTen.click();
   await cho(200);
-  chk("C7 nút đó ĐIỀN vào ô tên", F("nguoiChoiTen") && F("nguoiChoiTen").value === "Minh Quân", F("nguoiChoiTen") ? F("nguoiChoiTen").value : "?");
-  chk("C8 nhưng CHƯA lưu khi chưa bấm Lưu", S.getStory("ct_zznc1").nguoiChoi.ten === "Quân", S.getStory("ct_zznc1").nguoiChoi.ten);
+  chk("C7 nút đó ĐIỀN vào ô tên", F("nguoiChoiTen") && F("nguoiChoiTen").value === "ZzMinh ZzQuân", F("nguoiChoiTen") ? F("nguoiChoiTen").value : "?");
+  chk("C8 nhưng CHƯA lưu khi chưa bấm Lưu", S.getStory("ct_zznc1").nguoiChoi.ten === "ZzQuân", S.getStory("ct_zznc1").nguoiChoi.ten);
   chon(bd.querySelector('[data-f="nguoiChoiNgoaiHinhId"]'), "");
   await cho(200);
   chk("C9 bỏ liên kết trên form ⇒ tóm tắt nói chưa liên kết", /Chưa liên kết/.test(bd.querySelector("[data-nc-link-info]").textContent), bd.querySelector("[data-nc-link-info]").textContent.slice(0, 100));
@@ -173,13 +173,13 @@ try {
   chk("D2 chip có nhãn “bạn” để phân biệt với nhân vật", !!chip() && !!chip().querySelector(".nh-chip-nguoi"), chip() ? chip().textContent.trim() : "?");
   chk("D3 chip người chơi mặc định ĐƯỢC CHỌN", !!chip() && chip().classList.contains("on") && chip().getAttribute("aria-pressed") === "true");
   const khoi0 = khoiText();
-  chk("D4 khối chỉ-đọc có dòng của người chơi, đúng ở CUỐI", khoi0.indexOf("- A (age 24)") >= 0 && khoi0.indexOf("- Minh Quân (age 45)") > khoi0.indexOf("- A (age 24)"), khoi0.slice(0, 180));
+  chk("D4 khối chỉ-đọc có dòng của người chơi, đúng ở CUỐI", khoi0.indexOf("- A (age 24)") >= 0 && khoi0.indexOf("- ZzMinh ZzQuân (age 45)") > khoi0.indexOf("- A (age 24)"), khoi0.slice(0, 180));
   chip().click();
   await cho(350);
-  chk("D5 bỏ chip ⇒ khối bỏ dòng người chơi, nhân vật vẫn còn", khoiText().indexOf("Minh Quân") < 0 && khoiText().indexOf("- A (age 24)") >= 0, khoiText().slice(0, 140));
+  chk("D5 bỏ chip ⇒ khối bỏ dòng người chơi, nhân vật vẫn còn", khoiText().indexOf("ZzMinh ZzQuân") < 0 && khoiText().indexOf("- A (age 24)") >= 0, khoiText().slice(0, 140));
   chip().click();
   await cho(350);
-  chk("D6 bật lại ⇒ dòng người chơi trở về, đúng MỘT lần", (khoiText().match(/Minh Quân/g) || []).length === 1 && chip().classList.contains("on"), khoiText().slice(0, 160));
+  chk("D6 bật lại ⇒ dòng người chơi trở về, đúng MỘT lần", (khoiText().match(/ZzMinh ZzQuân/g) || []).length === 1 && chip().classList.contains("on"), khoiText().slice(0, 160));
 
   const ta = bdA.querySelector('[data-f="prompt"]');
   setV(ta, "A dark room at night, two people standing");
@@ -189,7 +189,7 @@ try {
   for (let i = 0; i < 30; i++) { await cho(150); if (VE.calls) break; }
   chk("D7 máy vẽ được gọi đúng 1 lần", VE.calls === 1, VE.calls);
   const promptNhan = (() => { try { return VE.last.evaluateItem; } catch (e) { return ""; } })();
-  chk("D8 prompt gửi máy vẽ có ngoại hình CỐ ĐỊNH của người chơi", /Minh Quân \(age 45\)/.test(promptNhan), promptNhan.slice(-170));
+  chk("D8 prompt gửi máy vẽ có ngoại hình CỐ ĐỊNH của người chơi", /ZzMinh ZzQuân \(age 45\)/.test(promptNhan), promptNhan.slice(-170));
   chk("D9 “điều cần tránh” của hồ sơ người chơi vào prompt loại trừ", /không mũ/.test(VE.lastLoaiTru), VE.lastLoaiTru);
   // đưa ảnh vào truyện ⇒ bản ghi nhớ hồ sơ của người chơi
   for (let i = 0; i < 25; i++) {
@@ -201,7 +201,7 @@ try {
   const sA2 = S.getStory("ct_zznc1");
   const anhMoi = (sA2.anh || []).find((a) => (a.hoSoIds || []).indexOf(hsNC.id) >= 0);
   chk("D10 bản ghi ảnh nhớ người chơi là một hồ sơ đã dùng", !!anhMoi, JSON.stringify((sA2.anh || []).map((a) => a.hoSoIds)));
-  chk("D11 prompt LƯU trong ảnh có khối ngoại hình của người chơi", !!anhMoi && /Minh Quân \(age 45\)/.test(anhMoi.prompt || ""), (anhMoi && anhMoi.prompt || "").slice(-120));
+  chk("D11 prompt LƯU trong ảnh có khối ngoại hình của người chơi", !!anhMoi && /ZzMinh ZzQuân \(age 45\)/.test(anhMoi.prompt || ""), (anhMoi && anhMoi.prompt || "").slice(-120));
   chk("D12 xuất riêng truyện kèm cả hồ sơ của người chơi và của ảnh", (() => {
     const ds = T.hoSoCuaTruyen(sA2, T.dsNgoaiHinh()).map((x) => x.id);
     return ds.indexOf(hsNC.id) >= 0 && ds.indexOf(hsA.id) >= 0;
@@ -243,7 +243,7 @@ try {
   const copy = T.capIdMoi(sF, {}, {}, hsMap);
   const ncCopy = copy.story.nguoiChoi.ngoaiHinhId;
   chk("F1 bản sao GIỮ liên kết người chơi nhưng dịch sang ID mới", !!ncCopy && ncCopy !== hsNC.id && !!copy.ngoaiHinh[ncCopy], String(ncCopy));
-  chk("F2 hồ sơ đi kèm bản sao vẫn nguyên nội dung", !!copy.ngoaiHinh[ncCopy] && copy.ngoaiHinh[ncCopy].tenChinh === "Minh Quân", JSON.stringify(copy.ngoaiHinh[ncCopy] || {}).slice(0, 90));
+  chk("F2 hồ sơ đi kèm bản sao vẫn nguyên nội dung", !!copy.ngoaiHinh[ncCopy] && copy.ngoaiHinh[ncCopy].tenChinh === "ZzMinh ZzQuân", JSON.stringify(copy.ngoaiHinh[ncCopy] || {}).slice(0, 90));
   const copy2 = T.capIdMoi(sF, {}, {}, {});
   chk("F3 file THIẾU hồ sơ ⇒ bản sao BỎ liên kết của người chơi", copy2.story.nguoiChoi.ngoaiHinhId === "", JSON.stringify(copy2.story.nguoiChoi.ngoaiHinhId));
   chk("F4 bản sao không đụng bản gốc", S.getStory("ct_zznc1").nguoiChoi.ngoaiHinhId === hsNC.id && copy.story.id !== sF.id);

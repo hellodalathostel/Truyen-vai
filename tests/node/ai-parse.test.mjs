@@ -24,12 +24,12 @@ const BS = String.fromCharCode(92); // dấu gạch chéo ngược, viết kiể
 const NL = String.fromCharCode(10);
 
 const NV_A = "nv_a"; // Duy
-const NV_B = "nv_b"; // Minh Quân
+const NV_B = "nv_b"; // ZzMinh ZzQuân
 
 // Dựng truyện + hội thoại tối thiểu. Tên/id ở đây là HƯ CẤU, trung tính.
 function dungTruyen() {
   const story = taoTruyen({
-    nhanVats: [taoNhanVat(NV_A, "Duy"), taoNhanVat(NV_B, "Minh Quân")],
+    nhanVats: [taoNhanVat(NV_A, "Duy"), taoNhanVat(NV_B, "ZzMinh ZzQuân")],
     nguoiChoi: { ten: "Bạn", moTa: "", ngoaiHinhId: "" },
   });
   story.hoiThoais = [taoHoiThoai("ht_be", "Bếp", [NV_A, NV_B])];
@@ -208,7 +208,7 @@ test("docPhieu: CHƯA NÓI đứng một mình vẫn thành mục quan hệ", ()
   const p = docPhieu(PHIEU_CHUA_NOI, { story, conv });
   eq(p.quanHe.length, 1, "đúng một mục");
   eq(p.quanHe[0].tu, NV_A, "từ Duy");
-  eq(p.quanHe[0].den, NV_B, "tới Minh Quân");
+  eq(p.quanHe[0].den, NV_B, "tới ZzMinh ZzQuân");
   eq(p.quanHe[0].chieu, "chuaNoi", "chiều là chưa nói");
   eq(p.quanHe[0].moi, "định nói ra nhưng thôi", "nội dung chưa nói");
 });

@@ -32,7 +32,7 @@ await A.taoZZ({ id: "ct_zz1", ten: "ZZ bố cục" });
 await T.loadStories();
 const s1 = await root.kv.cotTruyen.get("ct_zz1");
 const h1 = mkH("Sara Nguyễn", "29", "Tóc đen dài ngang lưng, mắt xanh lục, xương quai hàm rõ, cao 1m72, sẹo nhỏ trên mày trái, xăm hình sóng ở cổ tay phải.", "không kính, tóc không ngắn", anhMau(1200, 900));
-const h2 = mkH("Minh Trần", "31", "Dáng thấp đậm, tóc ngắn nhuộm bạch kim, mắt nâu, vai rộng, cổ tay to.", "không râu");
+const h2 = mkH("ZzMinh Trần", "31", "Dáng thấp đậm, tóc ngắn nhuộm bạch kim, mắt nâu, vai rộng, cổ tay to.", "không râu");
 const h3 = mkH("Khoa Phạm", "27", "Mảnh khảnh, tóc nâu xoăn ngang vai, mắt nâu nhạt, cao 1m78.", "");
 // Hồ sơ thứ tư KHÔNG liên kết nhân vật nào trong cảnh — để nút "Chọn thêm" có việc làm
 // và để thấy trạng thái "chưa liên kết với nhân vật nào" trong thư viện.

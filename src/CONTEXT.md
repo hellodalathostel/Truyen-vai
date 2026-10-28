@@ -22,17 +22,18 @@ dom.js · schema.js · ngoaiHinh.js (không import gì)
 | Tệp | Vai trò (vài hàm chính) |
 |---|---|
 | `dom.js` | Hạ tầng DOM: `esc`, `fmt`, `icon`, `toast`, `modal`, `confirmModal`. |
-| `nhap.js` | Nhập bản sao: `capIdMoi` (cấp id mới + dịch tham chiếu chéo). Thuần. |
-| `schema.js` | Hình dạng `MO_TA_*`/`kiemTra*`, sổ phiên bản `MIGRATION_*`, nhật ký nâng cấp & lỗi hình dạng. Thuần. |
+| `nhap.js` | Nhập bản sao: `capIdMoi` (id mới + dịch tham chiếu). Thuần. |
+| `schema.js` | Hình dạng `MO_TA_*`/`kiemTra*`, sổ phiên bản `MIGRATION_*`. Thuần. |
 | `trangThai.js` | Trạng thái **dẫn xuất** từ `canhDaKhep`: `tinhTrangThai`, `taoHuong`, `taoTienDo`, `taoDinhChinh`. |
 | `ngoaiHinh.js` | Hồ sơ ngoại hình: `chuanHoaHoSo`, `ghepPromptNgoaiHinh`, `canDichNgoaiHinh`; `PHIEN_BAN_HO_SO`. |
 | `thoiGian.js` | Đồng hồ truyện + vắng mặt: `thoiGianOf`, `xetDieuKien`, `suKienCua`, `maPhien`. |
 | `store.js` | Dữ liệu + kv: `createStory`, `giaoDichKV`, `laNguoiLon`, `chanNoiDungNguoiLon`, `dsSeGhiCoNguoiLon`/`dsChanGhiCo`; **cửa vào nạp: `migrate`/`napBanGhi`**; `chuanHoa*`; `PHIEN_BAN_TRUYEN`; `kiemTraBatBien`. |
 | `lore.js` | Sổ tri thức: `loreCua`, `docLorebook`, `xuatLorebook`, `buildLore`. |
+| `theNhanVat.js` | Thẻ nhân vật SillyTavern (chara_card_v2): đọc/ghi JSON+PNG. Thuần. |
 | `ai.js` | Mọi prompt + lời gọi model: `buildContext`, `buildPrompt`, `streamText`, `docPhieu`; `LUAT_NGON_NGU`. |
 | `app.js` | Giao diện + luồng: `render`, các `open*`, stream, vắng mặt, nhập/xuất, sao lưu; nối `ui/`; `window.__tv_test` = điểm neo test. |
 | `main.pjs` | Danh sách + cấu hình Perchance (`CauHinh`, `TheLoai`, `GiaoKeoMacDinh`, danh sách BDSM). |
-| `index.html` | Chỉ `<body>`: nạp `src/styles.css`, `src/app.js`, đặt `window.TRUYEN_VAI_ROOT = root`. |
+| `index.html` | Chỉ `<body>`: nạp `styles.css` + `app.js`, đặt `TRUYEN_VAI_ROOT`. |
 
 ## 2. Bất biến dữ liệu — KHÔNG được phá
 
@@ -72,6 +73,7 @@ Một chỗ duy nhất: `LUAT_NGON_NGU` (`ai.js`). Máy vẽ ảnh → **tiếng
 | Ba màn: tạo ảnh (cổng 18+) · sửa nhân vật · cốt truyện mới | `ui/taoAnh/` (`taoAnhFlow.js`) · `ui/nhanVat/` (`nhanVatForm.js`) · `ui/taoTruyen/` (`taoTruyenFlow.js`) |
 | Tuỳ chọn truyện · Sổ tri thức | `ui/tuyChonTruyen/` · `ui/lorebook/` |
 | Màn viết thành truyện | `ui/vietTruyen/` (`vietTruyenFlow.js`) |
+| Thẻ nhân vật (nhập/xuất) | `theNhanVat.js`; `ui/nhanVat/nhanVatThe.js` |
 | Bảng điều khiển · Đạo diễn · Sửa hồ sơ ngoại hình | `ui/bangDieuKhien/` · `ui/daoDien/` · `ui/suaNgoaiHinh/` |
 | Sự kiện toàn cục (`data-act` → hàm) | `ui/suKien/*`; `app.js` · `bindGlobalEvents` |
 | Dịch ngoại hình sang EN · dọn `[ ] { }` | `ai.js` · `dichNgoaiHinh` · `thoatPerchance` |
@@ -86,12 +88,11 @@ Một chỗ duy nhất: `LUAT_NGON_NGU` (`ai.js`). Máy vẽ ảnh → **tiếng
 
 ## 5. Test: ở đâu, chạy thế nào
 
-Bộ kiểm thử **không** nằm trong `src/` (công khai + quota) mà ở **repo GitHub** (mục 9). Cách chạy,
-số ca, bẫy, luật viết test: **`tests/README.md`** (`npm test` = Node; trình duyệt =
+Bộ kiểm thử **không** nằm trong `src/` mà ở **repo GitHub** (mục 9). Cách chạy/số ca/bẫy/luật test: **`tests/README.md`** (`npm test` = Node; trình duyệt =
 `tests/browser/runner.js` + `chayTatCa()`).
 
 **Tách/đổi hàm = KHÔNG ĐỔI HÀNH VI** — phải chứng minh bằng **ký tự + pixel**; cách đo ở
-`tests/README.md`, mục “Không đổi hành vi”. Áp cho MỌI lần tách.
+`tests/README.md`, mục “Không đổi hành vi”.
 
 **Prompt có snapshot GHIM TỪNG BYTE + mốc prefix-cache** (`tests/fixtures/prompt/`, 7a): đổi prompt
 thì cập nhật fixture + `moc.json` CÙNG commit kèm lý do; mốc không tụt quá 5 điểm phần trăm.
@@ -110,7 +111,7 @@ thì cập nhật fixture + `moc.json` CÙNG commit kèm lý do; mốc không t�
 2. **Không hàm nào dài quá 150 dòng** (TOÀN `src/**`, kể cả `app.js`). Màn quá dài thì tách ra
    `ui/<màn>/`: `app.js` giữ VỎ nối qua bảng `*_DEPS` (chỉ chứa hàm **còn lại của app**; còn lại
    import thẳng từ lõi). Bảng phải khớp **HAI CHIỀU** với `D.*` mà tệp của màn gọi — thừa/thiếu đều
-   là lỗi. Đã tách 9 màn + `capIdMoi` → `nhap.js` (tên màn: §4 và `tests/README.md`).
+   là lỗi. Đã tách 9 màn + `capIdMoi` → `nhap.js`.
 3. **MỘT điểm đăng ký sự kiện toàn cục**: chỉ `bindGlobalEvents` (`app.js`) gọi `addEventListener`;
    xử lý chia theo TÍNH NĂNG ở `ui/suKien/*` (bảng `"data-act": hàm`), gộp bằng `gopBangSuKien` —
    trùng tên NÉM LỖI, mọi `data-act` phải có hàm xử lý.

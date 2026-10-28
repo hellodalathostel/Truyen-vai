@@ -7,7 +7,7 @@ if (old) await st.deleteStory(old.id);
 const story = await st.createStory({
   ten: TEN,
   mode: "songSong",
-  nguoiChoiTen: "Minh",
+  nguoiChoiTen: "ZzMinh",
   boiCanh: "Một căn hộ ở Sài Gòn, ba người bạn cùng giữ một bí mật nhỏ.",
 });
 const kai = st.newCharacter({ ten: "Kai", vaiTro: "người giữ lời", tinhCach: "Cứng đầu nhưng giữ lời" });
@@ -21,7 +21,7 @@ story.daoDien = st.daoDienMacDinh();
 story.daoDien.bat = true;
 
 const m1 = st.makeMessage("ai", "Aric hứa sẽ đứng về phía Kai.", { nvId: aric.id, ten: "Aric" });
-const m2 = st.makeMessage("nguoi", "Minh gật đầu.", { ten: "Minh" });
+const m2 = st.makeMessage("nguoi", "ZzMinh gật đầu.", { ten: "ZzMinh" });
 const m3 = st.makeMessage("ai", "Kai quay đi, không nói gì.", { nvId: kai.id, ten: "Kai" });
 const msgs1 = [m1, m2, m3];
 await st.replaceMessages(ht1.id, msgs1);
@@ -47,8 +47,8 @@ const canh1 = TS.taoCanh(story, ht1, {
   ],
 });
 
-const m4 = st.makeMessage("ai", "Sera thú nhận với Minh.", { nvId: sera.id, ten: "Sera" });
-const m5 = st.makeMessage("nguoi", "Minh im lặng nghe.", { ten: "Minh" });
+const m4 = st.makeMessage("ai", "Sera thú nhận với ZzMinh.", { nvId: sera.id, ten: "Sera" });
+const m5 = st.makeMessage("nguoi", "ZzMinh im lặng nghe.", { ten: "ZzMinh" });
 const msgs2 = [m4, m5];
 await st.replaceMessages(ht2.id, msgs2);
 
@@ -57,7 +57,7 @@ const canh2 = TS.taoCanh(story, ht2, {
   denMsgId: m5.id,
   tomTat: "Ở ban công, Sera thú nhận cô đã nói dối cả nhóm.",
   kyUc: [{ noiDung: "Sera thú nhận đã nói dối cả nhóm ở ban công", biet: ["nguoi", sera.id], rieng: sera.id }],
-  quanHe: [{ tu: sera.id, den: "nguoi", chieu: "ganGui", huong: 1, buoc: 1, lyDo: "Sera chọn thú nhận với Minh trước" }],
+  quanHe: [{ tu: sera.id, den: "nguoi", chieu: "ganGui", huong: 1, buoc: 1, lyDo: "Sera chọn thú nhận với ZzMinh trước" }],
   nhanVat: [{ nvId: sera.id, truong: "cheGiau", cu: "", moi: "đã thú nhận, nhưng còn giữ chuyện của Aric", lyDo: "chỉ nói một nửa" }],
 });
 

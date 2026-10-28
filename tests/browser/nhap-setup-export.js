@@ -8,7 +8,7 @@ for (const s of S.store.stories.slice()) if (/^ZZ /.test(s.ten || "")) await S.d
 const TS = await import("/src/trangThai.js");
 const nv1 = S.newCharacter({ ten: "Kai", tinhCach: "cứng đầu nhưng giữ lời", emoji: "🜂" });
 const nv2 = S.newCharacter({ ten: "Aric", tinhCach: "dịu nhưng thiếu quyết đoán", emoji: "🜄" });
-const st = await S.createStory({ ten: "ZZ Nhập", mode: "songSong", boiCanh: "Một căn hộ ở Sài Gòn.", nguoiChoiTen: "Minh", nhanVats: [nv1, nv2] });
+const st = await S.createStory({ ten: "ZZ Nhập", mode: "songSong", boiCanh: "Một căn hộ ở Sài Gòn.", nguoiChoiTen: "ZzMinh", nhanVats: [nv1, nv2] });
 const ch = S.newChapter(1, { tieuDe: "Chương 1" });
 st.chuongs.push(ch);
 const c1 = S.newConversation({ tieuDe: "Căn hộ", nhanVatIds: [nv1.id, nv2.id], chuongId: ch.id });
@@ -18,16 +18,16 @@ c2.hienDien = [nv1.id];
 st.hoiThoais.push(c1, c2);
 st.hoiThoais[1].chuongId = null;
 const m1 = S.makeMessage("ai", "Aric hứa sẽ đứng về phía Kai.", { nvId: nv2.id, ten: "Aric" });
-const m2 = S.makeMessage("nguoi", "Minh gật đầu.", { ten: "Minh" });
+const m2 = S.makeMessage("nguoi", "ZzMinh gật đầu.", { ten: "ZzMinh" });
 const m3 = S.makeMessage("ai", "Kai im lặng rất lâu rồi mới đáp.", { nvIds: [nv1.id], nvId: nv1.id, ten: "Kai" });
 const m4 = S.makeMessage("anh", "", { anhId: "" });
 await S.replaceMessages(c1.id, [m1, m2, m3]);
-await S.replaceMessages(c2.id, [S.makeMessage("nguoi", "Minh ra ban công hút thuốc.", { ten: "Minh" })]);
+await S.replaceMessages(c2.id, [S.makeMessage("nguoi", "ZzMinh ra ban công hút thuốc.", { ten: "ZzMinh" })]);
 const canh = TS.taoCanh(st, c1, {
   tomTat: "Aric hứa đứng về phía Kai; Kai chưa tin nhưng vẫn ở lại.", moc: "Sáng hôm sau Aric hỏi Kai về món đồ cũ",
   tuMsgId: m1.id, denMsgId: m3.id,
   kyUc: [{ id: TS.ma("ku"), noiDung: "Aric đã hứa đứng về phía Kai.", biet: [nv1.id, nv2.id, TS.ID_NGUOI], rieng: "" }],
-  quanHe: [{ id: TS.ma("qh"), tu: nv2.id, den: nv1.id, chieu: "tinTuong", huong: 1, buoc: 1, moi: "", lyDo: "Aric đã hứa trước mặt Minh" }],
+  quanHe: [{ id: TS.ma("qh"), tu: nv2.id, den: nv1.id, chieu: "tinTuong", huong: 1, buoc: 1, moi: "", lyDo: "Aric đã hứa trước mặt ZzMinh" }],
   nhanVat: [{ id: TS.ma("nvz"), nvId: nv1.id, truong: "camXuc", cu: "dè chừng", moi: "vẫn đề phòng nhưng đã ở lại", lyDo: "ở lại thay vì rời đi" }],
 });
 st.canhDaKhep.push(canh);

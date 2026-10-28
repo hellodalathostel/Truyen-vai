@@ -182,7 +182,7 @@ test("chanNoiDungNguoiLon / chanGiaoKeo: cửa chặn dùng chung", () => {
   ok(co(chanNoiDungNguoiLon(chuaXacNhan), "CHƯA được xác nhận"), "có nhân vật chưa xác nhận thì chặn");
   ok(co(chanNoiDungNguoiLon(chuaXacNhan), "Người trưởng thành (18+)"), "chỉ rõ cách sửa");
   eq(chanGiaoKeo(chuaXacNhan), "", "chanGiaoKeo chỉ soi tuổi số, không soi cờ xác nhận");
-  const sach = { nhanVats: [nv("nv_a", "Duy", { tuoi: "31", nguoiLon: true }), nv("nv_b", "Quân", { tuoi: "28", nguoiLon: true })] };
+  const sach = { nhanVats: [nv("nv_a", "Duy", { tuoi: "31", nguoiLon: true }), nv("nv_b", "ZzQuân", { tuoi: "28", nguoiLon: true })] };
   eq(chanNoiDungNguoiLon(sach), "", "mọi người đã xác nhận thì cho qua");
 });
 
@@ -237,13 +237,13 @@ test("laDataUrlAnh: chỉ nhận ảnh hợp lệ, chặn chuỗi lạ", () => {
 });
 
 test("chuanHoaTruyen: bù mặc định, lọc dữ liệu không đáng tin", () => {
-  const s = chuanHoaTruyen({ id: "ct_zzn", ten: "  Truyện  ", nhanVats: [nv("nv_a", "Duy", { anh: "javascript:x", ngoaiHinhId: 5, bietDanh: "  Quân  " })], hoiThoais: [{ id: "ht_1", nhanVatIds: ["nv_a", "nv_khong_co"] }], nhip: "la-hoac" });
+  const s = chuanHoaTruyen({ id: "ct_zzn", ten: "  Truyện  ", nhanVats: [nv("nv_a", "Duy", { anh: "javascript:x", ngoaiHinhId: 5, bietDanh: "  ZzQuân  " })], hoiThoais: [{ id: "ht_1", nhanVatIds: ["nv_a", "nv_khong_co"] }], nhip: "la-hoac" });
   ok(s.id === "ct_zzn", "id được giữ");
   eq(s.nhip, "cham", "nhịp lạ rơi về mặc định");
   eq(s.mode, "chuong", "chế độ lạ rơi về mặc định");
   eq(charById(s, "nv_a").anh, "", "ảnh không phải data URL hợp lệ bị xoá");
   eq(charById(s, "nv_a").ngoaiHinhId, "", "liên kết hồ sơ không phải chuỗi bị xoá (không tự liên kết theo tên)");
-  eq(charById(s, "nv_a").bietDanh, "Quân", "biệt danh được cắt khoảng trắng");
+  eq(charById(s, "nv_a").bietDanh, "ZzQuân", "biệt danh được cắt khoảng trắng");
   eqSau(s.hoiThoais[0].nhanVatIds, ["nv_a"], "id nhân vật không tồn tại bị loại");
   eq(s.phienBan, PHIEN_BAN_TRUYEN, "đóng dấu phiên bản dữ liệu");
   ok(typeof PHIEN_BAN_TRUYEN === "number", "phiên bản là số");
@@ -331,7 +331,7 @@ test("hienDienCua / hienDienNhom / canhRiengCua: mảng rỗng là trạng thái
 });
 
 test("tra cứu & thống kê truyện", () => {
-  const s = chuanHoaTruyen(truyenTho({ nhanVats: [nv("nv_a", "Duy"), nv("nv_b", "Quân")], chuongs: [{ id: "ch_1", so: 1 }], hoiThoais: [{ id: "ht_1", chuongId: "ch_1", soTinNhan: 3 }, { id: "ht_2", chuongId: "ch_khong_co", soTinNhan: 2 }] }));
+  const s = chuanHoaTruyen(truyenTho({ nhanVats: [nv("nv_a", "Duy"), nv("nv_b", "ZzQuân")], chuongs: [{ id: "ch_1", so: 1 }], hoiThoais: [{ id: "ht_1", chuongId: "ch_1", soTinNhan: 3 }, { id: "ht_2", chuongId: "ch_khong_co", soTinNhan: 2 }] }));
   eq(charById(s, "nv_a").ten, "Duy", "tìm nhân vật theo id");
   eq(charById(s, "nv_mat"), null, "không có thì trả null");
   eqSau(charsOf(s, ["nv_b", "nv_mat"]).map((c) => c.id), ["nv_b"], "lọc theo danh sách id");

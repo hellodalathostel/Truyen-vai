@@ -3735,6 +3735,7 @@ async function chonHuongNhanVat({ scope, i, story, bdsm, yTuongGoc, status, onXo
 // (dom/store/ngoaiHinh/ai) — đừng biến nó thành một túi đồ nghề chung.
 const NHAN_VAT_DEPS = {
   currentStory, luuTruyen, render, xoaNhanVat, thuNhoAnh,
+  taiXuong,
   xacNhan18PlusTruyen, openNgoaiHinh, openSuaNgoaiHinh,
   sinhHuongNhanVat, chonHuongNhanVat,
   avatarHtml, htmlLienKetNgoaiHinh, dienLienKetNgoaiHinh, htmlThichChipsNv, paintNvThich,
@@ -5235,8 +5236,11 @@ function openVietTruyen() {
 // Tải một chuỗi thành TỆP VĂN BẢN (nút "Xuất .md" của màn trên). Không dùng `download` của
 // `dom.js` vì hàm đó cố định `application/json` cho các tệp dữ liệu (sao lưu/xuất truyện) —
 // còn đây là văn bản cho người đọc.
-function taiXuong(tenFile, noiDung) {
-  const blob = new Blob([String(noiDung === undefined || noiDung === null ? "" : noiDung)], { type: "text/markdown;charset=utf-8" });
+// `noiDung` là chuỗi (mặc định: tệp .md) hoặc một Blob dựng sẵn (ảnh/thẻ nhân vật, JSON).
+function taiXuong(tenFile, noiDung, mime) {
+  const blob = noiDung instanceof Blob
+    ? noiDung
+    : new Blob([String(noiDung === undefined || noiDung === null ? "" : noiDung)], { type: mime || "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

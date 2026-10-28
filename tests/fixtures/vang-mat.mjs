@@ -14,12 +14,12 @@ export const VANG_MAT_HAI_SU_KIEN = dong(
   "AI BIẾT: Duy",
   "MỨC HIỂN THỊ: Đã lộ",
   "PHÁT HIỆN: Người chơi mở điện thoại và thấy tin nhắn.",
-  "ẢNH HƯỞNG: Duy -> Minh Quân: gần gũi lên | VÌ: chủ động nhắn trước",
+  "ẢNH HƯỞNG: Duy -> ZzMinh ZzQuân: gần gũi lên | VÌ: chủ động nhắn trước",
   "",
   "SỰ KIỆN 2:",
   "LOẠI: Ngoài màn hình",
   "SAU KHI RỜI: 3 giờ",
-  "NỘI DUNG: Minh Quân ghé qua nhà Duy nhưng không gặp ai.",
+  "NỘI DUNG: ZzMinh ZzQuân ghé qua nhà Duy nhưng không gặp ai.",
   "MỨC HIỂN THỊ:"
 );
 

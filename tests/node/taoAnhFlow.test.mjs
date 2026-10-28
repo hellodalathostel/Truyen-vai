@@ -105,13 +105,13 @@ test("nhanDienTrongKhung: hồ sơ của NGƯỜI CHƠI luôn được thêm", (
 
 test("nhanDienTrongKhung: tên trùng nhiều hồ sơ thì KHÔNG tự chọn, chỉ báo", () => {
   const uv = [
-    { nvId: "nv_zz1", hoSoId: "nho_zz1", ten: ["Minh"] },
-    { nvId: "nv_zz2", hoSoId: "nho_zz2", ten: ["Minh"] },
+    { nvId: "nv_zz1", hoSoId: "nho_zz1", ten: ["ZzMinh"] },
+    { nvId: "nv_zz2", hoSoId: "nho_zz2", ten: ["ZzMinh"] },
   ];
-  const kq = F.nhanDienTrongKhung({ moTa: "Minh tới", ghiChu: "", ungVien: uv, hoSoMap: MAP, dsNhanVatCoMat: [], hoSoNguoiChoi: null });
+  const kq = F.nhanDienTrongKhung({ moTa: "ZzMinh tới", ghiChu: "", ungVien: uv, hoSoMap: MAP, dsNhanVatCoMat: [], hoSoNguoiChoi: null });
   eq(kq.tuDongIds.size, 0, "không tự đoán");
   eq(kq.trungTen.length, 1, "báo một tên trùng");
-  eq(kq.trungTen[0].ten, "Minh", "đúng tên");
+  eq(kq.trungTen[0].ten, "ZzMinh", "đúng tên");
   eqSau(kq.trungTen[0].ids.slice().sort(), ["nho_zz1", "nho_zz2"], "đủ hai hồ sơ");
 });
 

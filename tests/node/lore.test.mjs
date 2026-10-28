@@ -131,8 +131,8 @@ test("mucKhop: chọn lọc cần thêm từ khoá phụ", () => {
   const s = truyenLore("ct_zzlo4", [
     { id: "lb_1", ghiChu: "Sẹo", keys: ["quân"], keys2: ["sẹo"], chonLoc: true, noiDung: "Vết sẹo cũ." },
   ]);
-  eq(mucKhop(s, null, tin("Quân đến chơi")).length, 0, "chỉ có từ khoá chính thì chưa gửi");
-  eq(mucKhop(s, null, tin("Quân có vết sẹo trên tay")).length, 1, "có thêm từ khoá phụ thì gửi");
+  eq(mucKhop(s, null, tin("ZzQuân đến chơi")).length, 0, "chỉ có từ khoá chính thì chưa gửi");
+  eq(mucKhop(s, null, tin("ZzQuân có vết sẹo trên tay")).length, 1, "có thêm từ khoá phụ thì gửi");
   eq(mucKhop(s, null, tin("chỉ nói tới sẹo")).length, 0, "thiếu từ khoá chính thì không gửi");
 });
 

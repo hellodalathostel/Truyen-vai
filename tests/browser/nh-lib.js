@@ -50,7 +50,7 @@ try {
   const g = T.getNgoaiHinh(h1.id);
   chk("1.1 lưu hồ sơ + nạp lại giữ nguyên", g && g.tenChinh === "Sara" && /mắt xanh/.test(g.moTa), JSON.stringify(g && g.tenChinh));
 
-  const h2 = mkHoSo("Minh", "dáng thấp, tóc ngắn nhuộm bạch kim", "");
+  const h2 = mkHoSo("ZzMinh", "dáng thấp, tóc ngắn nhuộm bạch kim", "");
   await T.luuNgoaiHinh(h2);
 
   // ảnh sai định dạng phải bị BỎ (chứ không bỏ hồ sơ)
@@ -65,7 +65,7 @@ try {
 
   const u = [
     { nvId: "nv1", hoSoId: h1.id, ten: ["Sara", "Zara", "Sara Nhỏ"] },
-    { nvId: "nv2", hoSoId: h2.id, ten: ["Minh"] },
+    { nvId: "nv2", hoSoId: h2.id, ten: ["ZzMinh"] },
   ];
   const r1 = T.nhanDienNgoaiHinh("Sara bước vào phòng", u);
   chk("1.4 nhận diện đúng tên (không phân biệt hoa/thường)", r1.chon.length === 1 && r1.chon[0] === h1.id, JSON.stringify(r1));
@@ -80,7 +80,7 @@ try {
   const p2 = T.ghepPromptNgoaiHinh(p1, [h1]);
   chk("1.8 ghép lại không xếp chồng khối", p2.split(T.MARK_NGOAI_HINH).length - 1 === 1, p2.slice(0, 120));
   chk("1.9 tách khối trả lại đúng mô tả cảnh", T.tachNgoaiHinh(p2) === "cảnh: hai người trong quán", T.tachNgoaiHinh(p2));
-  chk("1.10 mỗi nhân vật một dòng riêng có tên", /- Sara:/.test(p1) && /- Minh:/.test(p1));
+  chk("1.10 mỗi nhân vật một dòng riêng có tên", /- Sara:/.test(p1) && /- ZzMinh:/.test(p1));
   chk("1.11 'điều cần tránh' của hồ sơ không nằm trong khối ngoại hình", !/trang phục/i.test(T.khoiNgoaiHinh ? T.khoiNgoaiHinh([h1]) : p1) || true);
   chk("1.12 gộp loại trừ", T.gopLoaiTruNgoaiHinh("đầu", [h1, h2]) === "đầu, kính, tóc ngắn", T.gopLoaiTruNgoaiHinh("đầu", [h1, h2]));
 
@@ -283,11 +283,11 @@ try {
   // thêm một hồ sơ khác bằng "Chọn thêm"
   await bamBody("[data-nh-them]");
   await cho(200);
-  const hMinh = T.dsNgoaiHinh().find((x) => x.tenChinh === "Minh");
+  const hMinh = T.dsNgoaiHinh().find((x) => x.tenChinh === "ZzMinh");
   if (hMinh) {
     const b = bodyTren().querySelector('[data-nh-add="' + hMinh.id + '"]');
     if (b) { b.click(); await cho(250); }
-    chk("4.7 chọn thêm được hồ sơ khác, khối có 2 người", /- Minh:/.test(khoiText()) && /- Sara:/.test(khoiText()), khoiText().slice(0, 170));
+    chk("4.7 chọn thêm được hồ sơ khác, khối có 2 người", /- ZzMinh:/.test(khoiText()) && /- Sara:/.test(khoiText()), khoiText().slice(0, 170));
     dongModalTren(); // đóng bảng "Chọn thêm", giữ màn tạo ảnh
     await cho(150);
   }
@@ -332,18 +332,18 @@ try {
   const VE = window.__NH_VE;
   AI.mode = "ok";
   AI.text = "MÔ TẢ ẢNH: Two adults stand in the rain, soaked coats, dim street lamp.\nLOẠI TRỪ: text, watermark\nCHÚ THÍCH: Hai người dưới mưa.";
-  await T.openTaoAnh({ tinNhan: "Sara và Minh đứng dưới mưa" });
+  await T.openTaoAnh({ tinNhan: "Sara và ZzMinh đứng dưới mưa" });
   await cho(600);
   const ta2 = F("prompt");
   // gõ tay tên nhân vật (KHÔNG bấm chip) ⇒ phải tự nhận diện + tự đưa ngoại hình vào khối
-  ta2.value = "Sara và Minh đứng dưới mưa";
+  ta2.value = "Sara và ZzMinh đứng dưới mưa";
   ta2.dispatchEvent(new Event("input", { bubbles: true }));
   await cho(800);
   chk("4.16 gõ tay tên trong prompt ⇒ chip tự chọn", chipOn().indexOf(hSara.id) >= 0, JSON.stringify(chipOn()));
   chk("4.17 gõ tay tên ⇒ khối ngoại hình tự có mặt (ô mô tả vẫn sạch)", /- Sara:/.test(khoiText()) && promptV().indexOf(T.MARK_NGOAI_HINH) < 0, khoiText().slice(0, 110));
   // sửa tay phần mô tả (thêm chữ ở cuối) rồi mới dựng ⇒ chữ phải sống sót
   const ta3 = F("prompt");
-  ta3.value = "Sara và Minh đứng dưới mưa, ban đêm";
+  ta3.value = "Sara và ZzMinh đứng dưới mưa, ban đêm";
   ta3.selectionStart = ta3.selectionEnd = ta3.value.length;
   ta3.dispatchEvent(new Event("input", { bubbles: true }));
   await cho(800);
@@ -356,13 +356,13 @@ try {
   chk("4.20 máy vẽ nhận prompt đã ghép ngoại hình của từng người", VE.calls >= 1 && /- Sara:/.test(VE.last) && VE.last.indexOf(T.MARK_NGOAI_HINH.slice(1, -1)) >= 0, VE.last.slice(-200));
   chk("4.21 'điều cần tránh' của hồ sơ đi vào prompt loại trừ", /kính/.test(VE.lastLoaiTru), VE.lastLoaiTru);
   chk("4.22 prompt không hỏi máy vẽ nhận ảnh tham chiếu", !/reference/i.test(VE.last) && !/img2img/i.test(VE.last));
-  chk("4.23 prompt gửi máy vẽ giữ nguyên mô tả cảnh người dùng sửa", /Sara và Minh đứng dưới mưa, ban đêm/.test(VE.last), VE.last.slice(0, 140));
+  chk("4.23 prompt gửi máy vẽ giữ nguyên mô tả cảnh người dùng sửa", /Sara và ZzMinh đứng dưới mưa, ban đêm/.test(VE.last), VE.last.slice(0, 140));
   chk("4.23b khối ngoại hình không có trang phục, prompt không chứa ảnh tham chiếu", (() => {
     const khoi = VE.last.slice(VE.last.indexOf(T.MARK_NGOAI_HINH.slice(1, -1)));
     return !/data:image|base64/i.test(VE.last) && !/(áo|quần|váy|shirt|dress|jacket|coat)/i.test(khoi);
   })(), VE.last.slice(-160));
-  chk("4.23c sau khi dựng, ô mô tả vẫn chỉ có mô tả cảnh (không bị nhét khối vào)", promptV().indexOf(T.MARK_NGOAI_HINH) < 0 && /Sara và Minh đứng dưới mưa, ban đêm/.test(promptV()), promptV().slice(0, 110));
-  chk("4.23d khối ngoại hình nằm ở CUỐI prompt máy vẽ NHẬN (sau khi plugin đánh giá)", (() => { const p = VE.last.evaluateItem; return p.indexOf(T.MARK_NGOAI_HINH) > p.indexOf("Sara và Minh đứng dưới mưa, ban đêm"); })(), VE.last.slice(-150));
+  chk("4.23c sau khi dựng, ô mô tả vẫn chỉ có mô tả cảnh (không bị nhét khối vào)", promptV().indexOf(T.MARK_NGOAI_HINH) < 0 && /Sara và ZzMinh đứng dưới mưa, ban đêm/.test(promptV()), promptV().slice(0, 110));
+  chk("4.23d khối ngoại hình nằm ở CUỐI prompt máy vẽ NHẬN (sau khi plugin đánh giá)", (() => { const p = VE.last.evaluateItem; return p.indexOf(T.MARK_NGOAI_HINH) > p.indexOf("Sara và ZzMinh đứng dưới mưa, ban đêm"); })(), VE.last.slice(-150));
   chk("4.23e prompt gửi máy vẽ đã THOÁT ngoặc nên plugin đánh giá không lỗi", VE.last.indexOf("\\" + T.MARK_NGOAI_HINH[0]) >= 0 && (() => { try { return VE.last.evaluateItem.indexOf(T.MARK_NGOAI_HINH) >= 0; } catch (e) { return false; } })(), VE.last.slice(0, 90));
   // đưa ảnh vào truyện ⇒ bản ghi ảnh nhớ những hồ sơ đã dùng (để xuất riêng truyện kèm đủ)
   const chonTruoc = chipOn();

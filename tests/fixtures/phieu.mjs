@@ -8,14 +8,14 @@ const dong = (...xs) => xs.join(NL);
 export const PHIEU_DAY_DU = dong(
   "TÓM TẮT: Hai người nói chuyện trong bếp và hứa sẽ gặp lại ở bến tàu.",
   "KÝ ỨC:",
-  "- Lời hứa gặp lại ở bến tàu | BIẾT: Minh Quân, Duy",
+  "- Lời hứa gặp lại ở bến tàu | BIẾT: ZzMinh ZzQuân, Duy",
   "- Một chuyện riêng tư không ai khác biết",
   "QUAN HỆ:",
-  "- Minh Quân -> Duy: tin tưởng lên | VÌ: đã giữ lời | CHƯA NÓI: vẫn còn giận chuyện cũ",
-  "- Duy -> Minh Quân: căng thẳng xuống | VÌ: đã xin lỗi",
+  "- ZzMinh ZzQuân -> Duy: tin tưởng lên | VÌ: đã giữ lời | CHƯA NÓI: vẫn còn giận chuyện cũ",
+  "- Duy -> ZzMinh ZzQuân: căng thẳng xuống | VÌ: đã xin lỗi",
   "NHÂN VẬT:",
   "- Duy: cảm xúc | CŨ: lạnh nhạt | MỚI: dịu hơn | VÌ: được quan tâm",
-  "- Minh Quân: mục tiêu | MỚI: giữ lời hứa",
+  "- ZzMinh ZzQuân: mục tiêu | MỚI: giữ lời hứa",
   "MÓC: Cảnh sau nên mở ở bến tàu, lúc trời vừa tối."
 );
 
@@ -39,5 +39,5 @@ export const PHIEU_RAC = dong(
 export const PHIEU_CHUA_NOI = dong(
   "TÓM TẮT: Im lặng kéo dài.",
   "QUAN HỆ:",
-  "- Duy -> Minh Quân: gần gũi | CHƯA NÓI: định nói ra nhưng thôi"
+  "- Duy -> ZzMinh ZzQuân: gần gũi | CHƯA NÓI: định nói ra nhưng thôi"
 );

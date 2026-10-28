@@ -94,7 +94,7 @@ function giaTriTruong(text, truong) {
   return ra;
 }
 
-const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "nhap.js", "schema.js", "store.js", "thoiGian.js", "trangThai.js"];
+const MODULE_SRC = ["ai.js", "app.js", "dom.js", "lore.js", "ngoaiHinh.js", "nhap.js", "schema.js", "store.js", "theNhanVat.js", "thoiGian.js", "trangThai.js"];
 // Tầng giao diện tách riêng (Giai đoạn 6): `src/ui/**`. Lõi KHÔNG bao giờ import ngược
 // vào đây — có ca "DAG" ở cuối tệp ghim luật đó.
 const MODULE_UI_GOC = "src/ui";
@@ -106,6 +106,7 @@ const TEP_NODE = [
   "prompt.test.mjs",
   "schema.test.mjs", "store.test.mjs", "suaNgoaiHinhFlow.test.mjs", "suKien.test.mjs", "taoAnhFlow.test.mjs",
   "taoTruyenFlow.test.mjs",
+  "theNhanVat.test.mjs",
   "thoiGian.test.mjs", "trangThai.test.mjs", "tuyChonTruyenFlow.test.mjs", "vietTruyenFlow.test.mjs", "vietTruyenUi.test.mjs",
 ];
 const TEP_FIXTURE = ["ke-hoach.mjs", "phien-ban-cu.mjs", "phieu.mjs", "truyen.mjs", "vang-mat.mjs"];
@@ -114,7 +115,7 @@ const TEP_FIXTURE = ["ke-hoach.mjs", "phien-ban-cu.mjs", "phieu.mjs", "truyen.mj
 const TEP_PROMPT = ["moc.json"];
 const TEP_PROMPT_KEY = ["nhom", "rieng", "daodien"];
 const SO_LUOT_PROMPT = 5;
-const SRC_CHO_PHEP = MODULE_SRC.concat(["styles.css", "README.md", "CONTEXT.md", "ui"]);
+const SRC_CHO_PHEP = MODULE_SRC.concat(["styles.css", "README.md", "CONTEXT.md", "TINH-NANG.md", "ui"]);
 const GOC_CHO_PHEP = ["main.pjs", "index.html", "package.json", "README.md", "LICENSE", ".git", ".gitignore", ".github", "src", "tests"];
 
 // Chạy một ca có cần đọc tệp; tự bỏ qua khi môi trường không đọc được tệp.

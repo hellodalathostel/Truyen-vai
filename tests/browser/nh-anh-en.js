@@ -34,10 +34,10 @@ const mocTruoc = await moc();
 // ---------------------------------------------------------- AI GIẢ + MÁY VẼ GIẢ
 const SCENE =
   "MÔ TẢ ẢNH: A dim motel room at night, one warm lamp on the left, rain on the window.\n" +
-  "Minh Quân — wearing a white silk shirt, standing by the window, hands in pockets.\n" +
+  "ZzMinh ZzQuân — wearing a white silk shirt, standing by the window, hands in pockets.\n" +
   "Duy — wearing only an oversized white shirt, kneeling on the rug.\n" +
   "LOẠI TRỪ: daylight, crowd\n" +
-  "CHÚ THÍCH: Trong phòng trọ, Quân đứng bên cửa sổ còn Duy quỳ dưới sàn.";
+  "CHÚ THÍCH: Trong phòng trọ, ZzQuân đứng bên cửa sổ còn Duy quỳ dưới sàn.";
 const DICH =
   "ID: nhz_ae_a\nAPPEARANCE: Scholarly look, thin-rimmed glasses, short black hair\nAVOID: beard\n\n" +
   "ID: nhz_ae_b\nAPPEARANCE: Short black hair, brown eyes, a small scar on the left eyebrow\nAVOID: glasses";
@@ -68,7 +68,7 @@ root.textToImagePlugin = (prompt, opts) => {
 let st = null;
 try {
   // ---------------------------------------------------------- logic thuần
-  const hsA0 = N.chuanHoaHoSo({ id: "nhz_ae_a", tenChinh: "Minh Quân", tuoi: "45", moTa: "Vẻ thư sinh, đeo kính gọng mảnh", tranh: "Không râu" });
+  const hsA0 = N.chuanHoaHoSo({ id: "nhz_ae_a", tenChinh: "ZzMinh ZzQuân", tuoi: "45", moTa: "Vẻ thư sinh, đeo kính gọng mảnh", tranh: "Không râu" });
   const hsB0 = N.chuanHoaHoSo({ id: "nhz_ae_b", tenChinh: "Duy", tuoi: "22", moTa: "Sẹo nhỏ trên mày trái", tranh: "Không kính" });
   const enA = Object.assign({}, hsA0, { moTaEn: "Scholarly look, thin-rimmed glasses", tranhEn: "glasses" });
   const enB = Object.assign({}, hsB0, { moTaEn: "Small scar on the left eyebrow", tranhEn: "glasses, beard" });
@@ -76,7 +76,7 @@ try {
   const promptEn = N.ghepPromptNgoaiHinh("A dim room.", [enA, enB]);
 
   chk("U1 nhãn khối là TIẾNG ANH", N.MARK_NGOAI_HINH.indexOf("FIXED CHARACTER APPEARANCE") >= 0 && N.MARK_NGOAI_HINH.indexOf("NGOẠI HÌNH CỐ ĐỊNH") < 0, N.MARK_NGOAI_HINH.slice(0, 46));
-  chk("U2 khối mỗi người một dòng, có avoid tiếng Anh", promptEn.indexOf("- Minh Quân (age 45): Scholarly look") >= 0 && promptEn.indexOf("| avoid: glasses") >= 0);
+  chk("U2 khối mỗi người một dòng, có avoid tiếng Anh", promptEn.indexOf("- ZzMinh ZzQuân (age 45): Scholarly look") >= 0 && promptEn.indexOf("| avoid: glasses") >= 0);
   chk("U3 chưa có bản dịch ⇒ rơi về chữ gốc (không vỡ khối)", khoiChuaDich.indexOf("Vẻ thư sinh") > 0 && khoiChuaDich.indexOf("FIXED CHARACTER APPEARANCE") >= 0 && khoiChuaDich.indexOf("Sẹo nhỏ") > 0);
   chk("U4 ghép lại nhiều lần vẫn MỘT khối", N.ghepPromptNgoaiHinh(promptEn, [enA, enB]) === promptEn);
   chk("U5 cắt khối theo nhãn tiếng Anh", N.tachNgoaiHinh(promptEn) === "A dim room.");
@@ -122,7 +122,7 @@ try {
   st = await S.createStory({
     ten: "ZZ anh-en", mode: "songSong",
     nhanVats: [
-      S.newCharacter({ id: "nv_ae_a", ten: "Minh Quân", vaiTro: "chủ", tuoi: "45", nguoiLon: true }),
+      S.newCharacter({ id: "nv_ae_a", ten: "ZzMinh ZzQuân", vaiTro: "chủ", tuoi: "45", nguoiLon: true }),
       S.newCharacter({ id: "nv_ae_b", ten: "Duy", vaiTro: "khách", tuoi: "22", nguoiLon: true }),
     ],
   });
@@ -132,7 +132,7 @@ try {
   await S.saveStory(st);
   await S.replaceMessages("ht_ae1", [
     S.makeMessage("nguoi", "*Bước vào phòng* Chủ nhân, em tới rồi."),
-    S.makeMessage("ai", "*Quân tựa lưng vào cửa sổ, tay đút túi quần* Cởi áo khoác ra. Quỳ xuống.", { nvId: "nv_ae_a", ten: "Minh Quân" }),
+    S.makeMessage("ai", "*ZzQuân tựa lưng vào cửa sổ, tay đút túi quần* Cởi áo khoác ra. Quỳ xuống.", { nvId: "nv_ae_a", ten: "ZzMinh ZzQuân" }),
   ]);
   await T.loadStories();
   T.app.storyId = st.id; T.app.convId = "ht_ae1"; T.app.screen = "story"; T.render();
@@ -143,7 +143,7 @@ try {
   await cho(300);
   chk("M1 màn tạo ảnh mở được", !!bd() && !!bd().querySelector("[data-nh-khoi]"));
   const chips = bd() ? [...bd().querySelectorAll(".nh-chip")].map((c) => c.querySelector(".nh-chip-ten").textContent) : [];
-  chk("M2 nhận diện đủ 2 hồ sơ trong khung", chips.length === 2 && chips.indexOf("Minh Quân") >= 0 && chips.indexOf("Duy") >= 0, chips.join(" / "));
+  chk("M2 nhận diện đủ 2 hồ sơ trong khung", chips.length === 2 && chips.indexOf("ZzMinh ZzQuân") >= 0 && chips.indexOf("Duy") >= 0, chips.join(" / "));
 
   const thanhEn = await doi(() => {
     const k = bd() && bd().querySelector(".nh-khoi-body");
@@ -167,7 +167,7 @@ try {
   const insViet = (FAKE.calls.filter((c) => !c.laDich).slice(-1)[0] || {}).ins || "";
   chk("V1 ô 'Mô tả khung hình' chỉ có mô tả cảnh", oNhap.indexOf("motel room") >= 0 && !/sẹo|thư sinh|gọng mảnh/i.test(oNhap) && oNhap.indexOf("FIXED CHARACTER") < 0, oNhap.slice(0, 120));
   chk("V2 lời gọi viết mô tả KHÔNG được đưa ngoại hình vào", !/sẹo|thư sinh|Không râu|gọng mảnh/i.test(insViet));
-  chk("V3 lời gọi viết mô tả nêu tên 2 người làm nhãn", insViet.indexOf("Minh Quân") >= 0 && insViet.indexOf("Duy") >= 0);
+  chk("V3 lời gọi viết mô tả nêu tên 2 người làm nhãn", insViet.indexOf("ZzMinh ZzQuân") >= 0 && insViet.indexOf("Duy") >= 0);
   chk("V4 lời gọi viết mô tả có luật cấm tả lại ngoại hình", /không tả lại/i.test(insViet) && insViet.indexOf("NGƯỜI ĐÃ CÓ NGOẠI HÌNH CỐ ĐỊNH") >= 0);
   chk("V5 'Viết lại' KHÔNG tốn thêm lượt dịch", FAKE.dichCalls === dichSauMo, "dich=" + FAKE.dichCalls + " (lúc mở=" + dichSauMo + ")");
 

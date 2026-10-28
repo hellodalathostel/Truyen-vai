@@ -619,6 +619,88 @@ trừ `gy-goi-y`) **1 037/1 037**, cộng `gy-goi-y` **một lượt riêng** (4
 Đợt 3/4. `rr-ten-that` **5/5** trên **172 tệp** (thêm `vietTruyenChay.js`). Ngoài ra đã chạy THẬT
 trong preview với **AI thật** (không mock) cả ca xong lẫn ca dừng — xem `src/README.md`, mục Đợt 5.
 
+## Giai đoạn 9 — "tính năng kiểu SillyTavern"
+
+Đặc tả + kế hoạch 5 đợt: **`src/TINH-NANG.md`**. Đợt 1 (thẻ nhân vật) đã xong; tệp mới
+`tests/node/theNhanVat.test.mjs` (**145 khẳng định**) kiểm tệp thuần `src/theNhanVat.js`, và
+`tests/browser/gd9-the.js` (**11 ca**) kiểm trọn luồng form ⇒ bản nháp ⇒ tệp xuất ngay trong
+trình duyệt (bắt lỗi mà tầng Node không thấy được: form chưa đọc lại lúc bấm Xuất).
+
+| Nhóm ca | Ghim điều gì |
+|---|---|
+| tiện ích byte | `crc32` khớp **mốc chuẩn** CRC-32/ISO-HDLC (`"123456789"` → `0xcbf43926`) để mọi PNG dựng trong test là PNG THẬT; base64 đi vòng không mất byte ở cả ba độ dài đệm; base64 hỏng thì ném lỗi |
+| đọc thẻ | v1 phẳng / v2 / v3 đều về một hình dạng; sáu kiểu đầu vào hỏng ra **Error tiếng Việt** (không `TypeError`); `docTheNguon` nhận chuỗi, byte UTF-8, đối tượng, `data:` URL, byte PNG |
+| thẻ trong PNG | `chara`, `ccv3`, `iTXt` không nén; **có cả hai khối ⇒ ccv3 thắng**; PNG không có thẻ thì nói rõ; iTXt **nén** chưa hỗ trợ và báo đúng thế |
+| thẻ ⇒ nhân vật | ánh xạ 5 trường, `{{char}}`/`{{user}}` được thay, `<START>` bị bỏ, giữ `id`/màu/emoji; **18+ không bao giờ suy ra từ thẻ ngoài** (kể cả `tags: ["nsfw"]`); `theGoc` là **bản sao sâu** (sửa nhân vật không sửa ngược thẻ) |
+| nhân vật ⇒ thẻ | ra `chara_card_v2`; lấy lại `first_mes`/`scenario`/`character_book`/`tags` từ `theGoc`; **xuất→nhập không mất trường nào của app** (16 trường đi vòng) |
+| PNG khi xuất | nhúng rồi đọc lại đúng thẻ; **mọi khung khác giữ nguyên từng byte**; nhúng lần hai **thay** thẻ cũ (không sinh hai thẻ); thẻ cũ trong `iTXt` cũng bị gỡ; ảnh không phải PNG thì báo rõ |
+
+**Bẫy gặp ở Đợt 1 (đừng vấp lại):**
+- **Ráp lại PNG theo khoảng byte GỐC là thẻ cũ vẫn nằm trong ảnh.** Phải ráp theo danh sách khung
+  ĐÃ LỌC — bản đầu của `pngNhungThe` chỉ dùng `giu[0]` rồi nối phần đuôi gốc, nên nhúng hai lần ra
+  hai khối `tEXt` (ca "chỉ còn MỘT khối chữ" bắt được ngay).
+- **`theGoc` phải là bản sao sâu.** Gán thẳng `data` của thẻ vào nhân vật thì sửa nhân vật sẽ sửa
+  ngược đối tượng thẻ mà chỗ gọi còn cầm.
+- **`ghiChu` không có trường tương ứng trong chuẩn thẻ** ⇒ xuất ra bằng `scenario` và khi nhập lại
+  thì khối `extensions.truyenVai` thắng. Nếu quên vế thứ hai, `ghiChu` bị `scenario` rỗng ghi đè.
+- **Thêm tệp vào `src/` hay `tests/node/` thì phải khai báo**: `SRC_CHO_PHEP` (thêm `TINH-NANG.md`)
+  và `TEP_NODE` (thêm `theNhanVat.test.mjs`) trong `goi-chung.test.mjs`, nếu không ba ca cấu trúc đỏ.
+  (Tên tệp KHÔNG được chứa chuỗi "spec": ca `src/ chỉ chứa mã thật của app` cấm cả `test`,
+  `spec`, `fixture`, `.zip`, `.json`, `.mjs` trong `src/`.)
+- **`rr-ten-that` từng báo OAN vì tên nhân vật trong truyện THẬT trùng tên fixture.**
+  Một truyện mới của người dùng có nhân vật tên ngắn trùng đúng tên trong
+  `tests/fixtures/prompt/daodien-*.txt` ⇒ 34 ca đỏ oan. Luật "từ vựng của bộ kiểm thử"
+  (mẫu ngắn ở ≥ 3 tệp thì bỏ qua) đã bị **bỏ** theo yêu cầu của chủ dự án: chép một
+  chuỗi sang ba tệp không chứng minh được đó là dữ liệu mẫu (đã tái hiện: 1 tệp đỏ,
+  chép sang 3 tệp lại xanh). Thay bằng **ngoại lệ theo VỊ TRÍ**: mỗi mục là `tệp|mã
+  băm dòng` (FNV-1a 32 bit) của ĐÚNG dòng đã rà soát trong bản chuẩn — trong mã chỉ có
+  mã băm một chiều, không có chuỗi thật nào. Dòng khác (kể cả cùng tệp nhưng đã sửa)
+  có mẫu trùng VẪN ĐỎ. Đã đổi tên hai mẫu fixture cho rõ là dữ liệu test (giữ nguyên
+  phần tên, thêm tiền tố "Zz" — vẫn khớp ranh giới từ nên phép quét không mù) và rà
+  soát toàn bộ 34 vị trí còn lại: tất cả đều là từ thường trong văn xuôi / giao diện /
+  nhãn mặc định / ví dụ tài liệu, không có rò rỉ thật. Cơ chế tự bảo vệ gồm các ca tự kiểm tra: hàm băm ổn định (đổi hàm là mọi mã thành rác), mọi mục đúng
+  định dạng và khoá giả không được miễn, mọi mục miễn đều trỏ đúng một dòng đang có
+  trong gói (dòng bị sửa/xoá/dời ⇒ mã mồ côi ⇒ đỏ, phải rà soát lại), quét hết mọi vị
+  trí (vượt ngân sách ⇒ đỏ, không kết luận đạt), và ca hồi quy lần-51 (xem hai mục dưới).
+- **`rr-ten-that` từng DỪNG QUÉT ÂM THẦM ở 50 lần gặp/mẫu/tệp** (`dem++ < 50`): 50 lần
+  nằm trong từ dài hơn, lần 51 là tên đứng riêng cần cảnh báo ⇒ vẫn xanh. Đã bỏ giới
+  hạn, quét hết mọi vị trí (mốc dòng dựng một lần mỗi tệp + tìm kiếm nhị phân nên không
+  chậm đi); thêm **ngân sách 2 triệu lượt gặp** — vượt thì dừng và có ca "quét HẾT mọi
+  vị trí" ĐỎ (báo dở dang ở tệp nào, không kết luận đạt), đồng thời ca tổng cũng chỉ đạt
+  khi quét hoàn tất. Ca hồi quy dựng đúng tình huống (50 lần trong từ dài + lần 51 đứng
+  riêng, mẫu tổng hợp thêm/tạm vào PAT rồi gỡ) và đòi bắt được đúng 1 lần.
+- **`gd9-the` từng mù ở lần chạy thứ hai trên cùng trang**: bẫy tải file cài sau cờ
+  `__GD9_DL`, mà runner trả hook về bản gốc trước mỗi bước nhưng không xoá cờ ⇒ lượt 2
+  bỏ qua cài bẫy, `batBlob` rỗng. Đã bỏ cờ, **tự cài/gỡ hook trong mỗi lượt** (lưu bản
+  gốc ở đầu, trả nguyên trong `finally`) — kiểm tra bằng cách chạy liên tiếp hai lần
+  trên cùng trang, cả hai đều 11/11.
+- **`gy-goi-y` từng flake ở ca 12 ("đổi hội thoại") khi chạy lượt riêng.** Bốn lượt
+  riêng đỏ liên tiếp cùng một chỗ (trước đó đã có đợt đỏ 2 rồi xanh 2) nên đã đào tới
+  cùng: sau luồng gửi tin, đủ số tin nhắn trong kv CHƯA có nghĩa là lượt đã xong —
+  phần dọn dẹp sau tin nhắn AI cuối (lưu truyện, vẽ lại) vẫn có thể đang chạy, lúc đó
+  nút gợi ý còn `disabled` trong khi `streaming` đã `false`. Cú bấm gợi ý của ca 12 rơi
+  đúng cửa sổ đó thì mất hút (không thẻ, không lỗi, `FAKE.calls` không tăng), rồi ca
+  chờ 3 thẻ hết hạn và ném lỗi ở dòng bấm thẻ. Đã sửa BẰNG TEST (app đúng — nút phản
+  ánh đúng trạng thái lượt): thêm ca "11 lượt gửi xong hẳn: nút gợi ý bật lại", chờ
+  nút BẬT lại rồi mới sang ca 12. Từ đó xanh 2/2 lượt riêng.
+
+**Kiểm chứng Đợt 1 (bản sửa theo yêu cầu chủ dự án):** tầng Node **26 tệp · 6 313
+khẳng định · 0 không đạt** (mốc Đợt 5: 6 088; `theNhanVat.test.mjs` thêm 3 ca hồi quy).
+Tầng trình duyệt **1 054 + 47 khẳng định · 0 cảnh báo** = một lượt **40 bước** (mọi bộ
+trừ `gy-goi-y`, đã gồm `gd9-the` mới) **1 054/1 054** (trong đó `rr-ten-that` **11/11**
+trên **177 tệp** — 5 ca cũ + băm ổn định + định dạng/khoá giả + trỏ đúng dòng + quét
+hết mọi vị trí + hồi quy lần-51 + đếm lượt miễn; `gd9-the` **11/11**, đã kiểm chạy
+liên tiếp hai lần trên cùng trang), cộng `gy-goi-y` **một lượt riêng** (47/47 = 46 ca
+cũ + 1 ca đồng bộ lượt gửi; lý do chạy riêng vẫn như Đợt 3/4/5, và ca mới diệt hẳn
+flake ca 12 — xanh 3/3 lượt riêng sau khi thêm).
+
+Ba lỗi đã sửa trước khi đóng lại (đều có kiểm thử hồi quy, xem `src/README.md` mục
+Đợt 1): (1) bấm Xuất ngay sau khi sửa form vẫn ăn dữ liệu cũ — `xuatThe` giờ đọc lại
+form trước khi dựng thẻ; (2) `scenario` không theo `ghiChu` hiện tại — đi theo đúng
+bản hiện tại (rỗng thì rỗng), không dựng lại chữ đã xoá; (3) xuất lại làm mất dữ liệu
+— dựng thẻ từ bản sao sâu của thẻ gốc (`creator_notes` gốc giữ nguyên, tem xuất chỉ
+đóng một lần; mọi trường lạ như `assets` được giữ).
+
 ## Thêm một bộ kiểm thử
 
 1. Viết `tests/browser/<tên>.js`, dùng `import { test, ok, eq, eqSau } from "../lib/h.js"`.

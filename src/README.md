@@ -1084,12 +1084,21 @@ dự án (giao kèo đang bật, nhân vật 45 tuổi đã xác nhận) **khôn
 **NGUỒN SỰ THẬT: repo GitHub `https://github.com/hellodalathostel/Truyen-vai`.** Tải repo là
 cách chính để lấy mã nguồn + bộ kiểm thử; CI của repo phải xanh thì một giai đoạn mới coi là xong.
 
-**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Giai đoạn 8
-Đợt 4 (ba tệp màn `ui/vietTruyen/` — khung + trạng thái GIẢ để kiểm bố cục)**
-`https://user.uploads.dev/file/ab513deff4c541e4838ef68a00d932a8.zip`
-(171 tệp, 847 KB — gồm `src/` byte-for-byte, `tests/**` với fixture prompt, `main.pjs`,
+**Gói phát hành (bản dự phòng tiện tay — giải nén là chạy được):** mới nhất là gói **Giai đoạn 9
+Đợt 1 (bản sửa theo yêu cầu chủ dự án — bỏ luật từ vựng, miễn theo vị trí; sửa 3 lỗi xuất thẻ;
+diệt flake ca 12 của `gy-goi-y`)**
+`https://user.uploads.dev/file/62cc6a3a6ad0e62405ed9000954be54e.zip`
+(177 tệp, 892 KB — gồm `src/` byte-for-byte, `tests/**` với fixture prompt, `main.pjs`,
 `index.html`, `package.json`, CI; **không** chứa `.git`; đã chạy lại tầng Node trên chính gói tải
-về: **5 961 khẳng định · 0 không đạt**). Các gói trước: Giai đoạn 8 Đợt 3
+về: **6 313 khẳng định · 0 không đạt**; SHA-256 `d95ab219…`). Các gói trước: Giai đoạn 9 Đợt 1
+(bản đầu) `https://user.uploads.dev/file/1d0b357924e14beed54a46807885d923.zip` (176 tệp ·
+886 KB · 6 295 khẳng định); Giai đoạn 8 Đợt 5
+`https://user.uploads.dev/file/e2dd54df0cc590f646e357f143144b98.zip` (172 tệp · 862 KB ·
+6 088 khẳng định), và hai bản dựng bị thay ngay trong cùng đợt — `https://user.uploads.dev/file/709ee7cd857e6d3f3dd1181e87cbc8ad.zip` và
+`https://user.uploads.dev/file/01ebe3fd445ba356a4ea0506e6a0b768.zip` (cùng danh mục, chưa có lớp chip
+`vt-chip-daDung` cho mục bị dừng, nên đã bị bản trên thay thế); Giai đoạn 8 Đợt 4
+`https://user.uploads.dev/file/ab513deff4c541e4838ef68a00d932a8.zip` (171 tệp · 847 KB ·
+5 961 khẳng định); Giai đoạn 8 Đợt 3
 `https://user.uploads.dev/file/f5c50cadf66e76eb509d30848a45949d.zip`; Giai đoạn 8 Đợt 2
 `https://user.uploads.dev/file/96a47ab75c79525dc6d95fe0d120566f.zip`; Giai đoạn 8 Đợt 1
 `https://user.uploads.dev/file/fe2502abb3b5d7f78e83cb6d58309abe.zip`; Giai đoạn 7a (bản 2 — thêm ca
@@ -1105,9 +1114,9 @@ Giai đoạn 5: `https://user.uploads.dev/file/6d32cb23b2b5d3fdb6c28bea8b310f16.
 `https://user.uploads.dev/file/29c20b8b44adbddd616bca6b2fbef024.zip`).
 
 *Lưu ý quy trình:* gói zip **không thể** chứa URL của chính nó, nên `src/README.md` **bên trong
-gói** vẫn trỏ tới **Giai đoạn 8 Đợt 4** (lần đóng TRƯỚC); dòng vừa cập nhật ở trên (Đợt 5) chỉ có
-ở workspace (và ở repo sau khi chủ dự án đẩy lên). Vì thế bước kiểm sau khi tải lại URL chỉ được
-phép thấy ĐÚNG khối URL này khác nhau giữa gói và workspace.
+gói** vẫn trỏ tới **Giai đoạn 9 Đợt 1 (bản đầu)** (lần đóng TRƯỚC); dòng vừa cập nhật ở trên
+chỉ có ở workspace (và ở repo sau khi chủ dự án đẩy lên). Vì thế bước kiểm sau khi tải lại
+URL chỉ được phép thấy ĐÚNG khối URL này khác nhau giữa gói và workspace.
 
 - Tầng Node: `npm test` (không cần trình duyệt, không tốn quota, chạy trên CI).
 - Tầng trình duyệt: mở generator rồi nạp `tests/browser/runner.js` và gọi `chayTatCa()`.
@@ -1889,6 +1898,76 @@ chặn thì **0 lời gọi AI** · `demDoanDaDoc`/`dsVietRa`/`noiDungDeXuat`). 
 THẬT trong preview với AI THẬT (không mock): nguồn 4 đoạn → 1 lô → 8 giây → `xong`, văn 706 ký tự
 chứa đủ cả ba mốc nguồn; **xuất `.md` thật** (blob `text/markdown` khớp `noiDung`) và **clipboard
 thật** đều đúng nội dung; ca DỪNG thật (2 lô) giữ đúng văn lô 1 (2 004 ký tự), chip "đã dừng".
+
+## Giai đoạn 9 — tính năng kiểu SillyTavern
+
+Đặc tả + kế hoạch chia đợt: **`src/TINH-NANG.md`** (bảng đối chiếu với SillyTavern, 5 đợt, quyết định
+chung). Làm từng đợt, xong DỪNG báo cáo — như Giai đoạn 8.
+
+### Đợt 1 — Thẻ nhân vật (chara_card_v2) (đã xong)
+
+**Vì sao:** thẻ nhân vật là định dạng trao đổi phổ biến nhất của cộng đồng nhập vai (SillyTavern,
+chub.ai, Pygmalion…). Nhập được thẻ ⇒ mang được nhân vật của mình sang đây; xuất được thẻ ⇒ không bị
+khoá trong app này. Hạ tầng đã có sẵn một nửa: `lore.js → docLorebook` **vốn đã** đọc được
+`character_book` nằm trong thẻ, nên thứ còn thiếu đúng là **nhân vật**.
+
+**Tệp mới `src/theNhanVat.js` (thuần, 0 import):**
+
+| Hàm | Việc |
+|---|---|
+| `laTheNhanVat(x)` · `chuanThe(obj)` | Nhận diện thẻ và chuẩn hoá v1 (phẳng) / v2 / v3 (bọc `{spec, spec_version, data}`) về **một** hình dạng |
+| `docTheTuChuoi(text)` | JSON → thẻ; mọi đầu vào hỏng ra lỗi **tiếng Việt** (không phải `TypeError`) |
+| `docTheTuPng(u8)` · `laPng(u8)` | Đọc khối chữ PNG `chara` (v2/v1) và `ccv3` (v3), cả `tEXt` lẫn `iTXt` không nén; có cả hai thì **ccv3 thắng** |
+| `docTheNguon(nguon)` | Cửa vào duy nhất: chuỗi JSON, `Uint8Array` (PNG **hoặc** UTF-8), đối tượng, `data:` URL |
+| `nhanVatTuThe(the, goc)` | Thẻ → trường của nhân vật: `name→ten`, `description→moTa`, `personality→tinhCach`, `mes_example→cachNoi` (đã thay macro, bỏ `<START>`), `scenario→ghiChu`. Giữ `id`/màu/emoji/ảnh của bản nháp; thẻ gốc nằm nguyên trong `theGoc` |
+| `theTuNhanVat(nv)` | Nhân vật → `chara_card_v2`, dựng từ **bản sao sâu của thẻ gốc** (mọi trường lạ như `assets` được giữ, không bịa `character_book` khi gốc không có); `scenario` đi theo `ghiChu` **hiện tại** (rỗng thì rỗng); `creator_notes` gốc giữ nguyên, tem xuất chỉ đóng **một** lần |
+| `pngNhungThe(png, the)` · `crc32` · `bytesSangBase64`/`base64SangBytes` | Nhúng thẻ vào PNG (tự viết CRC32 + base64, không thư viện). Gỡ khối `chara`/`ccv3` cũ trước khi chèn ⇒ **một ảnh chỉ có một thẻ** |
+| `tenTepThe(nv, duoi)` | Tên tệp an toàn, giữ dấu tiếng Việt |
+
+**Ba luật của tệp** (ghi ở đầu tệp): THUẦN (không import gì ⇒ tầng Node kiểm được cả phần PNG) ·
+KHÔNG LÀM MẤT DỮ LIỆU (thẻ gốc trong `theGoc`; trường lạ **không vào prompt** vì `buildContext` chỉ
+đọc trường nó biết) · 18+ **không bao giờ** suy ra từ thẻ ngoài.
+
+**`src/ui/nhanVat/nhanVatThe.js`** — hai nút trong màn Sửa nhân vật: **Nhập thẻ (JSON/PNG)** và
+**Xuất thẻ**. Nhập chỉ ghi vào BẢN NHÁP `S.nhap` (bấm Lưu mới đổi nhân vật, Huỷ là xong), ảnh trong
+thẻ PNG thành ảnh đại diện. Xuất: có ảnh ⇒ PNG kèm thẻ (ảnh vẽ lại qua canvas 512px rồi nhúng); không
+có ảnh ⇒ JSON. Xuất **đọc lại form trước khi dựng thẻ** (`docForm`, cùng luật tuổi/cờ 18+ như lúc
+Lưu) nên sửa trên form rồi bấm Xuất ngay vẫn ăn. Tệp này cũng mang `dienForm(S)` — **một** đường
+điền form dùng chung cho lúc mở màn và sau khi nhập thẻ (trước đây khối điền form nằm rải trong
+`index.js`).
+
+**Quyết định đáng ghi:**
+1. **`extensions.truyenVai`** là chỗ chứa các trường riêng của app khi xuất thẻ (`tuoi`, `nguoiLon`,
+   `vaiTro`, `danhXung`, các trường giao kèo…). Nhờ vậy xuất→nhập **không mất trường nào của app**,
+   mà công cụ khác vẫn đọc được thẻ như thẻ bình thường.
+2. **Cờ 18+ chỉ khôi phục từ khối đó**, rồi vẫn phải qua `laNguoiLon` (`tuoiSo < 18` thắng). Thẻ
+   ngoài có `tags: ["nsfw"]` hay `creator_notes` nói "adult" **vẫn không** bật cờ — đây là ca kiểm.
+3. **`ghiChu` của app đi ra ngoài bằng `scenario`** (không có trường tương ứng trong chuẩn thẻ) và
+   khi nhập lại thì khối riêng của app thắng `scenario`. Đi vòng không mất chữ.
+4. **`taiXuong` nhận thêm `Blob`** (và tham số `mime` tuỳ chọn) — trước đây nó ép `text/markdown`
+   nên không xuất được PNG/JSON. Đổi tương thích ngược, mọi chỗ gọi cũ không phải sửa.
+5. **Không tự nhập sổ tri thức từ thẻ.** `character_book` được **giữ nguyên** trong `theGoc` và
+   `lore.js` vốn đã đọc được nó nếu người dùng dán/xuất nó ra — tự động ghi vào sổ của truyện là
+   quyết định của người dùng, không phải của trình nhập.
+6. **Xuất không bao giờ làm mất dữ liệu gốc** (ba lỗi đã sửa theo yêu cầu chủ dự án, đều có
+   kiểm thử hồi quy ở cả hai tầng): `scenario` đi theo `ghiChu` hiện tại chứ không giữ bản
+   cũ của thẻ gốc; `creator_notes` gốc giữ nguyên và tem xuất chỉ đóng một lần (xuất→nhập→xuất
+   không dài thêm); mọi trường ngoài danh sách dựng sẵn (`assets`, `depth_prompt`…) được giữ
+   vì thẻ dựng từ bản sao sâu của thẻ gốc.
+
+**Kiểm chứng Đợt 1 (bản sửa):** tầng Node **26 tệp · 6 313 khẳng định · 0 không đạt**
+(mốc Đợt 5: 6 088; `theNhanVat.test.mjs` **145**). Tầng trình duyệt **1 054 + 47 · 0 cảnh
+báo** = một lượt **40 bước** (mọi bộ trừ `gy-goi-y`, đã gồm `gd9-the` mới) **1 054/1 054**
+(trong đó `rr-ten-that` **11/11** trên **177 tệp** — không chuỗi thật nào trong mã, chỉ mã
+băm vị trí; quét hết mọi vị trí (có ca báo dở dang, không kết luận đạt nửa chừng);
+`gd9-the` **11/11**, đã kiểm chạy liên tiếp hai lần trên cùng trang), cộng `gy-goi-y`
+**một lượt riêng** (47/47 = 46 ca cũ + 1 ca đồng bộ lượt gửi, diệt hẳn flake ca 12).
+`rr-ten-that` đã bỏ luật "từ vựng của bộ kiểm thử", thay bằng ngoại lệ theo vị trí đã rà
+soát (33 mục) — xem `tests/README.md`.
+Trong preview: nhập một thẻ PNG dựng tại chỗ ⇒ form điền đúng 9 trường + ảnh đại diện
+hiện lên; bấm Xuất thẻ ⇒ tải về `…-the.png` (1 128 byte, PNG thật) và đọc lại bằng chính
+`docTheNguon` ra đúng tên/vai trò/`first_mes`; thẻ khai `tuoi: "12"` + `nguoiLon: true`
+⇒ ô 18+ **bị bỏ tích và khoá**.
 
 ## Đợt sửa lỗi theo bản rà soát (tháng 9/2026)
 

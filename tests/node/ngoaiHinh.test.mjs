@@ -11,7 +11,7 @@ import {
 import { taoTruyen, taoNhanVat, taoHoiThoai, taoHoSo } from "../fixtures/truyen.mjs";
 
 const co = (s, x) => String(s).indexOf(x) >= 0;
-const HS_A = taoHoSo("nh_a", "Minh Quân", { tuoi: "31", moTa: "cao, vai rộng, tóc ngắn", tranh: "mũ lưỡi trai" });
+const HS_A = taoHoSo("nh_a", "ZzMinh ZzQuân", { tuoi: "31", moTa: "cao, vai rộng, tóc ngắn", tranh: "mũ lưỡi trai" });
 const HS_B = taoHoSo("nh_b", "Duy", { tuoi: "28", moTa: "thấp hơn, mắt một mí" });
 
 test("chuanHoaHoSo: cắt khoảng trắng, đóng dấu phiên bản", () => {
@@ -27,10 +27,10 @@ test("chuanHoaHoSo: cắt khoảng trắng, đóng dấu phiên bản", () => {
 });
 
 test("tenUngVien: gom mọi cách gọi, bỏ trùng, bỏ tên quá ngắn", () => {
-  const c = taoNhanVat("nv_a", "Minh Quân", { bietDanh: "Quân" });
+  const c = taoNhanVat("nv_a", "ZzMinh ZzQuân", { bietDanh: "ZzQuân" });
   const ds = tenUngVien(c, HS_A);
-  ok(ds.indexOf("Minh Quân") >= 0, "có tên hồ sơ");
-  ok(ds.indexOf("Quân") >= 0, "có biệt danh");
+  ok(ds.indexOf("ZzMinh ZzQuân") >= 0, "có tên hồ sơ");
+  ok(ds.indexOf("ZzQuân") >= 0, "có biệt danh");
   eq(ds.length, 2, "không lặp lại tên trùng (tên nhân vật trùng tên hồ sơ)");
   const ds2 = tenUngVien(taoNhanVat("nv_b", "A"), HS_B);
   ok(ds2.indexOf("A") < 0, "tên một ký tự bị bỏ");
@@ -40,12 +40,12 @@ test("tenUngVien: gom mọi cách gọi, bỏ trùng, bỏ tên quá ngắn", ()
 
 test("nhanDienNgoaiHinh: chỉ tự chọn tên KHÔNG mơ hồ", () => {
   const ds = [
-    { nvId: "nv_a", hoSoId: "nh_a", ten: ["Minh Quân", "Quân"] },
+    { nvId: "nv_a", hoSoId: "nh_a", ten: ["ZzMinh ZzQuân", "ZzQuân"] },
     { nvId: "nv_b", hoSoId: "nh_b", ten: ["Duy"] },
   ];
-  eqSau(nhanDienNgoaiHinh("Khung hình có Minh Quân đang đứng.", ds).chon, ["nh_a"], "nhận ra tên duy nhất");
-  eq(nhanDienNgoaiHinh("Khung hình có Minh Quân đang đứng.", ds).trung.length, 0, "không có tên mơ hồ");
-  eqSau(nhanDienNgoaiHinh("Duy và Quân ngồi đối diện.", ds).chon, ["nh_a", "nh_b"], "nhận ra hai người");
+  eqSau(nhanDienNgoaiHinh("Khung hình có ZzMinh ZzQuân đang đứng.", ds).chon, ["nh_a"], "nhận ra tên duy nhất");
+  eq(nhanDienNgoaiHinh("Khung hình có ZzMinh ZzQuân đang đứng.", ds).trung.length, 0, "không có tên mơ hồ");
+  eqSau(nhanDienNgoaiHinh("Duy và ZzQuân ngồi đối diện.", ds).chon, ["nh_a", "nh_b"], "nhận ra hai người");
   eqSau(nhanDienNgoaiHinh("Khung cảnh trống.", ds).chon, [], "không nhắc ai thì không chọn gì");
   eq(nhanDienNgoaiHinh("", ds).chon.length, 0, "văn bản rỗng");
   const dsTrung = [
@@ -71,7 +71,7 @@ test("ngoaiHinhEn / tranhEn: ưu tiên bản tiếng Anh", () => {
 test("khoiNgoaiHinh: mỗi người một dòng, có tuổi và điều cần tránh", () => {
   const khoi = khoiNgoaiHinh([HS_A, HS_B]);
   ok(co(khoi, MARK_NGOAI_HINH), "có nhãn khối");
-  ok(co(khoi, "Minh Quân (age 31)"), "có tên và tuổi");
+  ok(co(khoi, "ZzMinh ZzQuân (age 31)"), "có tên và tuổi");
   ok(co(khoi, "avoid: mũ lưỡi trai"), "có phần cần tránh");
   eq(khoi.split(String.fromCharCode(10)).length, 3, "một dòng nhãn và hai dòng người");
   eq(khoiNgoaiHinh([]), "", "không có hồ sơ thì khối rỗng");
@@ -116,7 +116,7 @@ test("đếm liên kết: nhân vật, NGƯỜI CHƠI và ảnh cảnh", () => {
     nguoiChoi: { ten: "Bạn", moTa: "", ngoaiHinhId: "nh_a" },
     anh: [{ id: "anh_1", hoSoIds: ["nh_a"] }],
   });
-  const s2 = taoTruyen({ id: "ct_zz2", nhanVats: [taoNhanVat("nv_b", "Minh Quân", { ngoaiHinhId: "nh_b" })] });
+  const s2 = taoTruyen({ id: "ct_zz2", nhanVats: [taoNhanVat("nv_b", "ZzMinh ZzQuân", { ngoaiHinhId: "nh_b" })] });
   const ds = [s1, s2];
   eq(demLienKetNgoaiHinh(ds, "nh_a"), 2, "một nhân vật và một người chơi");
   eq(demLienKetNgoaiHinh(ds, "nh_b"), 1, "nhân vật của truyện kia");
@@ -133,7 +133,7 @@ test("ungVienNgoaiHinh: chỉ nhân vật của hội thoại, người chơi x�
   const s = taoTruyen({
     nhanVats: [
       taoNhanVat("nv_a", "Duy", { ngoaiHinhId: "nh_a" }),
-      taoNhanVat("nv_b", "Minh Quân", { ngoaiHinhId: "nh_b" }),
+      taoNhanVat("nv_b", "ZzMinh ZzQuân", { ngoaiHinhId: "nh_b" }),
       taoNhanVat("nv_c", "Chưa liên kết"),
     ],
     nguoiChoi: { ten: "Bạn", moTa: "", ngoaiHinhId: "nh_b" },

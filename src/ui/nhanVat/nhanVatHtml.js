@@ -92,6 +92,11 @@ export function htmlThan({ gkBat, thichChips, lienKetHtml, avatarHtml }) {
       '<button class="btn btn-sm" data-act="char-ai">' + icon("sparkle", 15) + " Tạo bằng AI</button>" +
       '<button class="btn btn-sm" data-act="char-avatar-ai">' + icon("image", 15) + " Tạo ảnh đại diện</button>" +
     "</div>" +
+    '<div class="row-gap">' +
+      '<button class="btn btn-sm" data-act="the-nhap">' + icon("upload", 14) + " Nhập thẻ (JSON/PNG)</button>" +
+      '<button class="btn btn-sm" data-act="the-xuat">' + icon("download", 14) + " Xuất thẻ</button>" +
+    "</div>" +
+    '<div class="hint">Thẻ nhân vật của SillyTavern / chub.ai (chara_card_v2). Nhập thẻ chỉ điền vào BẢN NHÁP — bấm Lưu mới đổi nhân vật; thẻ có ảnh thì ảnh thành ảnh đại diện.</div>' +
     '<div class="hint" data-status></div>' +
     '<div class="nv-opts" data-nv-opts></div>' +
     '<div class="suggest-list" data-suggest></div>'
@@ -116,4 +121,3 @@ export function htmlMauNhanVat(maus) {
       : "")
   );
 }
-
