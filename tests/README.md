@@ -14,6 +14,23 @@ Tầng trình duyệt (chạy trong trang thật, có DOM, IndexedDB, kv-plugin;
 bật các bộ "thật"). Mở generator trong trình duyệt rồi nạp `tests/browser/runner.js` và
 gọi `chayTatCa()` — xem `tests/browser/runner.js` để biết cách đăng ký `window.__tvNguon`.
 
+## TV-01/TV-02 — hồi quy độ tin cậy
+
+`node --test tests/node/reliability.test.mjs` kiểm ranh giới 3.999/4.000/4.001/10.000 tin,
+mốc tóm tắt, quota, vòng JSON/nhập bản sao, bản hỏng cách ly, nạp lại, lỗi đọc và migration cũ.
+Cấu hình giả vẫn giữ giá trị `luuToiDaTinNhan: 4000` để chứng minh cấu hình cũ cũng không cắt tin.
+
+`tv01-tv02` trong DANH_MUC kiểm 19 điều trên KV/DOM: đủ 10.000 tin, tệp xuất và bản sao,
+màn phục hồi, escape, tệp cứu dữ liệu giữ bản gốc và dữ liệu liên quan, không dọn nhầm khoá.
+Chạy độc lập được: `chayTatCa({ chi: ["tv01-tv02"] })` khi đã tiêm nguồn như hướng dẫn runner.
+
+Bộ `gd4-tukiem` dùng cảnh riêng đúng hình dạng `{ nvId, moLuc }`, vẫn là tham chiếu tới nhân
+vật mất; lỗi tham chiếu tiếp tục được quét/sửa. `gd5-schema` kiểm bản sai hình dạng trong
+`store.truyenCanPhucHoi` và giữ nguyên KV. Không thay snapshot prompt hoặc phiên bản dữ liệu.
+
+Kiểm thử trên adapter IndexedDB cục bộ không thay thế tích hợp Perchance hoặc quét ngược với
+dữ liệu thật. Cần chạy hai việc đó trên preview thật trước khi phát hành generator.
+
 ## Cấu trúc
 
     tests/

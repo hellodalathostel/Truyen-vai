@@ -145,7 +145,7 @@ const conTrongKv = await root.kv.cotTruyen.get(KEY_TN);
 chk("nạp bản ghi dị dạng: KHÔNG ném lỗi", !nemKhiNap, nemKhiNap || "");
 chk("nạp bản ghi dị dạng: KHÔNG xoá bản ghi khỏi kv", !!conTrongKv, String(conTrongKv));
 chk("nạp bản ghi dị dạng: kv giữ nguyên nội dung đã lưu", sau(conTrongKv, BAN_XAU), JSON.stringify(conTrongKv).slice(0, 120));
-chk("nạp bản ghi dị dạng: vẫn có mặt trong danh sách truyện (không bị bỏ rơi)", !!S.store.byId[KEY_TN]);
+chk("nạp bản ghi dị dạng: được giữ trong danh sách phục hồi, không đưa vào màn truyện", !S.store.byId[KEY_TN] && S.store.truyenCanPhucHoi.some((x) => x.id === KEY_TN));
 
 const loiHd = S.docLoiHinhDang();
 chk("nạp bản ghi dị dạng: được ghi vào nhật ký lỗi hình dạng", loiHd.tong >= 1, "tong=" + loiHd.tong);

@@ -31,7 +31,6 @@ CauHinh() =>
     soNguoiTraLoiToiDa: 3,       // cảnh nhóm: bộ điều phối tự chọn từ 1 tới tối đa bao nhiêu nhân vật phản hồi một lượt
     soTuGoiY: 3,                 // số gợi ý câu thoại cho người chơi
     doDaiMoTaNhanVatKhac: 90,    // ký tự mô tả ngắn cho các nhân vật không tham gia hội thoại
-    luuToiDaTinNhan: 4000,       // giới hạn cứng số tin nhắn lưu mỗi hội thoại (an toàn bộ nhớ)
     soTinNhanQuetLore: 8,        // sổ tri thức: dò từ khoá trong bao nhiêu tin nhắn gần nhất
     nganSachKyTuLore: 4000,      // sổ tri thức: tổng ký tự tối đa chèn vào một prompt
     soKyTuMoiMucLore: 1500,      // sổ tri thức: mục dài hơn thì cắt bớt khi gửi cho AI

@@ -82,6 +82,7 @@ export const DANH_MUC = [
   { ten: "gd5-schema", loai: "bo", ghiChu: "Giai đoạn 5 — chạy bóng migrate vs chuanHoa* trên dữ liệu thật + validate khi nạp + nhập file" },
 
   { ten: "gd9-the", loai: "bo", ghiChu: "Giai đoạn 9 Đợt 1 — thẻ nhân vật: nhập/xuất, sửa trên form rồi xuất vẫn ăn" },
+  { ten: "tv01-tv02", loai: "bo", ghiChu: "TV-01/TV-02 — lịch sử 10000 tin, cách ly và cứu dữ liệu hỏng" },
 
   // ---------------------------------------------------------------- phụ trợ (không chạy mặc định)
   { ten: "real-a", loai: "phu", ghiChu: "CA A — AI THẬT (tốn quota, không chạy tự động)" },

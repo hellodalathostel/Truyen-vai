@@ -41,7 +41,6 @@ const FALLBACK_CFG = {
   soNguoiTraLoiToiDa: 3,
   soTuGoiY: 3,
   doDaiMoTaNhanVatKhac: 90,
-  luuToiDaTinNhan: 4000,
 };
 
 export const CFG = (() => {
@@ -340,6 +339,7 @@ function moTaHoSoMo(x) {
 
 export const store = {
   stories: [],
+  truyenCanPhucHoi: [], // chỉ trong RAM; bản gốc vẫn ở KV, không đưa vào giao diện truyện
   byId: {},
   messagesCache: {},
   anhCache: {},
@@ -385,23 +385,39 @@ export function saveSettings() {
 export async function loadStories() {
   const entries = await R.kv.cotTruyen.entries();
   const ds = [];
+  const canPhucHoi = [];
   for (const en of entries) {
+    const id = en && en[0];
     const raw = en && en[1];
-    if (!laDoiTuong(raw)) {
-      // Không phải đối tượng thì không có gì để nâng cấp, và cũng KHÔNG được thay bằng một
-      // truyện rỗng (làm vậy là che mất bản ghi hỏng). Giữ nguyên + báo.
-      ghiLoiHinhDang("truyen", en && en[0], "", {
-        loi: [{ duong: "(gốc)", moTa: "bản ghi truyện phải là đối tượng (đang là " + (raw === null ? "null" : typeof raw) + ")" }],
-      });
-      ds.push(raw);
-      continue;
+    const loi = loiTruyenDeMo(raw, id);
+    if (!loi.length) {
+      try { ds.push(napTruyen(raw)); continue; }
+      catch (e) { loi.push({ duong: "(nạp)", moTa: "Không nâng cấp được bản ghi; cần phục hồi từ bản gốc." }); }
     }
-    ds.push(napTruyen(raw));
+    ghiLoiHinhDang("truyen", id, laDoiTuong(raw) ? raw.ten : "", { loi });
+    canPhucHoi.push({ id, raw, lyDo: loi.map((x) => x.duong + " — " + x.moTa) });
   }
-  store.stories = ds.filter(Boolean);
+  // Chỉ thay RAM sau khi đọc xong; lỗi đọc KV không làm mất danh sách đang mở.
+  store.truyenCanPhucHoi = canPhucHoi;
+  store.stories = ds;
   store.stories.sort((a, b) => (b.suaLuc || 0) - (a.suaLuc || 0));
   reindex();
   return store.stories;
+}
+
+function loiTruyenDeMo(raw, id) {
+  const loi = kiemTraTruyen(raw).loi.slice();
+  if (!laDoiTuong(raw)) return loi;
+  if (typeof raw.id !== "string" || !raw.id.trim()) loi.push({ duong: "id", moTa: "Mã truyện phải là chuỗi có nội dung." });
+  else if (raw.id !== id) loi.push({ duong: "id", moTa: "Mã truyện không khớp khoá lưu; không tự đổi mã bản gốc." });
+  // Bản hiện tại không được chuẩn hoá lại khi nạp. Những mảng UI bắt buộc dùng phải
+  // có thật; bản CŨ thiếu mảng vẫn đi qua migration để bù như trước.
+  if (soPhienBan(raw) >= PHIEN_BAN_TRUYEN) {
+    for (const k of ["nhanVats", "chuongs", "hoiThoais"]) {
+      if (!Array.isArray(raw[k])) loi.push({ duong: k, moTa: "Thiếu mảng cần để mở truyện." });
+    }
+  }
+  return loi;
 }
 
 function reindex() {
@@ -1219,16 +1235,16 @@ export function getMessages(convId) {
   return store.messagesCache[convId] || [];
 }
 
-// Ghi mảng tin nhắn xuống kv. Trả về mảng đã ghi (đã cắt bớt nếu quá dài).
+// TV-01: lịch sử nguồn luôn được giữ ĐỦ. Cửa sổ prompt chỉ nằm ở ai.js;
+// cắt đầu mảng ở đây làm mất chữ và làm lệch tomTatDen/ghinhoDen/khepGoc.
 async function ghiTinNhan(convId, arr) {
-  const gon = arr.length > CFG.luuToiDaTinNhan ? arr.slice(arr.length - CFG.luuToiDaTinNhan) : arr;
   try {
-    await R.kv.tinNhan.set(convId, gon);
+    await R.kv.tinNhan.set(convId, arr);
   } catch (e) {
     throw loiLuu("tin nhắn của hội thoại", e);
   }
-  store.messagesCache[convId] = gon;
-  return gon;
+  store.messagesCache[convId] = arr;
+  return arr;
 }
 
 // Ghi lại bộ đệm hiện tại. Ném lỗi nếu không ghi được — hàm gọi phải tự khôi phục

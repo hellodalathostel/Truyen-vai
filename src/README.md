@@ -9,6 +9,22 @@ chính, còn lại là các nhân vật do AI thủ vai. Toàn bộ giao diện 
 Dữ liệu lưu ngay trên máy người dùng (IndexedDB qua `kv-plugin`), không cần tài
 khoản, không có server.
 
+## TV-01/TV-02 — gia cố dữ liệu (28/10/2026)
+
+- `ghiTinNhan` giữ đủ lịch sử; bỏ `luuToiDaTinNhan` khỏi cấu hình chính và dự phòng. Các mốc
+  `tomTatDen`/`ghinhoDen`/`khepGoc` không còn bị lệch do cắt đầu mảng. Không đổi cửa sổ prompt.
+- `loadStories` kiểm hình dạng trước khi đưa vào UI. Bản hỏng giữ nguyên trong KV và có trong
+  `store.truyenCanPhucHoi` (chỉ RAM); bản cũ hợp lệ vẫn qua migration. Sai tham chiếu nhưng đúng
+  hình dạng vẫn mở được để màn Tự kiểm tra xử lý theo quy tắc hiện có.
+- Thư viện có màn phục hồi và xuất `truyen-vai-rescue` từ bốn kho gốc. Khi còn bản cách ly,
+  sao lưu toàn bộ không được âm thầm bỏ bản ấy; tạm dừng sửa tự động, kết luận khoá mồ côi và
+  xoá hồ sơ ngoại hình dùng chung. Nhật ký LLM không nằm trong tệp cứu dữ liệu.
+- Không đổi schema đã lưu (vẫn v8). Không tự sửa mốc hoặc dựng lại phần chữ mà bản cũ đã cắt.
+  Phân trang/đổi cách lưu theo đoạn sẽ được xử lý cùng TV-08 sau.
+- Hồi quy Node: `tests/node/reliability.test.mjs`; trình duyệt: `tests/browser/tv01-tv02.js`.
+  Fixture `gd4-tukiem` dùng `canhRieng: { nvId, moLuc }` đúng schema hiện tại, vẫn cố ý trỏ tới
+  nhân vật đã mất; `gd5-schema` kiểm bản hỏng ở danh sách phục hồi thay vì danh sách mở truyện.
+
 ## Hai cách dựng cốt truyện
 
 Người dùng chọn ngay ở bước đầu của wizard "Cốt truyện mới", và có thể đổi lại sau

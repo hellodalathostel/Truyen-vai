@@ -55,7 +55,8 @@ st.chuongs.push(ch);
 st.hoiThoais.push(
   S.newConversation({
     id: HT, tieuDe: "Hội thoại hỏng", nhanVatIds: [nvA.id, nvB.id, NV_MA],
-    hienDien: [nvA.id, NV_MA], chuongId: CH_MA, canhRieng: NV_MA,
+    // Đúng hình dạng hiện tại; vẫn cố ý trỏ tới nhân vật đã mất để kiểm sửa tham chiếu.
+    hienDien: [nvA.id, NV_MA], chuongId: CH_MA, canhRieng: { nvId: NV_MA, moLuc: Date.now() },
   })
 );
 st.canhDaKhep.push({ id: "canh_zzg4", htIds: ["ht_zzg4x"], tomTat: "cảnh hỏng", luc: Date.now() });
